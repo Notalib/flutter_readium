@@ -15,6 +15,7 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
     JSString? fontFamilyDeclarationsJson,
   );
   external JSPromise<JSString> getPublication(JSString link);
+  external JSPromise<JSString> loadAsCurrentPublication(JSString link);
   external JSPromise goTo(JSString locatorJson);
   external void goBackward();
   external void goForward();
@@ -114,12 +115,16 @@ class JsPublicationChannel {
     }
   }
 
-  Future<String> getPublication(String link) async {
-    try {
-      final publicationPromise = _readiumReader.getPublication(link.toJS);
-      final publicationString = (await publicationPromise.toDart).toDart;
+  /// Fetches a publication's manifest JSON without changing the current publication.
+  Future<String> getPublication(String link) => _manifestJson(() => _readiumReader.getPublication(link.toJS));
 
-      return publicationString;
+  /// Makes the publication at [link] the current one. Returns the open one as is if [link] is already open.
+  Future<String> loadAsCurrentPublication(String link) =>
+      _manifestJson(() => _readiumReader.loadAsCurrentPublication(link.toJS));
+
+  Future<String> _manifestJson(JSPromise<JSString> Function() load) async {
+    try {
+      return (await load().toDart).toDart;
     } on Object catch (jsError, stackTrace) {
       throw _platformExceptionForJsError(jsError, stackTrace);
     }

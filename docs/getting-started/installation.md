@@ -8,6 +8,8 @@
 | Dart SDK | ≥ 3.8.0 |
 | Android minSdk | 24 |
 | Android compileSdk | ≥ 37 |
+| Android Gradle Plugin (AGP) | ≥ 9.1.1 |
+| Gradle | ≥ 9.3.1 (for AGP 9.1.x) |
 | Kotlin Gradle Plugin | ≥ 2.3 |
 | iOS | 15.0+ |
 
@@ -41,7 +43,24 @@ android {
 }
 ```
 
-Without the right `compileSdk` the build fails at `:app:checkDebugAarMetadata`. An older Kotlin Gradle Plugin fails to read the toolkit's Kotlin metadata, because the toolkit is built with Kotlin language version 2.4 and a compiler reads metadata only one minor version ahead of itself. Raise the `org.jetbrains.kotlin.android` plugin version in `android/settings.gradle.kts` to 2.3 or newer. If the `plugins` block there has no `org.jetbrains.kotlin.android` entry, add `id("org.jetbrains.kotlin.android") version "2.3.21" apply false`.
+API 37 requires Android Gradle Plugin (AGP) 9.1.1 or newer according to [Android's API-level compatibility table](https://developer.android.com/build/releases/about-agp#api-level-support). AGP 8 is no longer supported starting with flutter_readium 0.7.0. Set the AGP and Kotlin Gradle Plugin versions in `android/settings.gradle.kts`:
+
+```kotlin
+plugins {
+  id("com.android.application") version "9.1.1" apply false
+  id("org.jetbrains.kotlin.android") version "2.3.21" apply false
+}
+```
+
+AGP 9.1.x requires Gradle 9.3.1 or newer. Set the wrapper version in `android/gradle/wrapper/gradle-wrapper.properties`:
+
+```properties
+distributionUrl=https\://services.gradle.org/distributions/gradle-9.3.1-all.zip
+```
+
+Newer AGP versions can require newer Gradle versions; use [Android's AGP/Gradle compatibility table](https://developer.android.com/build/releases/about-agp#updating-gradle). When upgrading from AGP 8, follow [Flutter's Kotlin migration guide](https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin) for the Kotlin and Gradle DSL changes.
+
+Without the right `compileSdk` the build fails at `:app:checkDebugAarMetadata`. An older Kotlin Gradle Plugin fails to read the toolkit's Kotlin metadata, because the toolkit is built with Kotlin language version 2.4 and a compiler reads metadata only one minor version ahead of itself.
 
 ### Core library desugaring
 

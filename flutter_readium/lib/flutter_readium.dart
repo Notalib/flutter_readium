@@ -84,11 +84,15 @@ class FlutterReadium {
       _readiumCall(() => _platform.setJavaScriptInjections(injections));
 
   /// Loads a publication from the given URL and returns a [Publication] object representing its metadata and structure. This does not open the publication for reading.
+  ///
+  /// Never affects the open publication, even when [pubUrl] is the URL of the open one.
   Future<Publication> loadPublication(String pubUrl) => _readiumCall(() => _platform.loadPublication(pubUrl));
 
   /// Opens a publication for reading from the given URL. This is required before any reading-related operations can be performed on the publication.
   ///
   /// Returns a [Publication] object representing the opened publication.
+  ///
+  /// If [pubUrl] is already open, returns the open publication without reloading it. Call [closePublication] first to reload.
   Future<Publication> openPublication(String pubUrl) async {
     try {
       return await _readiumCall(() => _platform.openPublication(pubUrl));

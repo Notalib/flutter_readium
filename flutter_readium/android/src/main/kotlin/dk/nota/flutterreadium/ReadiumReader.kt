@@ -54,10 +54,12 @@ import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.LocatorCollection
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
+import org.readium.r2.shared.publication.services.PerResourcePositionsService
 import org.readium.r2.shared.publication.services.content.DefaultContentService
 import org.readium.r2.shared.publication.services.content.content
 import org.readium.r2.shared.publication.services.content.contentServiceFactory
 import org.readium.r2.shared.publication.services.positionsByReadingOrder
+import org.readium.r2.shared.publication.services.positionsServiceFactory
 import org.readium.r2.shared.publication.services.search.SearchService
 import org.readium.r2.shared.publication.services.search.search
 import org.readium.r2.shared.util.AbsoluteUrl
@@ -69,6 +71,7 @@ import org.readium.r2.shared.util.Try.Companion.failure
 import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.asset.Asset
 import org.readium.r2.shared.util.asset.AssetRetriever
+import org.readium.r2.shared.util.asset.ResourceAsset
 import org.readium.r2.shared.util.data.Container
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.http.DefaultHttpClient
@@ -619,6 +622,12 @@ object ReadiumReader :
                             DefaultContentService.createFactory(
                                 listOf(factory),
                             )
+                        // Bare manifests would otherwise HEAD every chapter before first
+                        // paint. See docs/plans/android-webpub-head-storm.md.
+                        if (asset is ResourceAsset) {
+                            servicesBuilder.positionsServiceFactory =
+                                PerResourcePositionsService.createFactory(MediaType.XHTML)
+                        }
                     }
                 })
                 .getOrElse { err: OpenError ->
@@ -671,13 +680,7 @@ object ReadiumReader :
         pubUrl: AbsoluteUrl,
         transformingContainerFactory: ((Container<Resource>) -> Container<Resource>)? = null,
     ): Try<Publication, PublicationError> {
-        if (currentPublicationUrl == pubUrl.toString()) {
-            // Current publication is the same as the one we are trying to load, return it.
-            currentPublication?.let {
-                return Try.success(it)
-            }
-        }
-
+        // Always load a new instance, even for the open publication: callers close what this returns.
         return withContext(Dispatchers.IO) {
             try {
                 // TODO: should client provide mediaType to assetRetriever?
@@ -755,9 +758,11 @@ object ReadiumReader :
                         navigator.preferences?.effectiveForLayout(publication.metadata.layout)
                     if (url.extension?.value?.endsWith("html", ignoreCase = true) == true) {
                         resource.injectScriptsAndStyles(
-                            tocIds,
-                            epubPreferences,
-                            javaScriptInjections + cssInjections,
+                            // A URL with an extension always has a filename.
+                            filename = url.filename!!,
+                            tocIds = tocIds,
+                            epubPreferences = epubPreferences,
+                            extraInjections = javaScriptInjections + cssInjections,
                         )
                     } else {
                         resource
@@ -790,6 +795,12 @@ object ReadiumReader :
         PluginLog.d(TAG, "loadPublicationFromUrl: $pubUrl")
 
         return loadPublication(pubUrl)
+    }
+
+    /** The open publication if [urlStr] is the URL it was opened from, otherwise null. */
+    fun currentPublicationFor(urlStr: String): Publication? {
+        val pubUrl = resolvePubUrl(urlStr).getOrNull() ?: return null
+        return currentPublication.takeIf { currentPublicationUrl == pubUrl.toString() }
     }
 
     /**
@@ -996,10 +1007,8 @@ object ReadiumReader :
         // already disables synchronization, start in manual mode.
         narrationSyncEnabled = initialPreferences.disableSynchronization != true
 
-        // EpubNavigatorFragment 3.4.0 reads this position list with runBlocking from its
-        // constructor. For a streamed Web Publication that can be a network request, which would
-        // otherwise park Android's main thread for seconds or minutes. Populate the service cache
-        // first on the I/O dispatcher so the constructor's lookup is immediate.
+        // EpubNavigatorFragment reads positions with runBlocking from its constructor.
+        // Populate the cache on the I/O dispatcher so the main thread never blocks.
         withIOContext {
             pub.positionsByReadingOrder()
         }
