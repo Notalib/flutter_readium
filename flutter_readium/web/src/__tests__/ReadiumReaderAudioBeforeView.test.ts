@@ -55,7 +55,8 @@ function guidedNavPublication(): ReadiumPublication {
         }),
       ],
     },
-    resources: { items: [] },
+    resources: { items: [new Link({ href: "chapter1.mp3", type: "audio/mpeg" })] },
+    allLinks: [new Link({ href: "chapter1.mp3", type: "audio/mpeg" })],
     manifest: { links: undefined, toc: undefined },
   } as unknown as ReadiumPublication;
 }

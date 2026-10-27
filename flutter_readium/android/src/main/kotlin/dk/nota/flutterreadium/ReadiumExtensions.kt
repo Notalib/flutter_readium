@@ -272,11 +272,20 @@ fun Publication.hasMediaOverlays() =
     }
 
 /**
- * Check if the publication has any guided navigation data for audio-text synchronization.
+ * Check if the publication has guided navigation and audio to play.
+ * A link alone is not enough: Readium's publication server adds a text-only one.
  */
-fun Publication.hasGuidedNavigationMediaOverlays() =
+fun Publication.hasGuidedNavigationMediaOverlays() = hasGuidedNavigationLink() && hasAudioResources()
+
+private fun Publication.hasGuidedNavigationLink() =
     links.any { it.mediaType == guidedNavigationMediaType } ||
         readingOrder.any { r -> r.alternates.any { it.mediaType == guidedNavigationMediaType } }
+
+private fun Publication.hasAudioResources(): Boolean {
+    fun Link.isAudio() = mediaType?.isAudio == true
+
+    return (readingOrder + resources).any { it.isAudio() || it.alternates.any { alt -> alt.isAudio() } }
+}
 
 /**
  * Check if the publication has any audio-text synchronization data,
