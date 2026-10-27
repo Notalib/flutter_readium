@@ -76,7 +76,8 @@ class ReadiumReaderWidget extends StatefulWidget {
   ///
   /// On Android, these replace the system menu. On iOS, they appear first and
   /// the system items follow. To show only these on iOS too, pass
-  /// `allowedDefaultActions: const {}`.
+  /// `allowedDefaultActions: const {}`. On web, they appear in a floating toolbar
+  /// next to the selection, since the browser's menu cannot be extended.
   final List<SelectionAction> selectionActions;
 
   /// Static font families whose faces are bundled as Flutter assets.
@@ -90,6 +91,8 @@ class ReadiumReaderWidget extends StatefulWidget {
   ///
   /// Note: [DefaultSelectionAction.translate] is iOS-only; [DefaultSelectionAction.selectAll]
   /// is Android-only. Unsupported values for a platform are silently ignored.
+  ///
+  /// Not supported on web: the browser's selection menu is not customisable, so this is ignored.
   final Set<DefaultSelectionAction>? allowedDefaultActions;
 
   /// Accessibility label for the backward navigation semantic region.

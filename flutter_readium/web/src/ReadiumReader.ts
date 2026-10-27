@@ -9,6 +9,8 @@ import { ReadiumBridge } from "./bridge/ReadiumBridge";
 import { PublicationManager } from "./publication/PublicationManager";
 // Decorations
 import { DecorationController } from "./decorations/DecorationController";
+// Selection actions
+import { SelectionToolbar, SelectionActionConfig } from "./selection/SelectionToolbar";
 // Model
 import { ReadiumReaderStatus } from "./model/ReadiumReaderStatus";
 // Utils
@@ -17,6 +19,7 @@ import { ReadiumPublication, findLinkByHref } from "./utils/ReadiumExtensions";
 // Navigators
 import { FlutterEpubNavigator } from "./navigators/FlutterEpubNavigator";
 import { FlutterWebPubNavigator } from "./navigators/FlutterWebPubNavigator";
+import { buildSelectionLocator, buildTextSelectionPayload, SelectionHooks } from "./navigators/navigatorUtils";
 import { FlutterDivinaNavigator } from "./navigators/FlutterDivinaNavigator";
 import {
   FlutterAudioNavigator,
@@ -166,6 +169,32 @@ class _ReadiumReader {
   private readonly _bridge = new ReadiumBridge();
   private readonly _pubManager = new PublicationManager();
   private readonly _decorations = new DecorationController();
+  private readonly _selectionToolbar = new SelectionToolbar((event) =>
+    this._bridge.emitSelectionAction(event)
+  );
+
+  /** Wires navigator text selections to the Dart event and the selection-actions toolbar. */
+  private readonly _selectionHooks: SelectionHooks = {
+    onTextSelected: (selection, locator, frame) => {
+      this._bridge.emitTextSelected(buildTextSelectionPayload(locator, selection.text));
+      const nav = this._nav;
+      if (!frame || !nav) return;
+      this._selectionToolbar.show({
+        frame,
+        rect: selection,
+        resolve: () => {
+          // The selection can change (e.g. touch handles) without another pointerup.
+          const text = frame.window.getSelection()?.toString();
+          if (!text) return undefined;
+          return {
+            text,
+            locator: buildSelectionLocator(nav.currentLocator, { ...selection, text }, frame.window),
+          };
+        },
+      });
+    },
+    onViewChanged: () => this._selectionToolbar.hide(),
+  };
 
   /** The active visual navigator (EPUB, WebPub or DiViNa), for navigation calls. */
   private get _visualNav(): VisualNavigatorLike | undefined {
@@ -444,6 +473,7 @@ class _ReadiumReader {
           // opening the publication just like a missing-navigator guard.
           throw new ReadiumWebError("Container element not found", ReadiumWebErrorCode.noPublication);
         }
+        this._selectionToolbar.attach(container);
         if (this._publication.conformsToEpub) {
           log.info("Publication conforms to EPUB profile");
           await FlutterEpubNavigator.create(
@@ -466,7 +496,8 @@ class _ReadiumReader {
                 injectMOBreakCSSIntoWindow(wnd);
               }
             },
-            fontFamilyDeclarations
+            fontFamilyDeclarations,
+            this._selectionHooks
           );
         } else if (this._publication.conformsToDivina) {
           log.info("Publication conforms to DiViNa profile (comic)");
@@ -494,7 +525,8 @@ class _ReadiumReader {
               this._nav = nav;
               this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
             },
-            fontFamilyDeclarations
+            fontFamilyDeclarations,
+            this._selectionHooks
           );
         }
       }
@@ -680,6 +712,16 @@ class _ReadiumReader {
   }
 
   /**
+   * Sets the custom actions shown in the floating selection toolbar.
+   * Browsers cannot extend their native context menu, so web draws its own.
+   *
+   * @param actionsJson  JSON array of `{ id, title }` (Dart `SelectionAction.toJson()`); `[]` clears.
+   */
+  public setSelectionActions(actionsJson: string): void {
+    this._selectionToolbar.setActions(JSON.parse(actionsJson) as SelectionActionConfig[]);
+  }
+
+  /**
    * Set the decoration styles used to highlight TTS utterances and word-level
    * ranges. Applied immediately to an active TTS engine; stored for use when
    * the next TTS or Media Overlay session starts.
@@ -744,6 +786,7 @@ class _ReadiumReader {
     this._lastMediaOverlayLocatorKey = null;
     this._isComicBook = false;
     this._decorations.reset();
+    this._selectionToolbar.detach();
 
     // Detach the visual navigator reference synchronously so any late
     // media-overlay sync callback (which guards on `this._nav`) becomes a no-op

@@ -27,6 +27,7 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
     JSString? utteranceStyleJson,
     JSString? rangeStyleJson,
   );
+  external void setSelectionActions(JSString actionsJson);
   external JSBoolean get isNavigatorReady;
   external void play(JSString? locatorJson);
   external void pause();
@@ -355,6 +356,11 @@ class JsPublicationChannel {
     } else {
       ReadiumLog.w('ReadiumReader is not ready yet, skipping applyDecorations');
     }
+  }
+
+  /// Replaces the actions shown in the web selection toolbar. An empty list hides it.
+  void setSelectionActions(String actionsJson) {
+    _guardJsCall(() => _readiumReader.setSelectionActions(actionsJson.toJS));
   }
 
   void setDecorationStyle(String? utteranceStyleJson, String? rangeStyleJson) {
