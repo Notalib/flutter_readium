@@ -114,7 +114,10 @@ internal class PluginMediaServiceTest {
         callback.logNotificationUpdate(player, false)
         callback.logNotificationUpdate(player, true)
 
-        val logs = ShadowLog.getLogsForTag("Flutter_Readium.MediaService")
+        val logs =
+            ShadowLog
+                .getLogsForTag("Flutter_Readium.MediaService")
+                .filter { it.msg.startsWith("::logNotificationUpdate ") }
         assertEquals(3, logs.size)
         assertTrue(logs[0].msg.contains("playWhenReady=false"))
         assertTrue(logs[1].msg.contains("playWhenReady=true"))
