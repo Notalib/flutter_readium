@@ -302,6 +302,7 @@ class BookshelfPageState extends State<BookshelfPage> {
         final savedInitialLocator = savedLocators[pubUrlHashCode];
 
         try {
+          context.read<PlayerControlsBloc>().resetCurrentLocator();
           context.read<PublicationBloc>().add(
             OpenPublication(
               publicationUrl: publicationUrl,
