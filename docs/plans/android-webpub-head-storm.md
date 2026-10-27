@@ -7,6 +7,7 @@
 > kind (`asset is ResourceAsset` / `if case .resource = asset`) — streamed publications are
 > opened as a single resource, archives as a container. Both device-verified; before/after
 > captures in Verification.
+
 # Android streamed-WebPub HEAD/GET storm at player open — investigation + fix plan
 
 ## Problem
@@ -203,3 +204,26 @@ navigator's own preload and are unchanged. The reader opened and rendered chapte
 pagination and the progress bar behaved (one position per chapter). Zip-EPUB and DiViNa
 parsing were not re-run post-fix; the override is gated on the asset being a bare-manifest
 resource asset and cannot fire for them — that reasoning is not device-verified here.
+
+## Consumer-visible position/progression semantics (post-fix)
+
+The override replaces `EpubPositionsService` with `PerResourcePositionsService`, so a
+streamed publication now has one position per reading-order chapter. What that means per
+platform differs, and it is documented here rather than in the CHANGELOG:
+
+- **Position index (`Locator.locations.position`)** — chapter-granular on both platforms.
+  Android: `EpubNavigatorFragment.notifyCurrentLocation` copies `locations` from the picked
+  position locator (index = `ceil(progression * (size - 1))` into the per-resource positions)
+  and overrides only `progression`, so `totalProgression` steps per chapter too
+  (kotlin-toolkit 3.4.0, no interpolation). iOS: position indices come from
+  `positionsByReadingOrder()`, one per chapter.
+- **Emitted progress (`Locator.totalProgression`)** — Android becomes chapter-granular
+  (start of chapter k of n ≈ (k-1)/n). iOS stays **continuous**: swift-toolkit 3.11.0
+  `EPUBViewportAndLocationCalculator` + `ViewportProgressionCalculator` interpolate the
+  in-resource progression across the chapter's equal share, so halfway through the first of
+  four chapters yields ~0.125, not 0. Consumers treating `totalProgression` as fine-grained
+  input (e.g. remapping a stored lastmark onto changed content) must expect the coarser
+  Android steps; iOS progress is unaffected.
+- **iOS navigator preload** — `preloadPreviousPositionCount` / `preloadNextPositionCount` are
+  measured in positions, so for streamed publications they now correspond to chapters rather
+  than pages; lower them if bandwidth or memory is a concern.
