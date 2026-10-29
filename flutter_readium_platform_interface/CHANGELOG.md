@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 <!-- towncrier release notes start -->
 
+## [0.8.0] - 2026-10-27
+
+### Fixed
+
+- **`isAudioBook` no longer reports text-only Guided Navigation as audio.**
+  Publications from Readium's publication server were flagged as audiobooks because the server links a text-only Guided Navigation document to every publication. `containsGuidedNavigation` now also requires audio files in the manifest.
+
 ## [0.7.0] - 2026-10-19
 
 ### Added

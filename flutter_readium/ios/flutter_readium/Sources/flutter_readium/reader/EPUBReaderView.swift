@@ -71,9 +71,16 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
   deinit {
     Log.reader.info("deinit EPUBReaderView")
-    readiumViewController.view.removeFromSuperview()
-    readiumViewController.delegate = nil
-    channel.setMethodCallHandler(nil)
+    // The last reference can drop on a background thread (an async Task), but the engine and UIKit only
+    // allow this teardown on the main thread. The block also keeps the views alive until it runs there.
+    let (channel, controller, containerView) = (channel, readiumViewController, containerView)
+    let tearDown = {
+      controller.view.removeFromSuperview()
+      controller.delegate = nil
+      channel.setMethodCallHandler(nil)
+      withExtendedLifetime(containerView) {}
+    }
+    if Thread.isMainThread { tearDown() } else { DispatchQueue.main.async(execute: tearDown) }
     FlutterReadiumPlugin.instance?.clearCurrentReaderView(ifIs: self)
   }
 
@@ -214,7 +221,12 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     }
 
     containerView.readerView = self
-    channel.setMethodCallHandler(onMethodCall)
+    // Capture weakly: the engine owns this handler, so a strong capture leaks the view. Its deinit then runs
+    // when a same-named channel replaces the handler (view IDs restart after a hot restart) and deadlocks.
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard let self else { return result(FlutterMethodNotImplemented) }
+      self.onMethodCall(call: call, result: result)
+    }
     readiumViewController.delegate = self
 
     let child: UIView = readiumViewController.view

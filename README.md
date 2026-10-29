@@ -110,12 +110,15 @@ LCP-protected publications are not currently supported. The underlying toolkits 
 
 ## Minimum requirements
 
-| Requirement | Version                |
-| ----------- | ---------------------- |
-| Flutter     | 3.44.8+                |
-| Dart SDK    | 3.8.0+                 |
-| Android     | `minSdkVersion` 24     |
-| iOS         | 15.0+                  |
+| Requirement           | Version                              |
+| --------------------- | ------------------------------------ |
+| Flutter               | 3.44.8+                              |
+| Dart SDK              | 3.8.0+                               |
+| Android               | `minSdkVersion` 24, `compileSdk` 37+ |
+| Android Gradle Plugin | 9.1.1+                               |
+| Gradle                | 9.3.1+                               |
+| Kotlin Gradle Plugin  | 2.3+                                 |
+| iOS                   | 15.0+                                |
 
 The development SDK is pinned separately in `.flutter-version`; contributors should use
 `bin/update_flutter_version` to change that pin.
@@ -127,7 +130,7 @@ Complete the per-platform setup below before running the reader. See the full
 
 ### Android
 
-- Set `minSdkVersion` to 24 or higher and `compileSdk` to 37 or higher in `android/app/build.gradle.kts`, and use Kotlin Gradle Plugin 2.3 or newer, declared in `android/settings.gradle.kts`. See the [installation guide](docs/getting-started/installation.md#2-android-setup) for the exact snippets.
+- Use `minSdkVersion` 24+, `compileSdk` 37+, Android Gradle Plugin 9.1.1+, Gradle 9.3.1+, and Kotlin Gradle Plugin 2.3+. The Readium kotlin-toolkit 3.4.0 upgrade in flutter_readium 0.7.0 requires API 37, which is unsupported by AGP 8. See the [installation guide](docs/getting-started/installation.md#2-android-setup) for the configuration and compatible AGP/Gradle versions.
 - Enable [core library desugaring](https://developer.android.com/studio/write/java8-support) — the
   readium-kotlin-toolkit artifacts require it, and the build fails at `checkDebugAarMetadata`
   without it:

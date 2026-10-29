@@ -367,6 +367,7 @@ class BookshelfPageState extends State<BookshelfPage> {
         final savedInitialLocator = savedLocators[pubUrlHashCode];
 
         try {
+          context.read<PlayerControlsBloc>().resetCurrentLocator();
           context.read<PublicationBloc>().add(
             OpenPublication(
               publicationUrl: publicationUrl,
@@ -450,9 +451,7 @@ class BookshelfPageState extends State<BookshelfPage> {
               // remove the if when books loaded from asset can be deleted
               if (!kIsWeb && !_identifiersFromAsset.contains(publication.identifier))
                 IconButton(
-                  key: ValueKey(
-                    'delete_book_${sanitizeForKey(publication.metadata.title)}',
-                  ),
+                  key: ValueKey('delete_book_${sanitizeForKey(publicationUrl.split('/').last)}'),
                   icon: Icon(Icons.delete, color: Colors.red),
                   onPressed: () async {
                     try {

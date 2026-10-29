@@ -211,7 +211,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
   /// Broadcasts the current resource [Locator] regardless of media type, retaining
   /// the latest value so late subscribers (e.g. a slider rebuilt by the parent
   /// `BlocBuilder`) immediately receive the current progression.
-  final BehaviorSubject<Locator> _currentLocatorSubject = BehaviorSubject<Locator>();
+  final BehaviorSubject<Locator?> _currentLocatorSubject = BehaviorSubject<Locator?>();
 
   PlayerControlsBloc({required this.ttsSettingsBloc})
     : super(
@@ -461,6 +461,16 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     controlPanelTimebase: timebase,
   );
 
+  /// Forgets the previous publication's position.
+  ///
+  /// This bloc outlives the player page, so call this before opening another
+  /// publication; otherwise its first play starts from a locator that belongs
+  /// to the previous book.
+  void resetCurrentLocator() {
+    currentLocator = null;
+    _currentLocatorSubject.add(null);
+  }
+
   @override
   Future<void> close() async {
     for (StreamSubscription sub in subscriptions) {
@@ -477,7 +487,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
   /// Emits the current [Locator] for the active publication, regardless of media type.
   /// Backed by a [BehaviorSubject] so a single underlying subscription is reused and
   /// late subscribers receive the most recent value on subscribe.
-  Stream<Locator> get currentLocatorStream => _currentLocatorSubject.stream;
+  Stream<Locator?> get currentLocatorStream => _currentLocatorSubject.stream;
 
   final FlutterReadium instance = FlutterReadium();
 }

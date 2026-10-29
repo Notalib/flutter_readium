@@ -37,7 +37,6 @@ import org.readium.r2.shared.util.http.HttpError
 import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingResource
-import org.readium.r2.shared.util.resource.filename
 import org.xmlpull.v1.XmlPullParser
 import java.io.StringReader
 import java.util.Locale
@@ -183,19 +182,14 @@ private val BUILT_IN_INJECTIONS =
     )
 
 // Helper for injecting extra files into an epub.
+// Filename comes from the caller so streamed chapters never pay a properties() HEAD.
 fun Resource.injectScriptsAndStyles(
+    filename: String,
     tocIds: List<String>,
     epubPreferences: FlutterEpubPreferences?,
     extraInjections: List<InjectionAsset> = emptyList(),
 ): Resource =
     TransformingResource(this) { bytes ->
-        val props = this.properties().getOrNull()
-        val filename = props?.filename ?: return@TransformingResource Try.success(bytes)
-
-        if (!filename.endsWith("html", ignoreCase = true)) {
-            return@TransformingResource Try.success(bytes)
-        }
-
         val content = bytes.toString(Charsets.UTF_8).trim()
         val headEndIndex = content.indexOf("</head>", 0, true)
         if (headEndIndex == -1) {
@@ -278,11 +272,20 @@ fun Publication.hasMediaOverlays() =
     }
 
 /**
- * Check if the publication has any guided navigation data for audio-text synchronization.
+ * Check if the publication has guided navigation and audio to play.
+ * A link alone is not enough: Readium's publication server adds a text-only one.
  */
-fun Publication.hasGuidedNavigationMediaOverlays() =
+fun Publication.hasGuidedNavigationMediaOverlays() = hasGuidedNavigationLink() && hasAudioResources()
+
+private fun Publication.hasGuidedNavigationLink() =
     links.any { it.mediaType == guidedNavigationMediaType } ||
         readingOrder.any { r -> r.alternates.any { it.mediaType == guidedNavigationMediaType } }
+
+private fun Publication.hasAudioResources(): Boolean {
+    fun Link.isAudio() = mediaType?.isAudio == true
+
+    return (readingOrder + resources).any { it.isAudio() || it.alternates.any { alt -> alt.isAudio() } }
+}
 
 /**
  * Check if the publication has any audio-text synchronization data,

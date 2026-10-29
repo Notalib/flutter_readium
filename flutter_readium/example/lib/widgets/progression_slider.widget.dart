@@ -36,7 +36,7 @@ class _ProgressionSliderState extends State<ProgressionSlider> {
   }
 
   @override
-  Widget build(final BuildContext context) => StreamBuilder<Locator>(
+  Widget build(final BuildContext context) => StreamBuilder<Locator?>(
     stream: context.read<PlayerControlsBloc>().currentLocatorStream,
     builder: (final context, final snapshot) {
       final progression = _resolveProgression(snapshot.data) ?? 0.0;

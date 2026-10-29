@@ -8,6 +8,7 @@ import 'package:flutter_readium/flutter_readium.dart';
 
 import '../state/publication_bloc.dart';
 import '../state/tts_settings_bloc.dart';
+import '../utils/index.dart';
 import 'index.dart';
 
 class TtsSettingsWidget extends StatelessWidget {
@@ -144,6 +145,7 @@ class _VoiceDropdown extends StatelessWidget {
     final selectedVoice = voices.firstWhereOrNull((v) => v.identifier == selected);
 
     return DropdownButton<ReaderTTSVoice>(
+      key: ValueKey('tts_voice_selector_${sanitizeForKey(language ?? 'default')}'),
       value: selectedVoice,
       hint: const Text('Select voice'),
       onChanged: (voice) {
