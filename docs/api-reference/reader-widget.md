@@ -45,6 +45,8 @@ ReadiumReaderWidget(
 | `goBackwardSemanticLabel` | `String?` | `null` | Accessibility label for the backward control |
 | `goForwardSemanticLabel` | `String?` | `null` | Accessibility label for the forward control |
 | `toggleShowControlsSemanticLabel` | `String?` | `null` | Accessibility label for the controls toggle |
+| `selectionActions` | `List<SelectionAction>` | `[]` | Custom actions for selected text (native menu on mobile, floating toolbar on web) |
+| `allowedDefaultActions` | `Set<DefaultSelectionAction>?` | `null` | System actions to keep in the selection menu. Ignored on Android and web |
 
 ## Platform implementations
 
@@ -54,6 +56,10 @@ ReadiumReaderWidget(
 | iOS | `UiKitView` wrapping a native `UIView` |
 | macOS (desktop) | Not supported — stub registered on `flutter run -d macos`; for Mac users, ship the iOS build via "Designed for iPad" |
 | Web | JavaScript interop via `ReadiumWebView` |
+
+## Selection actions on web
+
+The browser's selection menu cannot be extended, so on web the plugin draws its own floating toolbar next to the selected text and shows one button per `selectionActions` entry. The browser's own menu (Copy etc.) stays available alongside it, which is why `allowedDefaultActions` is not supported on web and is ignored. Tapping a button fires `onSelectionAction`, clears the selection and hides the toolbar.
 
 ## Custom fonts
 
