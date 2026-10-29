@@ -409,6 +409,14 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     return true
   }
 
+  /// Called before the navigator follows an in-publication link. Notify only: always returns true.
+  /// swift-toolkit calls `shouldNavigateToNoteAt` first for noterefs and then this, so emitting only here avoids duplicates.
+  public func navigator(_ navigator: VisualNavigator, shouldNavigateToLink link: Link) -> Bool {
+    Log.reader.info("shouldNavigateToLink: \(link.href)")
+    emitOnInternalLinkActivated(from: navigator.currentLocation, link: link)
+    return true
+  }
+
   /// Called when the user taps an image element inside an EPUB resource.
   /// Forwards the event to the Flutter channel as an `onImageTapped` call.
   private func onImageTapped(image: ImageContentElement, frame: CGRect?) {
@@ -485,6 +493,15 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     Task.detached(priority: .high) {
       await MainActor.run() {
         self.channel.onExternalLinkActivated(url: url)
+      }
+    }
+  }
+
+  private func emitOnInternalLinkActivated(from: Locator?, link: Link) {
+    Log.reader.info("emitOnInternalLinkActivated: \(link.href)")
+    Task.detached(priority: .high) {
+      await MainActor.run() {
+        self.channel.onInternalLinkActivated(from: from, link: link)
       }
     }
   }
