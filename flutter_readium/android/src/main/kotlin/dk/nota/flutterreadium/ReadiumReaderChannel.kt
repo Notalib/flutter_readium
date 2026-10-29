@@ -15,7 +15,9 @@ internal class ReadiumReaderChannel(
     name: String,
 ) : MethodChannel(messenger, name),
     CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) {
-    fun onReaderReady() = launch { invokeMethod("onReaderReady", null) }
+    fun onReaderReady(nativeTapFeedback: Boolean) = launch { invokeMethod("onReaderReady", nativeTapFeedback) }
+
+    fun onNativeTap(toggleControls: Boolean) = launch { invokeMethod("onNativeTap", toggleControls) }
 
     fun onPageChanged(locator: Locator?) =
         launch {

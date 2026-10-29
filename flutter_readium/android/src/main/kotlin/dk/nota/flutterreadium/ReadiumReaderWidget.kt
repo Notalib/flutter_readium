@@ -289,9 +289,14 @@ class ReadiumReaderWidget(
         PluginLog.d(TAG, "::onVisualCurrentLocationChanged emitted text locator update")
     }
 
+    override fun onNativeTap(toggleControls: Boolean) {
+        channel.onNativeTap(toggleControls)
+    }
+
     override fun onVisualReaderIsReady() {
         PluginLog.i(TAG, "::onVisualReaderIsReady")
-        channel.onReaderReady()
+        // Only the EPUB reader reports native taps; Dart keeps classifying raw pointer taps for the rest.
+        channel.onReaderReady(nativeTapFeedback = !(ReadiumReader.isPdf || ReadiumReader.isComic))
 
         if (!hasSentReady) {
             ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Ready)

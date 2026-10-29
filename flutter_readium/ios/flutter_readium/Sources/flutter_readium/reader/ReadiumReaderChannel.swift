@@ -9,8 +9,14 @@ class ReadiumReaderChannel: FlutterMethodChannel {
       taskQueue: nil)
   }
 
-  func onReaderReady() {
-    invokeMethod("onReaderReady", arguments: nil)
+  /// `nativeTapFeedback` tells Dart that this reader reports taps via `onNativeTap`.
+  func onReaderReady(nativeTapFeedback: Bool = false) {
+    invokeMethod("onReaderReady", arguments: nativeTapFeedback)
+  }
+
+  /// A tap that content did not consume: `toggleControls` for a center tap, otherwise an edge tap.
+  func onNativeTap(toggleControls: Bool) {
+    invokeMethod("onNativeTap", arguments: toggleControls)
   }
 
   func onPageChanged(locator: Locator) {

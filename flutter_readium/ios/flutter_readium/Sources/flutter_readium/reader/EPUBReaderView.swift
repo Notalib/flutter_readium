@@ -48,14 +48,20 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   /// `setNarrationSyncEnabled(_:)` (the method-channel handler) and from manual-mode
   /// detection on page navigation (`goForward`/`goBackward`).
   ///
-  /// In-reader user gestures (swipe / edge-tap) are detected in Dart by the
-  /// `reader_widget.dart` `Listener` above the platform view, which calls the
-  /// reader-view channel `"notifyUserNavigation"` → `enterManualModeIfNarrationPlaying()`.
-  /// Those pointer events fire only for genuine user interaction (audio-driven page
-  /// turns are programmatic `go(to:)` calls that never reach the Flutter Listener), so
-  /// they are a clean "user took control" signal — avoiding the swift-toolkit delegate's
-  /// inability to distinguish a finger-swipe from an audio-driven `syncToLocator`.
+  /// Native input and explicit commands enter manual mode once their turn is accepted
+  /// (`finishUserNavigation(moved:)`). Finger swipes have no native outcome hook, so Dart still
+  /// reports them through `"notifyUserNavigation"`.
   var narrationSyncEnabled: Bool = true
+
+  /// Number of user navigations awaiting their outcome. Narration cues are cached meanwhile so
+  /// they cannot undo the turn before manual mode is entered.
+  var userNavigationsInFlight = 0
+  var suppressedSyncCue: (locator: Locator, segmentDuration: TimeInterval?, isWordRange: Bool)?
+  var pendingSyncReplay: Task<Void, Never>?
+
+  /// Retained: the adapter unbinds itself from the navigator when deallocated.
+  private var directionalNavigationAdapter: DirectionalNavigationAdapter?
+  private var inputNavigationProxy: InputNavigationProxy?
 
   /// Decoration groups currently observed for tap/activation events. Seeded with
   /// "user-highlight" (registered eagerly in `init`); other groups (e.g. the TTS
@@ -251,30 +257,31 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
     /// This adapter will automatically turn pages when the user taps the
     /// screen edges or presses arrow keys.
-    DirectionalNavigationAdapter(
-      pointerPolicy: .init(types: [.mouse, .touch])
-    ).bind(to: readiumViewController)
+    // The stock adapter binds to a forwarding proxy so that input-triggered turns report their outcome.
+    let proxy = InputNavigationProxy(
+      navigator: readiumViewController,
+      willNavigate: { [weak self] in self?.beginUserNavigation() },
+      didNavigate: { [weak self] moved, source in
+        guard let self else { return }
+        self.finishUserNavigation(moved: moved)
+        // Key presses turn pages without touching the controls.
+        if source == .pointer {
+          self.channel.onNativeTap(toggleControls: false)
+        }
+      }
+    )
+    inputNavigationProxy = proxy
+    directionalNavigationAdapter = bindEPUBInput(
+      to: proxy,
+      onImage: { [weak self] image, frame in self?.onImageTapped(image: image, frame: frame) ?? false },
+      onCenterTap: { [weak self] in self?.channel.onNativeTap(toggleControls: true) }
+    )
 
     // Observe decoration interactions for all groups that get applied later.
     // We register a global handler on the well-known "user-highlight" group.
     readiumViewController.observeDecorationInteractions(inGroup: "user-highlight") { [weak self] event in
       self?.onDecorationActivated(event: event)
     }
-
-    // Observe image-tap events via the ExperimentalTargetElement SPI.
-    // When the user taps an <img>, the navigator calls back with an
-    // ActivateEvent whose targetElement is an ImageContentElement.
-    readiumViewController.addObserver(.activate { [weak self] event in
-      guard let self = self else { return false }
-      guard let imageElement = event.targetElement?.content as? ImageContentElement else {
-        return false
-      }
-      self.onImageTapped(
-        image: imageElement,
-        frame: event.targetElement?.frame
-      )
-      return true
-    })
 
     Log.reader.debug("init success")
   }
@@ -374,7 +381,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   public func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
     Log.reader.debug("onPageChanged: \(locator)")
     if (!hasSentReady) {
-      channel.onReaderReady()
+      channel.onReaderReady(nativeTapFeedback: true)
       emitReaderStatusChanged(status: ReadiumReaderStatusReady)
       hasSentReady = true
     }
@@ -411,10 +418,10 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
   /// Called when the user taps an image element inside an EPUB resource.
   /// Forwards the event to the Flutter channel as an `onImageTapped` call.
-  private func onImageTapped(image: ImageContentElement, frame: CGRect?) {
+  private func onImageTapped(image: ImageContentElement, frame: CGRect?) -> Bool {
     if suppressesImageTapEvent(image: image) {
       Log.reader.debug("onImageTapped: suppressed for publication/content type")
-      return
+      return false
     }
     Log.reader.debug("onImageTapped: href=\(image.embeddedLink.href)")
     let href = image.embeddedLink.href
@@ -428,6 +435,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       alt: alt,
       frame: frame
     )
+    return true
   }
 
   private func suppressesImageTapEvent(image: ImageContentElement) -> Bool {

@@ -52,6 +52,13 @@ extension EPUBReaderView {
       Log.reader.debug("syncToLocator: cached latest cue while narration sync is disabled")
       return false
     }
+    if userNavigationsInFlight > 0 {
+      lastSyncLocator = locator
+      lastSyncSegmentDuration = segmentDuration
+      suppressedSyncCue = (locator, segmentDuration, isWordRange)
+      Log.reader.debug("syncToLocator: cached latest cue while a user navigation is in flight")
+      return false
+    }
     // In scroll mode, skip fine-grained word-range syncs. Scrolling to each
     // spoken word re-pins the current paragraph to the top of the viewport
     // ~10×/sec, causing constant snap-to-top jitter. The utterance-level sync
@@ -95,6 +102,7 @@ extension EPUBReaderView {
     // while this Task is suspended awaiting the CSS-column page turn, sees
     // isJumpingToLocator == true, and silently drops the sync. The next utterance then
     // plays audio but the spotlight decoration and page position never advance.
+    guard !Task.isCancelled else { return false }
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
   }
 
@@ -138,6 +146,9 @@ extension EPUBReaderView {
   /// Distinct from setNarrationSyncEnabled(true) which replays the last cue.
   @MainActor
   public func resetForNarrationStop() {
+    suppressedSyncCue = nil
+    pendingSyncReplay?.cancel()
+    pendingSyncReplay = nil
     narrationSyncEnabled = true
     lastSyncLocator = nil
     lastSyncSegmentDuration = nil
@@ -148,7 +159,7 @@ extension EPUBReaderView {
   }
 
   /// Enters manual mode (disables narration sync) if narration is actively
-  /// playing. Called from explicit user/app navigation entry points.
+  /// playing. Called once a user navigation has been accepted.
   ///
   /// Only transitions when sync is currently enabled and a timebased navigator
   /// is present and playing, so normal reading without narration is unaffected.
@@ -161,6 +172,38 @@ extension EPUBReaderView {
     }
     Log.reader.debug("enterManualModeIfNarrationPlaying: entering manual mode")
     setNarrationSyncEnabled(false)
+  }
+
+  func beginUserNavigation() {
+    userNavigationsInFlight += 1
+  }
+
+  /// Settles one user navigation. An accepted turn enters manual mode. When the last pending
+  /// navigation fails, a cue held back meanwhile goes through the normal sync path again.
+  /// A superseded view only balances its counter, so it cannot touch the replacement's narration.
+  @MainActor
+  func finishUserNavigation(moved: Bool) {
+    userNavigationsInFlight = max(0, userNavigationsInFlight - 1)
+    guard isCurrentReaderView else {
+      suppressedSyncCue = nil
+      return
+    }
+    if moved {
+      enterManualModeIfNarrationPlaying()
+    }
+    guard userNavigationsInFlight == 0, let cue = suppressedSyncCue else { return }
+    suppressedSyncCue = nil
+    guard !moved else { return }
+    pendingSyncReplay?.cancel()
+    pendingSyncReplay = Task { @MainActor [weak self] in
+      guard !Task.isCancelled, let self, self.isCurrentReaderView else { return }
+      _ = await self.syncToLocator(
+        cue.locator, animated: false, segmentDuration: cue.segmentDuration, isWordRange: cue.isWordRange)
+    }
+  }
+
+  private var isCurrentReaderView: Bool {
+    FlutterReadiumPlugin.instance?.currentReaderView === self
   }
 
   private func emitOnPageChanged() {

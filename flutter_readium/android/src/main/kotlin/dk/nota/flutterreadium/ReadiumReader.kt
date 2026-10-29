@@ -1544,7 +1544,7 @@ object ReadiumReader :
         // An explicit locator jump (TOC / bookmark / search) during active narration is
         // handled by the timebasedNavigator.goToLocator branch above (narration follows the
         // jump). This branch is only reached when narration is NOT active, so a jump must not
-        // enter manual mode. Page-turns (epubGoForward/epubGoBackward) do enter manual mode.
+        // enter manual mode. Accepted page-turns (EpubNavigator.goForward/goBackward and native input) do enter manual mode.
         epubGoToLocator(toLocator, true)
     }
 
@@ -1693,6 +1693,10 @@ object ReadiumReader :
         currentReaderWidget?.onPageChanged(pageIndex, totalPages, locator)
     }
 
+    override fun onNativeTap(toggleControls: Boolean) {
+        currentReaderWidget?.onNativeTap(toggleControls)
+    }
+
     override fun onExternalLinkActivated(url: AbsoluteUrl) {
         currentReaderWidget?.onExternalLinkActivated(url)
     }
@@ -1758,7 +1762,6 @@ object ReadiumReader :
                 return
             }
 
-        enterManualModeIfNarrating("epubGoBackward")
         navigator.goBackward(animated)
     }
 
@@ -1772,7 +1775,6 @@ object ReadiumReader :
                 return
             }
 
-        enterManualModeIfNarrating("epubGoForward")
         navigator.goForward(animated)
     }
 
@@ -1967,11 +1969,9 @@ object ReadiumReader :
     /**
      * If narration is active, enters manual mode and emits the state change.
      *
-     * Called from explicit page navigation (`goForward`/`goBackward`) and from in-reader user
-     * gestures: the Flutter `reader_widget.dart` `Listener` detects a swipe / edge-tap and calls
-     * the reader-view channel `"notifyUserNavigation"`, which routes here. Those pointer events
-     * fire only for genuine user interaction (audio-driven page turns are programmatic and never
-     * reach the Listener), so they are a clean "user took control" signal.
+     * Called after an accepted page turn from an explicit command or native EPUB tap / key input.
+     * Swipes (paginated EPUB), scroll-mode drags and PDF/comic taps still arrive via the channel
+     * `"notifyUserNavigation"`, sent by the Flutter `reader_widget.dart` `Listener`.
      */
     fun enterManualModeIfNarrating(callSite: String) {
         if (!isNarrationActive()) return
