@@ -22,7 +22,7 @@ function first_ios_simulator_udid() {
 # RunnerTests target of Runner.xcodeproj (guarded below). An SPM test target can NOT
 # run via `swift test`: the generated FlutterFramework package is an empty placeholder
 # and the Flutter module is only provided by Xcode at build time, so there is none.
-# CI runs this separately on macOS through ios-unit-tests.yml.
+# CI runs this in a separate macOS job in test.yml.
 function test_ios() {
   if [ "$(uname)" != "Darwin" ] || ! command -v xcodebuild > /dev/null 2>&1; then
     echo "Skipping iOS unit-tests — requires macOS with Xcode."
