@@ -143,8 +143,9 @@ class _ReaderWidgetState extends State<ReaderWidget> {
                   },
                 ),
                 Positioned(
+                  // Top, because the player controls overlay the bottom of the reader.
                   left: 16,
-                  bottom: 16,
+                  top: 16,
                   child: ValueListenableBuilder<List<Locator>>(
                     valueListenable: _returnStack,
                     builder: (context, stack, _) {
