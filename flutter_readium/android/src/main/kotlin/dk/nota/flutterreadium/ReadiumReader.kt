@@ -1692,6 +1692,13 @@ object ReadiumReader :
         currentReaderWidget?.onExternalLinkActivated(url)
     }
 
+    override fun onInternalLinkActivated(
+        from: Locator?,
+        link: Link,
+    ) {
+        currentReaderWidget?.onInternalLinkActivated(from, link)
+    }
+
     override fun onVisualCurrentLocationChanged(locator: Locator) {
         currentReaderWidget?.onVisualCurrentLocationChanged(locator)
     }

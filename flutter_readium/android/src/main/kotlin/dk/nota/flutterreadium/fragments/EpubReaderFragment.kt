@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
+import org.readium.r2.navigator.HyperlinkNavigator
 import org.readium.r2.navigator.OverflowableNavigator
 import org.readium.r2.navigator.SelectableNavigator
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
@@ -38,6 +39,7 @@ import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Layout
+import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
@@ -72,6 +74,14 @@ class EpubReaderFragment :
          * Called when an external link is activated.
          */
         fun onExternalLinkActivated(url: AbsoluteUrl)
+
+        /**
+         * Called when an internal link is about to be followed. `from` is the position before the jump.
+         */
+        fun onInternalLinkActivated(
+            from: Locator?,
+            link: Link,
+        )
     }
 
     var listener: Listener? = null
@@ -105,6 +115,19 @@ class EpubReaderFragment :
     @ExperimentalReadiumApi
     override fun onExternalLinkActivated(url: AbsoluteUrl) {
         listener?.onExternalLinkActivated(url)
+    }
+
+    /**
+     * Called before the navigator follows an in-publication link. Runs before the jump, so
+     * currentLocator is still the position we are leaving. Notify only, never veto.
+     */
+    @ExperimentalReadiumApi
+    override fun shouldFollowInternalLink(
+        link: Link,
+        context: HyperlinkNavigator.LinkContext?,
+    ): Boolean {
+        listener?.onInternalLinkActivated(epubNavigator?.currentLocator?.value, link)
+        return true
     }
 
     override fun onPageChanged(
