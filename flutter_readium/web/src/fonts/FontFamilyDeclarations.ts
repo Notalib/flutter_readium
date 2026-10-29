@@ -47,13 +47,18 @@ function cssString(value: string): string {
   return `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
 
+/** Directory that Flutter web serves app assets from. */
+export function flutterAssetsUrl(baseUrl: string): string {
+  return new URL("assets/", baseUrl).href;
+}
+
 export function fontFaceCss(
   declarations: FontFamilyDeclaration[],
   baseUrl: string
 ): string {
   return declarations
     .flatMap((family) => family.faces.map((face) => {
-      const assetUrl = new URL(`assets/${face.asset}`, baseUrl).href;
+      const assetUrl = new URL(face.asset, flutterAssetsUrl(baseUrl)).href;
       return `@font-face { font-family: ${cssString(family.name)}; src: url(${cssString(assetUrl)}); font-style: ${face.style}; font-weight: ${face.weight}; }`;
     }))
     .join("\n");
@@ -65,12 +70,14 @@ export function injectFontFacesIntoWindow(
   baseUrl: string = document.baseURI
 ): void {
   if (declarations.length === 0) return;
-  const document = wnd.document;
-  const existing = document.getElementById("flutter-readium-font-faces");
+  // Don't name this `document`: terser then mangles the default parameter's global
+  // `document` to the same local, and the production bundle throws "Invalid URL".
+  const doc = wnd.document;
+  const existing = doc.getElementById("flutter-readium-font-faces");
   if (existing) existing.remove();
 
-  const style = document.createElement("style");
+  const style = doc.createElement("style");
   style.id = "flutter-readium-font-faces";
   style.textContent = fontFaceCss(declarations, baseUrl);
-  document.head.appendChild(style);
+  doc.head.appendChild(style);
 }
