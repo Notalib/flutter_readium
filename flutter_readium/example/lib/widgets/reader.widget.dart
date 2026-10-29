@@ -168,10 +168,12 @@ void _showNoteDialog(BuildContext context, SelectionActionEvent event) {
       content: Text('Selected: "${event.selectedText ?? '(no text)'}"'),
       actions: [
         TextButton(
+          key: const ValueKey('note_cancel_button'),
           onPressed: () => Navigator.pop(ctx),
           child: const Text('Cancel'),
         ),
         TextButton(
+          key: const ValueKey('note_save_button'),
           onPressed: () {
             Navigator.pop(ctx);
             _applyHighlight(context, event);
