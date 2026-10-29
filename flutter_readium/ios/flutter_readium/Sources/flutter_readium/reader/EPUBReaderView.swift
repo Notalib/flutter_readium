@@ -412,7 +412,6 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   /// Called before the navigator follows an in-publication link. Notify only: always returns true.
   /// swift-toolkit calls `shouldNavigateToNoteAt` first for noterefs and then this, so emitting only here avoids duplicates.
   public func navigator(_ navigator: VisualNavigator, shouldNavigateToLink link: Link) -> Bool {
-    Log.reader.info("shouldNavigateToLink: \(link.href)")
     emitOnInternalLinkActivated(from: navigator.currentLocation, link: link)
     return true
   }

@@ -1,2 +1,2 @@
-**New `onInternalLinkActivated` callback on `ReadiumReaderWidget`.**
-Fires when an EPUB follows an internal link (end-note, index entry, cross-reference), with the position before the jump in `event.from` and the link in `event.target`, so apps can offer "Return to previous position". Notify-only: the link is always followed. Android and iOS only.
+**New `InternalLinkEvent` model.**
+Carries the position before an internal-link jump (`from`) and the followed link (`target`). Delivered by `ReadiumReaderWidget.onInternalLinkActivated` in `flutter_readium`.
