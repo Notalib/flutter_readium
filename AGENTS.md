@@ -1,11 +1,11 @@
 # flutter_readium
 
-Federated Flutter plugin wrapping the [Readium](https://readium.org) toolkits (EPUB / audiobook / WebPub). One shared Dart API; each platform delegates to its native Readium toolkit. macOS = no-op stub (upstream swift-toolkit has no macOS support). Platform specifics live in nested `AGENTS.md` files under `flutter_readium/{ios,android,web}/`, loaded when you touch files there. Deep detail lives in `docs/` — pointers inline below.
+Federated Flutter plugin wrapping the [Readium](https://readium.org) toolkits (EPUB / audiobook / WebPub). One shared Dart API; each platform delegates to its native Readium toolkit. No native macOS desktop support (upstream swift-toolkit is iOS-only). Platform specifics live in nested `AGENTS.md` files under `flutter_readium/{ios,android,web}/`, loaded when you touch files there. Deep detail lives in `docs/` — pointers inline below.
 
 ## Repo layout
 
 - `flutter_readium_platform_interface/` — shared Dart API, models, method-channel contract.
-- `flutter_readium/` — app package: native wrappers (iOS/Swift, Android/Kotlin, macOS stub) + web impl (TS → JS bundle in a webview).
+- `flutter_readium/` — app package: native wrappers (iOS/Swift, Android/Kotlin) + web impl (TS → JS bundle in a webview).
   - `example/` — **the smoke-test target.** Verify UI/behavior changes here (via marionette) before declaring done.
 - `bin/` — multi-package dev scripts (self-describing; run directly, never `bash -lc`).
 

@@ -105,7 +105,7 @@ LCP-protected publications are not currently supported. The underlying toolkits 
 
 ¹ Web TTS uses the browser's Web Speech API — voice availability and quality vary by browser.
 
-> **macOS note:** Native macOS desktop (`flutter run -d macos`) is not supported — a no-op stub is registered so the Flutter macOS target still compiles, but every reader call returns `MethodNotImplemented`. The upstream `swift-toolkit` is iOS-only and has marked native macOS [`not_planned`](https://github.com/readium/swift-toolkit/issues/783). The iOS build runs fine on Apple Silicon Macs via "Designed for iPad".
+> **macOS note:** Native macOS desktop (`flutter run -d macos`) is not supported, and the plugin does not register for it. A host app that also targets macOS still builds, but reader calls throw `MissingPluginException` there. The upstream `swift-toolkit` is iOS-only and has marked native macOS [`not_planned`](https://github.com/readium/swift-toolkit/issues/783). The iOS build runs fine on Apple Silicon Macs via "Designed for iPad".
 
 ## Minimum requirements
 

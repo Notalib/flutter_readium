@@ -52,7 +52,7 @@ ReadiumReaderWidget(
 |----------|---------------|
 | Android | `PlatformViewLink` with `AndroidViewSurface` |
 | iOS | `UiKitView` wrapping a native `UIView` |
-| macOS (desktop) | Not supported — stub registered on `flutter run -d macos`; for Mac users, ship the iOS build via "Designed for iPad" |
+| macOS (desktop) | Not supported; for Mac users, ship the iOS build via "Designed for iPad" |
 | Web | JavaScript interop via `ReadiumWebView` |
 
 ## Custom fonts
