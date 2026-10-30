@@ -25,6 +25,7 @@ import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubNavigatorFactory
 import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.AbsoluteUrl
@@ -104,6 +105,14 @@ class EpubNavigator :
          * Called when an external link has been tapped.
          */
         fun onExternalLinkActivated(url: AbsoluteUrl)
+
+        /**
+         * Called when an internal link is about to be followed. `from` is the position before the jump.
+         */
+        fun onInternalLinkActivated(
+            from: Locator?,
+            link: Link,
+        )
 
         /**
          * Called when the current locator has changed.
@@ -357,6 +366,13 @@ class EpubNavigator :
 
     override fun onExternalLinkActivated(url: AbsoluteUrl) {
         visualListener.onExternalLinkActivated(url)
+    }
+
+    override fun onInternalLinkActivated(
+        from: Locator?,
+        link: Link,
+    ) {
+        visualListener.onInternalLinkActivated(from, link)
     }
 
     override fun onCurrentLocatorChanges(locator: Locator) {

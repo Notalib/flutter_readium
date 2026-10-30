@@ -134,6 +134,28 @@ ReadiumReaderWidget(
 )
 ```
 
+## Returning after an internal link
+
+`onInternalLinkActivated` fires when the reader follows an in-publication link (end-notes, cross-references). It is notify-only, so the jump always happens. Keep the `event.from` locators yourself and jump back with `goToLocator`:
+
+```dart
+final _returnStack = <Locator>[];
+
+ReadiumReaderWidget(
+  publication: _publication,
+  onInternalLinkActivated: (event) {
+    final from = event.from;
+    if (from != null) _returnStack.add(from);
+  },
+)
+
+// Later, e.g. from a "back" button:
+final previous = _returnStack.removeLast();
+await FlutterReadium().goToLocator(previous);
+```
+
+Supported for EPUB on Android and iOS only; the callback is never called on web. On Android it is not called for links within the same resource (XHTML file), such as notes in a single-file book: the WebView scrolls to those itself, bypassing the navigator, so no `from` is recorded for them.
+
 ## Searching
 
 ```dart

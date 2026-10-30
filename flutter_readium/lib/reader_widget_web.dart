@@ -20,6 +20,7 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.onSelectionAction,
     this.onDecorationInteraction,
     this.onImageTapped,
+    this.onInternalLinkActivated,
     this.selectionActions,
     this.allowedDefaultActions,
     this.fontFamilyDeclarations = const [],
@@ -40,6 +41,7 @@ class ReadiumReaderWidget extends StatefulWidget {
   final void Function(SelectionActionEvent)? onSelectionAction;
   final void Function(DecorationInteractionEvent)? onDecorationInteraction;
   final ValueChanged<ImageTapEvent>? onImageTapped;
+  final ValueChanged<InternalLinkEvent>? onInternalLinkActivated;
   final List<SelectionAction>? selectionActions;
   final Set<DefaultSelectionAction>? allowedDefaultActions;
   final List<ReaderFontFamily> fontFamilyDeclarations;

@@ -32,6 +32,7 @@ class ReadiumReaderChannel extends MethodChannel {
     this.onSelectionAction,
     this.onDecorationInteraction,
     this.onImageTapped,
+    this.onInternalLinkActivated,
   }) {
     setMethodCallHandler(onMethodCall);
   }
@@ -63,6 +64,9 @@ class ReadiumReaderChannel extends MethodChannel {
 
   /// Called when the user taps an image in the EPUB.
   void Function(ImageTapEvent)? onImageTapped;
+
+  /// Called when the reader follows an internal (in-publication) link. Notify-only.
+  void Function(InternalLinkEvent)? onInternalLinkActivated;
 
   /// Go e.g. navigate to a specific locator in the publication.
   Future<void> go(
@@ -200,6 +204,13 @@ class ReadiumReaderChannel extends MethodChannel {
           final event = ImageTapEvent.fromJson(eventJson);
           _log.d('onImageTapped ${event.href}');
           onImageTapped?.call(event);
+
+          return null;
+        case 'onInternalLinkActivated':
+          final args = Map<String, dynamic>.from(call.arguments as Map);
+          final event = InternalLinkEvent.fromJson(args);
+          _log.d('onInternalLinkActivated ${event.target.href}');
+          onInternalLinkActivated?.call(event);
 
           return null;
         default:
