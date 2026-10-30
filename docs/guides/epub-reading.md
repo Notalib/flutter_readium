@@ -154,7 +154,7 @@ final previous = _returnStack.removeLast();
 await FlutterReadium().goToLocator(previous);
 ```
 
-Supported for EPUB on Android and iOS only; the callback is never called on web.
+Supported for EPUB on Android and iOS only; the callback is never called on web. On Android it is not called for links within the same resource (XHTML file), such as notes in a single-file book: the WebView scrolls to those itself, bypassing the navigator, so no `from` is recorded for them.
 
 ## Searching
 

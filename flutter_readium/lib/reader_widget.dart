@@ -75,7 +75,9 @@ class ReadiumReaderWidget extends StatefulWidget {
 
   /// Called when the reader follows an internal link, with the position before
   /// the jump. Notify-only (cannot veto).
-  /// EPUB on Android and iOS only; never called on web.
+  /// EPUB on Android and iOS only; never called on web. On Android it is not
+  /// called for links within the same resource (XHTML file): the WebView
+  /// scrolls to those itself, bypassing the navigator.
   final ValueChanged<InternalLinkEvent>? onInternalLinkActivated;
 
   /// Native context menu actions shown when text is selected.
