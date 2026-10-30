@@ -68,7 +68,7 @@ After any TypeScript change run `bin/update_web_example` to rebuild and deploy t
 | Android | kotlin-toolkit | 3.4.0 |
 | Web | `@readium/*` npm packages | see `flutter_readium/package.json` |
 
-Native macOS desktop is not supported — the plugin registers a no-op stub on the Flutter macOS target so apps still compile, but every reader call returns `MethodNotImplemented`. The upstream swift-toolkit declares `platforms: [.iOS("15.0")]`, links UIKit, and has marked native macOS [`not_planned`](https://github.com/readium/swift-toolkit/issues/783). The iOS build runs fine on Apple Silicon Macs via "Designed for iPad".
+Native macOS desktop is not supported, and the plugin does not register for the Flutter macOS target. A host app that also targets macOS still builds, but reader calls throw `MissingPluginException` there. The upstream swift-toolkit declares `platforms: [.iOS("15.0")]`, links UIKit, and has marked native macOS [`not_planned`](https://github.com/readium/swift-toolkit/issues/783). The iOS build runs fine on Apple Silicon Macs via "Designed for iPad".
 
 When upgrading any toolkit version, verify that all three platforms move together where API surface overlaps.
 From repo root, run `bin/readium_versions` to print the current pinned values from the source-of-truth files.

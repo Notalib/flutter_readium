@@ -2,14 +2,14 @@
 
 > This file is derived from `AGENTS.md` and intentionally condensed for Copilot. Keep behavior/tooling guidance in sync with `AGENTS.md`.
 
-A Flutter plugin wrapping the [Readium](https://readium.org) toolkits for EPUB / audiobook / WebPub reading. The Dart API is shared across iOS, Android, and Web; each platform delegates to the matching native Readium toolkit. macOS registers a no-op stub only — native macOS is unsupported by upstream swift-toolkit.
+A Flutter plugin wrapping the [Readium](https://readium.org) toolkits for EPUB / audiobook / WebPub reading. The Dart API is shared across iOS, Android, and Web; each platform delegates to the matching native Readium toolkit. Native macOS is not supported (upstream swift-toolkit is iOS-only).
 
 ## Architecture
 
 Federated Flutter plugin with two pub packages:
 
 - `flutter_readium_platform_interface/` — shared Dart models, method-channel contract, abstract platform interface.
-- `flutter_readium/` — app-facing package with native wrappers (iOS/Swift, Android/Kotlin, macOS stub) and a TypeScript→JS web implementation.
+- `flutter_readium/` — app-facing package with native wrappers (iOS/Swift, Android/Kotlin) and a TypeScript→JS web implementation.
   - `flutter_readium/example/` — canonical smoke-test app. Verify all UI/behavior changes here before declaring a task done.
 
 Data flow:

@@ -10,7 +10,7 @@ Thank you for considering a contribution! This guide covers everything you need 
 |------|----------------|-------|
 | Flutter SDK | 3.32.0 | Stable channel recommended |
 | Dart SDK | 3.8.0 | Bundled with Flutter |
-| Xcode | 15+ | macOS / iOS targets |
+| Xcode | 15+ | iOS target |
 | CocoaPods | 1.15+ | `gem install cocoapods` |
 | Android Studio / JDK | Java 18 | `compileSdk 37` |
 | Node.js | 18+ | Web TypeScript build only |
@@ -63,7 +63,7 @@ new one there if none fits), then add/adjust the matching `trim` line in
 This is a **federated Flutter plugin** with two pub packages:
 
 - `flutter_readium_platform_interface/` — shared Dart models, method-channel contract, and platform API surface
-- `flutter_readium/` — app-facing package; bundles native wrappers (iOS, macOS, Android) and the web implementation
+- `flutter_readium/` — app-facing package; bundles native wrappers (iOS, Android) and the web implementation
 - `flutter_readium/example/` — smoke-test app; use this to verify UI changes
 
 ### Plans docs
