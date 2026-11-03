@@ -151,7 +151,7 @@ final previous = _returnTo;
 if (previous != null) await FlutterReadium().goToLocator(previous);
 ```
 
-Supported for EPUB on Android and iOS only; the callback is never called on web. On Android it is not called for links within the same resource (XHTML file), such as notes in a single-file book: the WebView scrolls to those itself, bypassing the navigator, so no `from` is recorded for them.
+Supported for EPUB on Android and iOS only; the callback is never called on web. Links within the same resource (XHTML file), such as notes in a single-file book, are reported too. On Android the plugin detects those with a click listener, because the WebView scrolls to them itself without telling the navigator.
 
 ## Searching
 
