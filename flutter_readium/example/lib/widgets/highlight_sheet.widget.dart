@@ -32,11 +32,25 @@ class HighlightSheet extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                highlight.text ?? '(no text)',
-                maxLines: 6,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontStyle: FontStyle.italic),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      highlight.text ?? '(no text)',
+                      maxLines: 6,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontStyle: FontStyle.italic),
+                    ),
+                  ),
+                  // On web, taps outside the sheet reach the reader iframe, so the barrier can't dismiss it.
+                  IconButton(
+                    key: const ValueKey('highlight_close_button'),
+                    icon: const Icon(Icons.close),
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               Row(

@@ -163,24 +163,26 @@ Highlight _applyHighlight(BuildContext context, SelectionActionEvent event) {
 void _showNoteDialog(BuildContext context, SelectionActionEvent event) {
   showDialog(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Add Note'),
-      content: Text('Selected: "${event.selectedText ?? '(no text)'}"'),
-      actions: [
-        TextButton(
-          key: const ValueKey('note_cancel_button'),
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          key: const ValueKey('note_save_button'),
-          onPressed: () {
-            Navigator.pop(ctx);
-            _applyHighlight(context, event);
-          },
-          child: const Text('Save & Highlight'),
-        ),
-      ],
+    builder: (ctx) => PointerInterceptor(
+      child: AlertDialog(
+        title: const Text('Add Note'),
+        content: Text('Selected: "${event.selectedText ?? '(no text)'}"'),
+        actions: [
+          TextButton(
+            key: const ValueKey('note_cancel_button'),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            key: const ValueKey('note_save_button'),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _applyHighlight(context, event);
+            },
+            child: const Text('Save & Highlight'),
+          ),
+        ],
+      ),
     ),
   );
 }
