@@ -5,6 +5,7 @@ export 'pdf_settings.widget.dart';
 export 'player_controls.widget.dart';
 export 'progression_slider.widget.dart';
 export 'reader.widget.dart';
+export 'return_to_previous_position.dart';
 export 'text_settings.widget.dart';
 export 'theme_selector.widget.dart';
 export 'timebased.state.widget.dart';
