@@ -450,6 +450,7 @@ final class GuidedBoundaryInitializationTests: XCTestCase {
       links: [Link(href: "guided.json", mediaType: MediaType("application/guided-navigation+json")!)],
       readingOrder: [Link(href: "ch.xhtml", mediaType: .xhtml, duration: 15,
         alternates: [Link(href: "sync.json", mediaType: MediaType("application/vnd.syncnarr+json")!)])],
+      resources: [Link(href: "ch.mp3", mediaType: .mp3)],
       tableOfContents: [Link(href: "ch.xhtml#s1", title: "First", children: [Link(href: "ch.xhtml#h", title: "Detail")]),
         Link(href: "ch.xhtml#s2", title: "Second")]), container: container)
     XCTAssertTrue(publication.containsMediaOverlays)
