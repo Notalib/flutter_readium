@@ -31,10 +31,8 @@ final _customFontFamilies = [
 ];
 
 class ReaderWidget extends StatelessWidget {
-  const ReaderWidget({required this.returnTo, this.shouldShowControls, super.key});
+  const ReaderWidget({this.shouldShowControls, super.key});
 
-  /// Where "Return to previous position" jumps back to; null hides the button.
-  final ValueNotifier<Locator?> returnTo;
   final ValueNotifier<bool>? shouldShowControls;
 
   @override
@@ -119,27 +117,28 @@ class ReaderWidget extends StatelessWidget {
                     );
                   }
                 },
-                onInternalLinkActivated: (event) => returnTo.value = event.from,
-              ),
-              Positioned(
-                // Top, because the player controls overlay the bottom of the reader.
-                left: 16,
-                top: 16,
-                child: ValueListenableBuilder<Locator?>(
-                  valueListenable: returnTo,
-                  builder: (context, locator, _) => locator == null
-                      ? const SizedBox.shrink()
-                      : FloatingActionButton.extended(
+                onInternalLinkActivated: (event) {
+                  final from = event.from;
+                  if (from == null) return;
+                  // Flutter has no top-positioned SnackBar; the bottom margin pushes it up
+                  // to just below the app bar, clear of the player controls.
+                  final bottomMargin = MediaQuery.sizeOf(context).height - 170;
+                  ScaffoldMessenger.of(context)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(
+                      SnackBar(
+                        behavior: SnackBarBehavior.floating,
+                        margin: EdgeInsets.fromLTRB(16, 0, 16, bottomMargin),
+                        duration: const Duration(seconds: 8),
+                        content: const Text('Followed a link'),
+                        action: SnackBarAction(
                           key: const ValueKey('return_to_previous_position_button'),
-                          heroTag: null,
-                          icon: const Icon(Icons.undo),
-                          label: const Text('Return to previous position'),
-                          onPressed: () {
-                            returnTo.value = null;
-                            FlutterReadium().goToLocator(locator);
-                          },
+                          label: 'Return',
+                          onPressed: () => FlutterReadium().goToLocator(from),
                         ),
-                ),
+                      ),
+                    );
+                },
               ),
             ],
           ),
