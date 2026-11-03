@@ -338,7 +338,7 @@ private fun Publication.enrichOverlaysWithToc(overlays: List<FlutterMediaOverlay
         }
     }
 
-    return overlays.map { overlay -> overlay?.let { ov -> FlutterMediaOverlay(ov.items.map { it.enrich() }) } }
+    return overlays.map { overlay -> overlay?.let { ov -> ov.copy(items = ov.items.map { it.enrich() }) } }
 }
 
 /**
@@ -402,7 +402,30 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
                 }.awaitAll()
         }
 
-    return parsed.map { it?.withTocTitles(toc) }
+    return resolveTocBoundaries(parsed)
+}
+
+private suspend fun Publication.resolveTocBoundaries(overlays: List<FlutterMediaOverlay?>): List<FlutterMediaOverlay?> {
+    val toc = tableOfContents.flattenChildren()
+    val items = overlays.flatMap { it?.items.orEmpty() }
+    val trees = mutableMapOf<String, XhtmlIdTree>()
+    val represented =
+        items.flatMap { listOfNotNull(it.text, it.tocHref?.toString()) }.toSet() +
+            overlays.flatMap { it?.narrationContainerTocHrefs.orEmpty() }
+    val boundaries = toc.filter { it.href.resolve().toString() !in represented }
+    for (href in items.filter { it.tocHref != null }.map { it.textFile }.distinct()) {
+        if (boundaries.any {
+                it.href
+                    .resolve()
+                    .removeFragment()
+                    .isEquivalent(Url.invoke(href)) && it.href.resolve().fragment != null
+            }
+        ) {
+            Url.invoke(href)?.let { xhtmlIdTree(it) }?.let { trees[href] = it }
+        }
+    }
+    // Correct ownership before initial mapping and owner-based navigation see the items.
+    return overlays.map { it?.withTocBoundaries(boundaries, trees)?.withTocTitles(toc) }
 }
 
 /**
@@ -446,13 +469,14 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
                     }
                 val position = (roEntry?.index ?: -1) + 1
                 val duration = roEntry?.value?.duration ?: 0.0
-                FlutterMediaOverlay(
-                    overlay.items.map { item ->
-                        item.copy(position = position, readingOrderItemDuration = duration)
-                    },
+                overlay.copy(
+                    items =
+                        overlay.items.map { item ->
+                            item.copy(position = position, readingOrderItemDuration = duration)
+                        },
                 )
             }
-        return enrichOverlaysWithToc(rawOverlays).filterNotNull()
+        return resolveTocBoundaries(enrichOverlaysWithToc(rawOverlays)).filterNotNull()
     }
 
     // Strategy 2: per-item alternates in reading order.
@@ -501,13 +525,14 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
                                     }
                                 val position = (roEntry?.index ?: -1) + 1
                                 val duration = roEntry?.value?.duration ?: 0.0
-                                FlutterMediaOverlay(
-                                    overlay.items.map { item ->
-                                        item.copy(
-                                            position = position,
-                                            readingOrderItemDuration = duration,
-                                        )
-                                    },
+                                overlay.copy(
+                                    items =
+                                        overlay.items.map { item ->
+                                            item.copy(
+                                                position = position,
+                                                readingOrderItemDuration = duration,
+                                            )
+                                        },
                                 )
                             }
                         }
@@ -515,7 +540,7 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
                 }.awaitAll()
         }
 
-    return enrichOverlaysWithToc(parsed.flatMap { it ?: emptyList() }).filterNotNull()
+    return resolveTocBoundaries(enrichOverlaysWithToc(parsed.flatMap { it ?: emptyList() })).filterNotNull()
 }
 
 /**
