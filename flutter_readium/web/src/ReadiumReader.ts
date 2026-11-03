@@ -836,10 +836,10 @@ class _ReadiumReader {
    * "as" the new one. Shared by audioEnable's guard and play()'s terminal-failure
    * retry so both callers keep the exact same teardown contract.
    */
-  private _discardForeignAudioNavigator(origin: string): void {
+  private _discardForeignAudioNavigator(caller: string): void {
     const audioNav = this._audioNav;
     if (!audioNav) return;
-    log.info(origin + ": discarding navigator built for a previous publication");
+    log.info(caller + ": discarding navigator built for a previous publication");
     setAudioEmissionsEnabled(false);
     FlutterAudioNavigator.resetRecovery();
     audioNav.stop();

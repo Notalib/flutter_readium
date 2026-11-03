@@ -7,9 +7,9 @@ export async function fetchManifest(publicationURL: string) {
   const resourceLink = await resource.link();
   const selfLink = resourceLink.toURL(publicationURL)!;
   const manifest = await resource.readAsJSON().then((response: unknown) => {
-    const manifest = Manifest.deserialize(response as string)!;
-    manifest.setSelfLink(selfLink);
-    return manifest;
+    const parsed = Manifest.deserialize(response as string)!;
+    parsed.setSelfLink(selfLink);
+    return parsed;
   });
   return { manifest, fetcher, selfLink };
 }

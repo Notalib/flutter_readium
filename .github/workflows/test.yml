@@ -73,6 +73,10 @@ jobs:
         run: npm ci
         working-directory: flutter_readium
 
+      - name: Lint web TypeScript
+        run: npm run lint
+        working-directory: flutter_readium
+
       - name: Run web unit tests
         run: npm test
         working-directory: flutter_readium

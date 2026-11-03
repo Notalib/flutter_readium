@@ -74,13 +74,13 @@ async function fetchWithTimeout(
 }
 
 /** Maps a resolved HTTP status to a classification, or `undefined` if inconclusive (opaque/0). */
-function classifyStatus(status: number): AudioStreamErrorAction | undefined {
-  if (status <= 0) return undefined; // opaque response — no real status visible
-  if (status === 401 || status === 403)
-    return AudioStreamErrorAction.fail("AudioStreamAuthError", status);
-  if (status >= 400 && status < 500)
-    return AudioStreamErrorAction.fail("AudioStreamHTTPError", status);
-  if (status >= 500) return AudioStreamErrorAction.retry();
+function classifyStatus(httpStatus: number): AudioStreamErrorAction | undefined {
+  if (httpStatus <= 0) return undefined; // opaque response — no real status visible
+  if (httpStatus === 401 || httpStatus === 403)
+    return AudioStreamErrorAction.fail("AudioStreamAuthError", httpStatus);
+  if (httpStatus >= 400 && httpStatus < 500)
+    return AudioStreamErrorAction.fail("AudioStreamHTTPError", httpStatus);
+  if (httpStatus >= 500) return AudioStreamErrorAction.retry();
   return AudioStreamErrorAction.retry(); // 2xx/3xx: resource reachable again
 }
 
