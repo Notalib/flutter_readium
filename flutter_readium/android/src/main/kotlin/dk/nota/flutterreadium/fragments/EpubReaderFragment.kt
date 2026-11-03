@@ -157,14 +157,15 @@ class EpubReaderFragment :
         listener?.onPageLoaded()
     }
 
-    /**
-     * Reports a tap on a link to another place in the current resource. The WebView scrolls to
-     * those itself, so [shouldFollowInternalLink] never sees them. Runs before the jump has been
-     * reported by the navigator, so currentLocator is still the position we are leaving.
-     */
+    // The WebView scrolls to same-resource links itself, so [shouldFollowInternalLink] never sees
+    // them. Runs on a WebView thread, before the jump: currentLocator is still the position we leave.
     private fun onSameDocumentLink(hash: String) {
-        val from = epubNavigator?.currentLocator?.value ?: return
-        val href = Url("${from.href.removeFragment()}$hash") ?: return
+        val from = epubNavigator?.currentLocator?.value
+        val href = from?.let { Url("${it.href.removeFragment()}$hash") }
+        if (from == null || href == null) {
+            PluginLog.w(TAG, "::onSameDocumentLink dropped $hash (from=${from != null})")
+            return
+        }
         lifecycleScope.launch {
             listener?.onInternalLinkActivated(from, Link(href = Href(href)))
         }
@@ -197,8 +198,7 @@ class EpubReaderFragment :
         )
     }
 
-    // Capture phase, so it runs before the browser's own jump. Noterefs are skipped: the toolkit
-    // already reports those through its footnote path.
+    // Noterefs are skipped: the toolkit already reports those through its footnote path.
     private suspend fun injectSameDocumentLinkListener() {
         evaluateJavascript(
             """
@@ -211,13 +211,11 @@ class EpubReaderFragment :
                     if (!a) return;
                     var type = (a.getAttribute('epub:type') || '') + ' ' + (a.getAttribute('role') || '');
                     if (type.indexOf('noteref') >= 0) return;
-                    var u;
-                    try { u = new URL(a.href, document.baseURI); } catch (_) { return; }
-                    var c = document.location;
-                    if (u.hash && u.origin === c.origin && u.pathname === c.pathname) {
-                        FlutterSameDocumentLinkBridge.onSameDocumentLink(u.hash);
+                    if (e.defaultPrevented || !a.hash) return;
+                    if (a.href.split('#')[0] === location.href.split('#')[0]) {
+                        FlutterSameDocumentLinkBridge.onSameDocumentLink(a.hash);
                     }
-                }, true);
+                });
             })();
             """.trimIndent(),
         )
