@@ -128,11 +128,13 @@ See [Preferences](preferences.md) for all options.
 ```dart
 ReadiumReaderWidget(
   publication: _publication,
-  onExternalLinkActivated: (uri) {
-    launchUrl(uri);
+  onExternalLinkActivated: (url) {
+    launchUrl(Uri.parse(url));
   },
 )
 ```
+
+On web, passing this callback replaces the built-in confirm dialog and new-tab behaviour.
 
 ## Searching
 

@@ -24,7 +24,7 @@ ReadiumReaderWidget(
   ],
   shouldShowControls: true,   // whether built-in nav controls are shown
   verticalScroll: false,      // overrides scroll mode preference
-  onExternalLinkActivated: (uri) { /* handle external URLs */ },
+  onExternalLinkActivated: (url) { /* handle external URLs */ },
   goBackwardSemanticLabel: 'Previous page',
   goForwardSemanticLabel: 'Next page',
   toggleShowControlsSemanticLabel: 'Toggle controls',
@@ -41,7 +41,7 @@ ReadiumReaderWidget(
 | `fontFamilyDeclarations` | `List<ReaderFontFamily>` | `[]` | Static Flutter font assets available to EPUB/WebPub font-family preferences |
 | `shouldShowControls` | `bool` | `true` | Show built-in navigation controls |
 | `verticalScroll` | `bool?` | from preferences | Override scroll/paginated mode |
-| `onExternalLinkActivated` | `void Function(Uri)?` | `null` | Called when the reader activates an external link |
+| `onExternalLinkActivated` | `void Function(String)?` | `null` | Called with the URL when the reader activates an external link. On web, passing it replaces the built-in confirm dialog and new-tab behaviour |
 | `goBackwardSemanticLabel` | `String?` | `null` | Accessibility label for the backward control |
 | `goForwardSemanticLabel` | `String?` | `null` | Accessibility label for the forward control |
 | `toggleShowControlsSemanticLabel` | `String?` | `null` | Accessibility label for the controls toggle |
