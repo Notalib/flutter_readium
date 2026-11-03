@@ -390,24 +390,22 @@ class Publication with Equatable implements JSONable {
         ),
       );
 
-  /// Whether the publication has a guided navigation document (`application/guided-navigation+json`),
-  /// either as a publication-level link or as per-item alternates in the reading order.
-  ///
-  /// Recognised for both EPUB ebooks (narrated text) and DiViNa comics (narrated
-  /// image panels) — guided navigation is profile-agnostic, and a DiViNa with a
-  /// guided-navigation document is the native form of Nota's narrated comics.
+  /// Whether an EPUB or DiViNa (Nota's narrated comics) has guided navigation and audio to play.
+  /// A link alone is not enough: Readium's publication server adds a text-only one.
   bool get containsGuidedNavigation =>
-      (conformsToReadiumEbook || conformsToReadiumDivina) &&
-      (links.any(
-            (link) => MediaType.syncMediaNarrationManifest.matchesFromName(link.type),
-          ) ||
-          readingOrder.any(
-            (link) => link.alternates.any(
-              (alt) => MediaType.syncMediaNarrationManifest.matchesFromName(
-                alt.type,
-              ),
-            ),
-          ));
+      (conformsToReadiumEbook || conformsToReadiumDivina) && _hasGuidedNavigationLink && _hasAudioResources;
+
+  bool get _hasGuidedNavigationLink {
+    bool isGuidedNavigation(Link link) => MediaType.syncMediaNarrationManifest.matchesFromName(link.type);
+
+    return links.any(isGuidedNavigation) || readingOrder.any((link) => link.alternates.any(isGuidedNavigation));
+  }
+
+  bool get _hasAudioResources {
+    bool isAudio(Link link) => link.mediaType.isAudio;
+
+    return [...readingOrder, ...resources].any((link) => isAudio(link) || link.alternates.any(isAudio));
+  }
 
   /// Whether this publication should be treated as an audiobook — true for the Readium Audiobook
   /// profile and for any EPUB/WebPub that carries audio-text sync data (media overlays or guided navigation).

@@ -85,6 +85,7 @@ class _SearchPageState extends State<SearchPage> {
     final subtitle =
         '${result.locator.text?.before} [[[${result.locator.text?.highlight}]]] ${result.locator.text?.after}';
     return ListTile(
+      key: ValueKey('search_result_$index'),
       title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(subtitle, maxLines: 10, overflow: TextOverflow.ellipsis),
       onTap: () {

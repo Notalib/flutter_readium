@@ -34,7 +34,7 @@ class PageListPage extends StatelessWidget {
                     itemCount: links.length,
                     itemBuilder: (context, idx) {
                       final itemLink = links[idx];
-                      return _buildLinkTile(context, itemLink);
+                      return _buildLinkTile(context, itemLink, index: idx);
                     },
                   ),
                 ),
@@ -46,9 +46,10 @@ class PageListPage extends StatelessWidget {
     );
   }
 
-  Widget _buildLinkTile(BuildContext context, Link link, {int level = 1}) {
+  Widget _buildLinkTile(BuildContext context, Link link, {required int index, int level = 1}) {
     final title = link.title ?? "[NO_TITLE]";
     return ListTile(
+      key: ValueKey('page_list_item_$index'),
       title: Text(title),
       contentPadding: EdgeInsets.only(left: 12.0 * level),
       trailing: Icon(Icons.arrow_forward_ios),

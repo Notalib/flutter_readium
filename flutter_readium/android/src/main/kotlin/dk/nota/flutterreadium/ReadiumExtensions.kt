@@ -37,7 +37,6 @@ import org.readium.r2.shared.util.http.HttpError
 import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingResource
-import org.readium.r2.shared.util.resource.filename
 import org.xmlpull.v1.XmlPullParser
 import java.io.StringReader
 import java.util.Locale
@@ -183,19 +182,14 @@ private val BUILT_IN_INJECTIONS =
     )
 
 // Helper for injecting extra files into an epub.
+// Filename comes from the caller so streamed chapters never pay a properties() HEAD.
 fun Resource.injectScriptsAndStyles(
+    filename: String,
     tocIds: List<String>,
     epubPreferences: FlutterEpubPreferences?,
     extraInjections: List<InjectionAsset> = emptyList(),
 ): Resource =
     TransformingResource(this) { bytes ->
-        val props = this.properties().getOrNull()
-        val filename = props?.filename ?: return@TransformingResource Try.success(bytes)
-
-        if (!filename.endsWith("html", ignoreCase = true)) {
-            return@TransformingResource Try.success(bytes)
-        }
-
         val content = bytes.toString(Charsets.UTF_8).trim()
         val headEndIndex = content.indexOf("</head>", 0, true)
         if (headEndIndex == -1) {
@@ -278,11 +272,20 @@ fun Publication.hasMediaOverlays() =
     }
 
 /**
- * Check if the publication has any guided navigation data for audio-text synchronization.
+ * Check if the publication has guided navigation and audio to play.
+ * A link alone is not enough: Readium's publication server adds a text-only one.
  */
-fun Publication.hasGuidedNavigationMediaOverlays() =
+fun Publication.hasGuidedNavigationMediaOverlays() = hasGuidedNavigationLink() && hasAudioResources()
+
+private fun Publication.hasGuidedNavigationLink() =
     links.any { it.mediaType == guidedNavigationMediaType } ||
         readingOrder.any { r -> r.alternates.any { it.mediaType == guidedNavigationMediaType } }
+
+private fun Publication.hasAudioResources(): Boolean {
+    fun Link.isAudio() = mediaType?.isAudio == true
+
+    return (readingOrder + resources).any { it.isAudio() || it.alternates.any { alt -> alt.isAudio() } }
+}
 
 /**
  * Check if the publication has any audio-text synchronization data,
@@ -335,7 +338,7 @@ private fun Publication.enrichOverlaysWithToc(overlays: List<FlutterMediaOverlay
         }
     }
 
-    return overlays.map { overlay -> overlay?.let { ov -> FlutterMediaOverlay(ov.items.map { it.enrich() }) } }
+    return overlays.map { overlay -> overlay?.let { ov -> ov.copy(items = ov.items.map { it.enrich() }) } }
 }
 
 /**
@@ -399,7 +402,30 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
                 }.awaitAll()
         }
 
-    return parsed.map { it?.withTocTitles(toc) }
+    return resolveTocBoundaries(parsed)
+}
+
+private suspend fun Publication.resolveTocBoundaries(overlays: List<FlutterMediaOverlay?>): List<FlutterMediaOverlay?> {
+    val toc = tableOfContents.flattenChildren()
+    val items = overlays.flatMap { it?.items.orEmpty() }
+    val trees = mutableMapOf<String, XhtmlIdTree>()
+    val represented =
+        items.flatMap { listOfNotNull(it.text, it.tocHref?.toString()) }.toSet() +
+            overlays.flatMap { it?.narrationContainerTocHrefs.orEmpty() }
+    val boundaries = toc.filter { it.href.resolve().toString() !in represented }
+    for (href in items.filter { it.tocHref != null }.map { it.textFile }.distinct()) {
+        if (boundaries.any {
+                it.href
+                    .resolve()
+                    .removeFragment()
+                    .isEquivalent(Url.invoke(href)) && it.href.resolve().fragment != null
+            }
+        ) {
+            Url.invoke(href)?.let { xhtmlIdTree(it) }?.let { trees[href] = it }
+        }
+    }
+    // Correct ownership before initial mapping and owner-based navigation see the items.
+    return overlays.map { it?.withTocBoundaries(boundaries, trees)?.withTocTitles(toc) }
 }
 
 /**
@@ -443,13 +469,14 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
                     }
                 val position = (roEntry?.index ?: -1) + 1
                 val duration = roEntry?.value?.duration ?: 0.0
-                FlutterMediaOverlay(
-                    overlay.items.map { item ->
-                        item.copy(position = position, readingOrderItemDuration = duration)
-                    },
+                overlay.copy(
+                    items =
+                        overlay.items.map { item ->
+                            item.copy(position = position, readingOrderItemDuration = duration)
+                        },
                 )
             }
-        return enrichOverlaysWithToc(rawOverlays).filterNotNull()
+        return resolveTocBoundaries(enrichOverlaysWithToc(rawOverlays)).filterNotNull()
     }
 
     // Strategy 2: per-item alternates in reading order.
@@ -498,13 +525,14 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
                                     }
                                 val position = (roEntry?.index ?: -1) + 1
                                 val duration = roEntry?.value?.duration ?: 0.0
-                                FlutterMediaOverlay(
-                                    overlay.items.map { item ->
-                                        item.copy(
-                                            position = position,
-                                            readingOrderItemDuration = duration,
-                                        )
-                                    },
+                                overlay.copy(
+                                    items =
+                                        overlay.items.map { item ->
+                                            item.copy(
+                                                position = position,
+                                                readingOrderItemDuration = duration,
+                                            )
+                                        },
                                 )
                             }
                         }
@@ -512,7 +540,7 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
                 }.awaitAll()
         }
 
-    return enrichOverlaysWithToc(parsed.flatMap { it ?: emptyList() }).filterNotNull()
+    return resolveTocBoundaries(enrichOverlaysWithToc(parsed.flatMap { it ?: emptyList() })).filterNotNull()
 }
 
 /**

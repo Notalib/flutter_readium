@@ -879,6 +879,13 @@ extension FlutterReadiumPlugin {
                 resourceContentIteratorFactories: [factory]
               )
             )
+            // Bare manifests would otherwise HEAD every chapter before first paint.
+            // See docs/plans/android-webpub-head-storm.md.
+            if case .resource = asset {
+              services.setPositionsServiceFactory(
+                PerResourcePositionsService.makeFactory(fallbackMediaType: .xhtml)
+              )
+            }
           }
         },
         sender: sender

@@ -64,6 +64,27 @@ class XhtmlIdTree(
         return ids.subList(start + 1, subtreeEnd[start]).firstOrNull { it in candidates }
     }
 
+    /** A later enclosing ToC element ends continuation from an earlier heading. */
+    fun boundaryOwner(
+        textId: String,
+        ownerId: String?,
+        tocIds: List<String>,
+    ): Int? {
+        val current = ids.indexOf(textId).takeIf { it >= 0 } ?: return null
+        val owner = ownerId?.let { ids.indexOf(it) } ?: -1
+        if (ownerId != null && owner == -1) return null
+        var result: Int? = null
+        var latest = owner
+        tocIds.forEachIndexed { index, id ->
+            val start = ids.indexOf(id)
+            if (start > owner && start <= current && current < subtreeEnd[start] && start >= latest) {
+                latest = start
+                result = index
+            }
+        }
+        return result
+    }
+
     /** A known cue-less element seeks forward; a missing id keeps the caller's fallback policy. */
     fun anchor(
         locator: Locator,

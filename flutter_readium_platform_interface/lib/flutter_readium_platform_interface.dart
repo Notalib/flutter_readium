@@ -111,13 +111,13 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
 
   /// Load publication manifest from URL, which is usually a packaged ebook or direct URL to a manifest.
   /// This will NOT store a reference to the Publication and is purely meant to be used for fetching metadata/manifest
-  /// for multiple books.
+  /// for multiple books. It never affects the open publication, even when [pubUrl] is the URL of the open one.
   Future<Publication> loadPublication(String pubUrl) => throw UnimplementedError(
     'loadPublication(pubUrl) has not been implemented.',
   );
 
   /// Opens a publication from a URL and prepares it for reading or playback.
-  /// If the URL has not already been loaded, it will implicitly do this.
+  /// If [pubUrl] is already open, returns the open publication without reloading it. Call [closePublication] first to reload.
   Future<Publication> openPublication(String pubUrl) => throw UnimplementedError(
     'openPublication(pubUrl) has not been implemented.',
   );

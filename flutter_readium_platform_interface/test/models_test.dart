@@ -657,6 +657,62 @@ void main() {
     });
   });
 
+  group('Publication guided navigation', () {
+    const chapter = {'href': 'chapter1.xhtml', 'type': 'application/xhtml+xml'};
+    const audio = {'href': 'chapter1.mp3', 'type': 'audio/mpeg'};
+
+    Publication guidedNavigationEbook({
+      List<Map<String, dynamic>> readingOrder = const [chapter],
+      List<Map<String, dynamic>> resources = const [],
+    }) => Publication.fromJson({
+      'metadata': {
+        'title': 'Guided navigation publication',
+        'conformsTo': 'https://readium.org/webpub-manifest/profiles/epub',
+      },
+      'links': [
+        {
+          'href': '~readium/guided-navigation.json{?ref}',
+          'templated': true,
+          'type': 'application/guided-navigation+json',
+        },
+      ],
+      'readingOrder': readingOrder,
+      'resources': resources,
+    })!;
+
+    test('a guided navigation link with audio resources is an audiobook', () {
+      final publication = guidedNavigationEbook(resources: [audio]);
+
+      expect(publication.containsGuidedNavigation, isTrue);
+      expect(publication.isAudioBook, isTrue);
+    });
+
+    test('a guided navigation link with audio as a reading-order alternate is an audiobook', () {
+      final publication = guidedNavigationEbook(
+        readingOrder: [
+          {
+            ...chapter,
+            'alternate': [audio],
+          },
+        ],
+      );
+
+      expect(publication.containsGuidedNavigation, isTrue);
+      expect(publication.isAudioBook, isTrue);
+    });
+
+    test('a guided navigation link without audio resources is not an audiobook', () {
+      final publication = guidedNavigationEbook(
+        resources: [
+          {'href': 'page01.jpg', 'type': 'image/jpeg'},
+        ],
+      );
+
+      expect(publication.containsGuidedNavigation, isFalse);
+      expect(publication.isAudioBook, isFalse);
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // ImageTapEvent serialisation
   // ---------------------------------------------------------------------------

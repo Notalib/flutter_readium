@@ -5,7 +5,6 @@ by Readium toolkits on iOS, Android, and Web.
 
 [![pub package](https://img.shields.io/pub/v/flutter_readium.svg)](https://pub.dev/packages/flutter_readium)
 [![Quality](https://github.com/notalib/flutter_readium/actions/workflows/quality.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/quality.yml)
-[![Unit Tests](https://github.com/notalib/flutter_readium/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/test.yml)
 [![CI](https://github.com/notalib/flutter_readium/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/ci.yml)
 
 <p align="center">
@@ -106,16 +105,19 @@ LCP-protected publications are not currently supported. The underlying toolkits 
 
 ¹ Web TTS uses the browser's Web Speech API — voice availability and quality vary by browser.
 
-> **macOS note:** Native macOS desktop (`flutter run -d macos`) is not supported — a no-op stub is registered so the Flutter macOS target still compiles, but every reader call returns `MethodNotImplemented`. The upstream `swift-toolkit` is iOS-only and has marked native macOS [`not_planned`](https://github.com/readium/swift-toolkit/issues/783). The iOS build runs fine on Apple Silicon Macs via "Designed for iPad".
+> **macOS note:** Native macOS desktop (`flutter run -d macos`) is not supported, and the plugin does not register for it. A host app that also targets macOS still builds, but reader calls throw `MissingPluginException` there. The upstream `swift-toolkit` is iOS-only and has marked native macOS [`not_planned`](https://github.com/readium/swift-toolkit/issues/783). The iOS build runs fine on Apple Silicon Macs via "Designed for iPad".
 
 ## Minimum requirements
 
-| Requirement | Version                |
-| ----------- | ---------------------- |
-| Flutter     | 3.44.8+                |
-| Dart SDK    | 3.8.0+                 |
-| Android     | `minSdkVersion` 24     |
-| iOS         | 15.0+                  |
+| Requirement           | Version                              |
+| --------------------- | ------------------------------------ |
+| Flutter               | 3.44.8+                              |
+| Dart SDK              | 3.8.0+                               |
+| Android               | `minSdkVersion` 24, `compileSdk` 37+ |
+| Android Gradle Plugin | 9.1.1+                               |
+| Gradle                | 9.3.1+                               |
+| Kotlin Gradle Plugin  | 2.3+                                 |
+| iOS                   | 15.0+                                |
 
 The development SDK is pinned separately in `.flutter-version`; contributors should use
 `bin/update_flutter_version` to change that pin.
@@ -127,7 +129,7 @@ Complete the per-platform setup below before running the reader. See the full
 
 ### Android
 
-- Set `minSdkVersion` to 24 or higher and `compileSdk` to 37 or higher in `android/app/build.gradle.kts`, and use Kotlin Gradle Plugin 2.3 or newer, declared in `android/settings.gradle.kts`. See the [installation guide](docs/getting-started/installation.md#2-android-setup) for the exact snippets.
+- Use `minSdkVersion` 24+, `compileSdk` 37+, Android Gradle Plugin 9.1.1+, Gradle 9.3.1+, and Kotlin Gradle Plugin 2.3+. The Readium kotlin-toolkit 3.4.0 upgrade in flutter_readium 0.7.0 requires API 37, which is unsupported by AGP 8. See the [installation guide](docs/getting-started/installation.md#2-android-setup) for the configuration and compatible AGP/Gradle versions.
 - Enable [core library desugaring](https://developer.android.com/studio/write/java8-support) — the
   readium-kotlin-toolkit artifacts require it, and the build fails at `checkDebugAarMetadata`
   without it:

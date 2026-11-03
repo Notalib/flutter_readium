@@ -75,25 +75,6 @@ class PublicationUtils {
     return pubs;
   }
 
-  static Future<String> copyFileToReadiumPubStorage(File file) async {
-    if (kIsWeb) {
-      throw UnsupportedError('copyFileToReadiumPubStorage is not supported on web');
-    }
-
-    final exists = await file.exists();
-    if (!exists) {
-      _log.warning('Could not copy file from ${file.path}, does not exist');
-    }
-
-    final publicationsDirPath = await ReadiumStorage.publicationsDirPath;
-    String newPath = path.join(publicationsDirPath, file.uri.path);
-    await file.copy(newPath);
-    _log.info(
-      'copied file ${file.path} size=${await file.length()} to=$newPath',
-    );
-    return newPath;
-  }
-
   static Future<void> removePublicationFromReadiumStorage(
     String pubPath,
   ) async {
