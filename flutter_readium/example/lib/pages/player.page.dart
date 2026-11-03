@@ -24,7 +24,7 @@ class PlayerPage extends StatefulWidget {
 class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   final _slideDuration = const Duration(milliseconds: 350);
   final _shouldShowControls = ValueNotifier(true);
-  final _returnStack = ReturnStack();
+  final _returnTo = ValueNotifier<Locator?>(null);
   StreamSubscription<ReadiumError>? _errorSub;
 
   @override
@@ -36,7 +36,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   @override
   void dispose() {
     _errorSub?.cancel();
-    _returnStack.dispose();
+    _returnTo.dispose();
     super.dispose();
   }
 
@@ -164,7 +164,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
                         child: TimebasedStateWidget(),
                       )
                     : ReaderWidget(
-                        returnStack: _returnStack,
+                        returnTo: _returnTo,
                         shouldShowControls: _shouldShowControls,
                       ),
               ),

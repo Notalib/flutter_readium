@@ -4,7 +4,6 @@ import 'package:flutter_readium/flutter_readium.dart';
 
 import '../state/index.dart';
 import 'full_screen_image_view.dart';
-import 'return_to_previous_position.dart';
 
 final _customFontFamilies = [
   ReaderFontFamily(
@@ -32,9 +31,10 @@ final _customFontFamilies = [
 ];
 
 class ReaderWidget extends StatelessWidget {
-  const ReaderWidget({required this.returnStack, this.shouldShowControls, super.key});
+  const ReaderWidget({required this.returnTo, this.shouldShowControls, super.key});
 
-  final ReturnStack returnStack;
+  /// Where "Return to previous position" jumps back to; null hides the button.
+  final ValueNotifier<Locator?> returnTo;
   final ValueNotifier<bool>? shouldShowControls;
 
   @override
@@ -119,16 +119,27 @@ class ReaderWidget extends StatelessWidget {
                     );
                   }
                 },
-                onInternalLinkActivated: (event) {
-                  debugPrint('[InternalLink] from=${event.from?.href} target=${event.target.href}');
-                  returnStack.onLinkActivated(event);
-                },
+                onInternalLinkActivated: (event) => returnTo.value = event.from,
               ),
               Positioned(
                 // Top, because the player controls overlay the bottom of the reader.
                 left: 16,
                 top: 16,
-                child: ReturnToPreviousPositionButton(returnStack: returnStack),
+                child: ValueListenableBuilder<Locator?>(
+                  valueListenable: returnTo,
+                  builder: (context, locator, _) => locator == null
+                      ? const SizedBox.shrink()
+                      : FloatingActionButton.extended(
+                          key: const ValueKey('return_to_previous_position_button'),
+                          heroTag: null,
+                          icon: const Icon(Icons.undo),
+                          label: const Text('Return to previous position'),
+                          onPressed: () {
+                            returnTo.value = null;
+                            FlutterReadium().goToLocator(locator);
+                          },
+                        ),
+                ),
               ),
             ],
           ),
