@@ -123,6 +123,12 @@ class EpubNavigator :
          * Called when the visual reader is ready.
          */
         fun onVisualReaderIsReady()
+
+        /**
+         * Called for a native tap that content did not consume: [toggleControls] for a center tap,
+         * otherwise an edge tap (whether or not the page turned).
+         */
+        fun onNativeTap(toggleControls: Boolean) {}
     }
 
     /**
@@ -364,6 +370,10 @@ class EpubNavigator :
         }
     }
 
+    override fun onNativeTap(toggleControls: Boolean) {
+        visualListener.onNativeTap(toggleControls)
+    }
+
     override fun onExternalLinkActivated(url: AbsoluteUrl) {
         visualListener.onExternalLinkActivated(url)
     }
@@ -419,7 +429,10 @@ class EpubNavigator :
 
         withMainContext {
             PluginLog.d(TAG, "::goBackward")
-            navigator.goBackward(animated)
+            // Explicit page command: only an accepted turn counts as the user taking control.
+            if (navigator.goBackward(animated)) {
+                ReadiumReader.enterManualModeIfNarrating("goBackward")
+            }
         }
     }
 
@@ -435,7 +448,10 @@ class EpubNavigator :
 
         withMainContext {
             PluginLog.d(TAG, "::goForward")
-            navigator.goForward(animated)
+            // Explicit page command: only an accepted turn counts as the user taking control.
+            if (navigator.goForward(animated)) {
+                ReadiumReader.enterManualModeIfNarrating("goForward")
+            }
         }
     }
 
