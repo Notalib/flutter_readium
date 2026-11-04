@@ -2,7 +2,8 @@
 
 TS implementation bundled to JS and loaded in a webview. Wraps the npm ts-toolkit packages `@readium/{shared,navigator,navigator-html-injectables}` (versions in `../package.json`). Repo-wide instructions: `../../AGENTS.md`.
 
-- **Before declaring any web TS changes done:** run `bin/typecheck`, then `bin/update_web_example`. Never hand-edit built JS — bundles are generated and gitignored.
+- **Before declaring any web TS changes done:** run `bin/typecheck` (type-check plus ESLint), then `bin/update_web_example`. Never hand-edit built JS — bundles are generated and gitignored.
+- **No shadowing globals:** ESLint's `no-shadow` with `builtinGlobals` rejects locals named like browser globals (`document`, `origin`, `status`, …). Terser can mangle such a local and the global to the same name in the production bundle. Rename the local; don't disable the rule.
 - **Gate scope:** for TypeScript-only changes, the web checks are sufficient. Run the repo-wide Dart format/analyze gates only when Dart or shared API files also changed.
 - **Locator serialization**: call `locator.serialize()` before `JSON.stringify` — a plain stringify silently drops `otherLocations` Map entries. Wider rules: `docs/architecture.md#bridge-serialization`.
 - Web example for manual checks: `bin/run_web_example [port]`. The Flutter shell is a `<canvas>` (use screenshots), but EPUB content is real HTML in an iframe, so DOM inspection and JS eval work there.

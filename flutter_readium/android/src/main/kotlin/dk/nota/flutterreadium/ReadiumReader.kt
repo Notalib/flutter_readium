@@ -819,13 +819,18 @@ object ReadiumReader :
         return openPublication(pubUrl)
     }
 
+    /** Matches any URL that already carries an absolute scheme (RFC 3986 scheme + `://`). */
+    private val absoluteSchemeRegex = Regex("^[a-zA-Z][a-zA-Z0-9+.\\-]*://")
+
     /**
      * Helper function for resolving a URL and make sure a file path is turned into a URL.
      */
     private fun resolvePubUrl(urlStr: String): Try<AbsoluteUrl, PublicationError> {
         var pubUrlStr = urlStr
-        // If URL is neither http nor file, assume it is a local file reference.
-        if (!pubUrlStr.startsWith("http") && !pubUrlStr.startsWith("file")) {
+        // Already an absolute URL with a scheme Readium can resolve itself (http(s), file,
+        // or an Android SAF content:// from a file picker — AssetRetriever resolves those via
+        // its contentResolver). Anything else is assumed to be a plain local file path.
+        if (!absoluteSchemeRegex.matches(pubUrlStr)) {
             pubUrlStr = "file://$pubUrlStr"
         }
         // Create AbsoluteUrl, return PublicationError.InvalidPublicationUrl if null

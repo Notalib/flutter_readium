@@ -106,14 +106,14 @@ export function clampTransform(
     baseStart: number,
     viewportCenter: number,
     eff: number,
-    viewport: number
+    viewportSize: number
   ): number => {
     const originTerm = viewportCenter + scale * (baseStart - viewportCenter);
     const start = originTerm + translate;
     const clampedStart =
-      eff <= viewport
-        ? (viewport - eff) / 2 // smaller than viewport → center
-        : Math.min(0, Math.max(viewport - eff, start)); // larger → no gap
+      eff <= viewportSize
+        ? (viewportSize - eff) / 2 // smaller than viewport → center
+        : Math.min(0, Math.max(viewportSize - eff, start)); // larger → no gap
     return clampedStart - originTerm;
   };
 
@@ -174,15 +174,15 @@ export function overscrollTransform(
     baseStart: number,
     viewportCenter: number,
     eff: number,
-    viewport: number
+    viewportSize: number
   ): number => {
     const originTerm = viewportCenter + scale * (baseStart - viewportCenter);
     const desired = originTerm + translate;
-    const lo = eff <= viewport ? (viewport - eff) / 2 : viewport - eff;
-    const hi = eff <= viewport ? (viewport - eff) / 2 : 0;
+    const lo = eff <= viewportSize ? (viewportSize - eff) / 2 : viewportSize - eff;
+    const hi = eff <= viewportSize ? (viewportSize - eff) / 2 : 0;
     let start: number;
-    if (desired > hi) start = hi + rubberband(desired - hi, viewport);
-    else if (desired < lo) start = lo - rubberband(lo - desired, viewport);
+    if (desired > hi) start = hi + rubberband(desired - hi, viewportSize);
+    else if (desired < lo) start = lo - rubberband(lo - desired, viewportSize);
     else start = desired;
     return start - originTerm;
   };
