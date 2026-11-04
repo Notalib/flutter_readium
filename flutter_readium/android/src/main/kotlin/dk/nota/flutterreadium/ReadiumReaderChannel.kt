@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.AbsoluteUrl
 
@@ -26,6 +27,20 @@ internal class ReadiumReaderChannel(
         }
 
     fun onExternalLinkActivated(url: AbsoluteUrl) = launch { invokeMethod("onExternalLinkActivated", url.toString()) }
+
+    fun onInternalLinkActivated(
+        from: Locator?,
+        link: Link,
+    ) = launch {
+        invokeMethod(
+            "onInternalLinkActivated",
+            mapOf(
+                // Readium-owned objects cross the bridge as JSON strings.
+                "from" to from?.toJSON()?.toString(),
+                "target" to link.toJSON().toString(),
+            ),
+        )
+    }
 
     fun onTextSelected(
         locator: Locator,

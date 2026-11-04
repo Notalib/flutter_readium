@@ -24,7 +24,11 @@ import {
 } from "../decorations/decorationFrameUtils";
 import { injectFlutterReadiumHelperScripts } from "../utils/iframeInjection";
 import { createLogger } from "../utils/ReadiumPluginLogger";
-import { FontFamilyDeclaration, injectFontFacesIntoWindow } from "../fonts/FontFamilyDeclarations";
+import {
+  FontFamilyDeclaration,
+  flutterAssetsUrl,
+  injectFontFacesIntoWindow,
+} from "../fonts/FontFamilyDeclarations";
 import { tryBuildImageTapPayload } from "../utils/ImageTapDetector";
 import {
   enrichWithTotalProgression,
@@ -102,6 +106,11 @@ export class FlutterEpubNavigator {
     const configuration: EpubNavigatorConfiguration = {
       preferences,
       defaults,
+      // The frame CSP only allows the publication's origin, so injected @font-face rules need the app's asset directory.
+      injectables: {
+        rules: [],
+        allowedDomains: fontFamilyDeclarations.length ? [flutterAssetsUrl(document.baseURI)] : [],
+      },
     };
 
     const p = new Peripherals({
@@ -187,15 +196,18 @@ export class FlutterEpubNavigator {
     // Resolve position-less initial locator (e.g. from sync-narration).
     let resolvedInitialPosition = initialPosition;
     if (initialPosition && initialPosition.locations?.position == null) {
-      const chapPos = positions.find((p) => p.href === initialPosition.href);
+      const chapPos = positions.find((pos) => pos.href === initialPosition.href);
       if (chapPos) {
         resolvedInitialPosition = new Locator({
           href: initialPosition.href,
           type: initialPosition.type,
           title: initialPosition.title ?? chapPos.title,
+          text: initialPosition.text,
           locations: new LocatorLocations({
             position: chapPos.locations?.position,
             fragments: initialPosition.locations?.fragments,
+            progression: initialPosition.locations?.progression,
+            totalProgression: initialPosition.locations?.totalProgression,
             otherLocations: initialPosition.locations?.otherLocations,
           }),
         });
