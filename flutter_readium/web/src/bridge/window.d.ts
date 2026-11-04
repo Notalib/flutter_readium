@@ -39,6 +39,13 @@ declare global {
     onImageTappedCallback?: (json: string) => void;
 
     /**
+     * Callback for activated external links (http, https, mailto, tel).
+     * @param href The link target
+     * @returns `true` if the Flutter app handled the link, so the built-in confirm + new tab is skipped
+     */
+    onExternalLinkActivatedCallback?: (href: string) => boolean;
+
+    /**
      * Notify Flutter that narration↔visual sync state changed.
      * `true` = view is tracking narration (in sync, hide re-sync UI).
      * `false` = user has taken manual control (out of sync, show re-sync UI).

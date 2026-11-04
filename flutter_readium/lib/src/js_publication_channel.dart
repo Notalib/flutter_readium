@@ -80,6 +80,9 @@ external set onErrorCallback(JSFunction f);
 @JS()
 external set onImageTappedCallback(JSFunction f);
 
+@JS()
+external set onExternalLinkActivatedCallback(JSFunction f);
+
 class JsPublicationChannel {
   static final ReadiumReader _readiumReader = ReadiumReader();
   static final _log = ReadiumLog.tag('JsChannel');

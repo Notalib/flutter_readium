@@ -402,11 +402,13 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
         _markReady();
       },
-      onTextSelected: widget.onTextSelected,
-      onSelectionAction: widget.onSelectionAction,
-      onDecorationInteraction: widget.onDecorationInteraction,
-      onImageTapped: widget.onImageTapped,
-      onInternalLinkActivated: widget.onInternalLinkActivated,
+      // These closures read `widget` at call time, so callbacks from a rebuilt widget are used.
+      onExternalLinkActivated: (final link) => widget.onExternalLinkActivated?.call(link),
+      onTextSelected: (final event) => widget.onTextSelected?.call(event),
+      onSelectionAction: (final event) => widget.onSelectionAction?.call(event),
+      onDecorationInteraction: (final event) => widget.onDecorationInteraction?.call(event),
+      onImageTapped: (final event) => widget.onImageTapped?.call(event),
+      onInternalLinkActivated: (final event) => widget.onInternalLinkActivated?.call(event),
     );
 
     if (widget.selectionActions.isNotEmpty) {
