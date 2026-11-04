@@ -1,8 +1,6 @@
 /* Scoped to the reader's own elements: this sheet loads into the host page, so no html/body rules. */
 #wrapper {
   font-family: 'Roboto', system-ui, sans-serif; /* Material UI */
-  height: calc(100vh - 96px) !important;
-  height: calc(100dvh - 96px) !important; /* New browsers */
   display: flex;
   margin: 0;
 }
