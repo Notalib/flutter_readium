@@ -8,6 +8,7 @@ import android.view.View
 import androidx.fragment.app.commitNow
 import androidx.lifecycle.lifecycleScope
 import dk.nota.flutterreadium.EpubImageTapBridge
+import dk.nota.flutterreadium.EpubSameDocumentLinkBridge
 import dk.nota.flutterreadium.FlutterEpubPreferences
 import dk.nota.flutterreadium.NarrationSyncInterface
 import dk.nota.flutterreadium.PluginLog
@@ -38,12 +39,14 @@ import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
+import org.readium.r2.shared.publication.Href
 import org.readium.r2.shared.publication.Layout
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.util.AbsoluteUrl
+import org.readium.r2.shared.util.Url
 
 private const val TAG = "EpubReaderFragment"
 
@@ -149,8 +152,23 @@ class EpubReaderFragment :
         lifecycleScope.launch {
             applyCustomCssVariables()
             injectImageTapListeners()
+            injectSameDocumentLinkListener()
         }
         listener?.onPageLoaded()
+    }
+
+    // The WebView scrolls to same-resource links itself, so [shouldFollowInternalLink] never sees
+    // them. Runs on a WebView thread, before the jump: currentLocator is still the position we leave.
+    private fun onSameDocumentLink(hash: String) {
+        val from = epubNavigator?.currentLocator?.value
+        val href = from?.let { Url("${it.href.removeFragment()}$hash") }
+        if (from == null || href == null) {
+            PluginLog.w(TAG, "::onSameDocumentLink dropped $hash (from=${from != null})")
+            return
+        }
+        lifecycleScope.launch {
+            listener?.onInternalLinkActivated(from, Link(href = Href(href)))
+        }
     }
 
     private suspend fun injectImageTapListeners() {
@@ -175,6 +193,29 @@ class EpubReaderFragment :
                         nh: img.naturalHeight || 0
                     }));
                 }, true);
+            })();
+            """.trimIndent(),
+        )
+    }
+
+    // Noterefs are skipped: the toolkit already reports those through its footnote path.
+    private suspend fun injectSameDocumentLinkListener() {
+        evaluateJavascript(
+            """
+            (function() {
+                if (window.__flutterSameDocumentLinkReady) return;
+                if (typeof FlutterSameDocumentLinkBridge === 'undefined') return;
+                window.__flutterSameDocumentLinkReady = true;
+                document.addEventListener('click', function(e) {
+                    var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+                    if (!a) return;
+                    var type = (a.getAttribute('epub:type') || '') + ' ' + (a.getAttribute('role') || '');
+                    if (type.indexOf('noteref') >= 0) return;
+                    if (e.defaultPrevented || !a.hash) return;
+                    if (a.href.split('#')[0] === location.href.split('#')[0]) {
+                        FlutterSameDocumentLinkBridge.onSameDocumentLink(a.hash);
+                    }
+                });
             })();
             """.trimIndent(),
         )
@@ -702,6 +743,11 @@ class EpubReaderFragment :
                     // TODO: This is a temporary solution until kotlin-toolkit supports image tap events natively.
                     // Register JS→native bridge for window.onImageTappedCallback(string).
                     registerJavascriptInterface("FlutterImageBridge") { _ -> EpubImageTapBridge() }
+
+                    // TODO: Drop once kotlin-toolkit reports same-document link taps to the navigator listener.
+                    registerJavascriptInterface("FlutterSameDocumentLinkBridge") { _ ->
+                        EpubSameDocumentLinkBridge(this@EpubReaderFragment::onSameDocumentLink)
+                    }
                 }
 
         val fragmentFactory =
