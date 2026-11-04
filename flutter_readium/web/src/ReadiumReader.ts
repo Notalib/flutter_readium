@@ -73,6 +73,20 @@ interface VisualNavigatorLike {
   destroy(): Promise<void>;
 }
 
+/**
+ * Locator for the publication's own `link` that keeps the caller's position inside the
+ * resource. `nav.goLink(link)` would drop the fragments, progression and text.
+ */
+function locatorForLink(link: Link, locator: Locator): Locator {
+  return new Locator({
+    href: link.href,
+    type: link.type ?? locator.type,
+    title: locator.title,
+    locations: locator.locations,
+    text: locator.text,
+  });
+}
+
 class _ReadiumReader {
   public constructor() {
     log.info("ReadiumReader instance created");
@@ -327,7 +341,7 @@ class _ReadiumReader {
       ];
       const visualLink = findLinkByHref(visualLinks, locator.href);
       if (visualLink) {
-        this._visualNav?.goLink(visualLink, true, (ok) => {
+        this._visualNav?.go(locatorForLink(visualLink, locator), true, (ok) => {
           if (!ok) log.warn("goTo: MediaOverlay — visual navigation failed for", locator.href);
         });
       }
@@ -385,7 +399,7 @@ class _ReadiumReader {
         href: locator.href,
       });
     }
-    this._visualNav?.goLink(link, true, (ok) => {
+    this._visualNav?.go(locatorForLink(link, locator), true, (ok) => {
       if (!ok) {
         log.error("goTo: failed to navigate to link:", locator.href);
         throw new ReadiumWebError(
