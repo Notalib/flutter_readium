@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 <!-- towncrier release notes start -->
 
+## [0.9.0] - 2026-11-04
+
+### Added
+
+- **New `InternalLinkEvent` model.**
+  Carries the position before an internal-link jump (`from`) and the followed link (`target`). Delivered by `ReadiumReaderWidget.onInternalLinkActivated` in `flutter_readium`.
+
 ## [0.8.0] - 2026-10-27
 
 ### Fixed

@@ -5,6 +5,44 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 <!-- towncrier release notes start -->
 
+## [0.9.0] - 2026-11-04
+
+### Added
+
+- **New `onInternalLinkActivated` callback on `ReadiumReaderWidget`.**
+  Fires when an EPUB follows an internal link (end-note, index entry, cross-reference), with the position before the jump in `event.from` and the link in `event.target`, so apps can offer "Return to previous position". Notify-only: the link is always followed. Android and iOS only.
+- Android: `loadPublication`/`openPublication` now accept URLs with any absolute scheme. Previously any string not starting with `http` or `file` was blindly prefixed with `file://`, which corrupted Storage Access Framework `content://` URIs handed out by a file picker. Such URLs are now passed through untouched and resolved by Readium's `AssetRetriever` (which reads `content://` through its `contentResolver`). Plain local file paths keep working as before.
+
+### Changed
+
+- **Web: Readium ts-toolkit upgraded to navigator 2.13.2 / shared 2.8.0.**
+  Decorations drawn as overlays now follow the text when the reader scrolls instead of staying where they were drawn, and decorations no longer render hidden behind the page content in some layouts.
+  EPUB navigation no longer hangs after the page was hidden mid-navigation, and swiping to the next chapter of a reflowable EPUB no longer opens it at the previous chapter's progression.
+
+### Removed
+
+- **macOS: removed the no-op desktop stub, so pub.dev no longer lists macOS as supported.**
+  The stub answered every call with "not implemented", because the Readium swift-toolkit is iOS-only.
+  Host apps that also target macOS still build, and reader calls there throw `MissingPluginException` as before.
+  Mac users can run the iOS build via "Designed for iPad". ([#246](https://github.com/Notalib/flutter_readium/issues/246))
+
+### Fixed
+
+- **EPUB (Android, iOS): tapping the reader now hides or toggles the controls consistently with the native tap zones.**
+  An edge tap turns the page and hides the controls, a center tap toggles them once without turning a page, and in scroll mode a tap that content ignores toggles them. Swipe behavior is unchanged. ([#281](https://github.com/Notalib/flutter_readium/issues/281))
+- **`ReadiumReaderWidget` callbacks now follow rebuilds, and `onExternalLinkActivated` fires on every platform.**
+  On iOS and Android, callbacks from a rebuilt widget were ignored; the first ones kept being called.
+  `onExternalLinkActivated` was never delivered to the app on any platform.
+  On web, passing it now replaces the built-in confirm dialog and new tab. ([#298](https://github.com/Notalib/flutter_readium/issues/298))
+- **Correct the current section in publications with nested tables of contents.**
+  Playback could keep reporting a previous subsection after entering another section when its section wrapper was absent from the narration cues. Section boundaries now update the reported entry and the next/previous navigation lookup consistently on iOS, Android, and web.
+- **Web: EPUBs failed to open in release builds when `fontFamilyDeclarations` was set.**
+  The minified bundle resolved the font base URL from the wrong variable, so loading a chapter threw `Invalid URL`. Font faces now resolve against the host page again.
+- **Web: `goToLocator` ignored the position inside a chapter.**
+  Only the chapter's href reached the navigator, so fragments, progression and text were dropped and the chapter opened at its first page. The full locator is now passed on. A position-less `initialLocator` also keeps its progression and text.
+- **Web: custom fonts from `fontFamilyDeclarations` never loaded in EPUBs.**
+  The EPUB frame's Content Security Policy only allowed fonts from the publication's own location, so the browser blocked the app's font assets. The app's asset directory is now allowed too.
+
 ## [0.8.0] - 2026-10-27
 
 ### Changed (breaking)
