@@ -10,7 +10,7 @@ void main() {
     void Function(InternalLinkEvent) onInternalLinkActivated,
   ) => ReadiumReaderChannel(
     'test',
-    onReaderReady: () {},
+    onReaderReady: (_) {},
     onPageChanged: (_) {},
     onInternalLinkActivated: onInternalLinkActivated,
   );
