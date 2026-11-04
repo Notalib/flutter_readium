@@ -202,9 +202,12 @@ export class FlutterEpubNavigator {
           href: initialPosition.href,
           type: initialPosition.type,
           title: initialPosition.title ?? chapPos.title,
+          text: initialPosition.text,
           locations: new LocatorLocations({
             position: chapPos.locations?.position,
             fragments: initialPosition.locations?.fragments,
+            progression: initialPosition.locations?.progression,
+            totalProgression: initialPosition.locations?.totalProgression,
             otherLocations: initialPosition.locations?.otherLocations,
           }),
         });

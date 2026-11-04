@@ -10,6 +10,7 @@
  */
 import { Link, Links, Locator, LocatorLocations } from "@readium/shared";
 import { FlutterAudioNavigator } from "../navigators/FlutterAudioNavigator";
+import { ReadiumWebErrorCode } from "../errors/ReadiumWebError";
 import { __testing__ } from "../ReadiumReader";
 
 const { ReadiumReader } = __testing__;
@@ -583,5 +584,71 @@ describe("active Sync Narration navigation", () => {
     const {reader, seek} = session(true);
     await reader.goTo(target("section"));
     expect(seek).not.toHaveBeenCalled();
+  });
+});
+
+describe("visual-only goTo keeps the in-chapter position", () => {
+  const link = new Link({ href: "chap.xhtml", type: "application/xhtml+xml" });
+
+  function session() {
+    const reader = new ReadiumReader();
+    const nav = {
+      publication: { readingOrder: new Links([link]), resources: new Links([]) },
+      go: jest.fn((_locator: Locator, _animated: boolean, cb: (ok: boolean) => void) => cb(true)),
+      goLink: jest.fn((_link: Link, _animated: boolean, cb: (ok: boolean) => void) => cb(true)),
+    };
+    (reader as any)._nav = nav;
+    return { reader, nav };
+  }
+
+  it("passes fragments and progression to the navigator", async () => {
+    const { reader, nav } = session();
+    const locator = new Locator({
+      href: "chap.xhtml",
+      type: "application/xhtml+xml",
+      locations: new LocatorLocations({ fragments: ["p42"], progression: 0.68 }),
+    });
+
+    await reader.goTo(JSON.stringify(locator.serialize()));
+
+    expect(nav.goLink).not.toHaveBeenCalled();
+    expect(nav.go).toHaveBeenCalledTimes(1);
+    const sent = nav.go.mock.calls[0][0];
+    expect(sent.href).toBe("chap.xhtml");
+    expect(sent.locations.fragments).toEqual(["p42"]);
+    expect(sent.locations.progression).toBe(0.68);
+  });
+
+  it("still rejects an unknown href", async () => {
+    const { reader, nav } = session();
+    const locator = new Locator({ href: "missing.xhtml", type: "application/xhtml+xml" });
+
+    await expect(reader.goTo(JSON.stringify(locator.serialize()))).rejects.toMatchObject({
+      code: ReadiumWebErrorCode.invalidArgument,
+    });
+    expect(nav.go).not.toHaveBeenCalled();
+  });
+
+  it("keeps the position when MediaOverlay audio is active", async () => {
+    const { reader, nav } = session();
+    const audioNav = { currentLocator: new Locator({ href: "a.mp3", type: "audio/mpeg" }), currentTime: 0 };
+    jest.spyOn(reader as any, "_seekAudioAndResume").mockResolvedValue(undefined);
+    Object.assign(reader as any, {
+      _audioNav: audioNav,
+      _audioNavPublication: undefined,
+      _syncItems: [{ textHref: "chap.xhtml", textId: "p1", audioHref: "a.mp3", audioStart: 0, audioEnd: 5 }],
+    });
+    const locator = new Locator({
+      href: "chap.xhtml",
+      type: "application/xhtml+xml",
+      locations: new LocatorLocations({ fragments: ["p1"], progression: 0.3 }),
+    });
+
+    await reader.goTo(JSON.stringify(locator.serialize()));
+
+    expect(nav.goLink).not.toHaveBeenCalled();
+    const sent = nav.go.mock.calls[0][0];
+    expect(sent.locations.fragments).toEqual(["p1"]);
+    expect(sent.locations.progression).toBe(0.3);
   });
 });
