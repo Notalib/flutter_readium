@@ -78,6 +78,7 @@ jobs:
               - 'flutter_readium/example/web/**'
               - 'flutter_readium/package.json'
               - 'flutter_readium/package-lock.json'
+              - 'flutter_readium/eslint.config.mjs'
             ci:
               - '.github/scripts/ci-baseline*'
               - '.github/actions/**'

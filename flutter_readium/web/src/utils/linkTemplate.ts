@@ -105,18 +105,18 @@ function parseExpressions(href: string): TemplateExpression[] | undefined {
   let cursor = 0;
 
   while (cursor < href.length) {
-    const open = href.indexOf("{", cursor);
-    const close = href.indexOf("}", cursor);
+    const openIdx = href.indexOf("{", cursor);
+    const closeIdx = href.indexOf("}", cursor);
 
-    if (open === -1) {
-      return close === -1 ? expressions : undefined;
+    if (openIdx === -1) {
+      return closeIdx === -1 ? expressions : undefined;
     }
-    const nestedOpen = href.indexOf("{", open + 1);
-    if (close === -1 || close < open || (nestedOpen >= 0 && nestedOpen < close)) {
+    const nestedOpen = href.indexOf("{", openIdx + 1);
+    if (closeIdx === -1 || closeIdx < openIdx || (nestedOpen >= 0 && nestedOpen < closeIdx)) {
       return undefined;
     }
 
-    const body = href.slice(open + 1, close);
+    const body = href.slice(openIdx + 1, closeIdx);
     const operator = body.startsWith("?") ? "?" : "";
     const variableList = operator ? body.slice(1) : body;
     const parameters = variableList.split(",");
@@ -128,7 +128,7 @@ function parseExpressions(href: string): TemplateExpression[] | undefined {
     }
 
     expressions.push({ parameters });
-    cursor = close + 1;
+    cursor = closeIdx + 1;
   }
 
   return expressions;

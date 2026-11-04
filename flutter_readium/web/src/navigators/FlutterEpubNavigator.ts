@@ -196,7 +196,7 @@ export class FlutterEpubNavigator {
     // Resolve position-less initial locator (e.g. from sync-narration).
     let resolvedInitialPosition = initialPosition;
     if (initialPosition && initialPosition.locations?.position == null) {
-      const chapPos = positions.find((p) => p.href === initialPosition.href);
+      const chapPos = positions.find((pos) => pos.href === initialPosition.href);
       if (chapPos) {
         resolvedInitialPosition = new Locator({
           href: initialPosition.href,
