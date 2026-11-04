@@ -46,6 +46,23 @@ export class XhtmlIdTree {
     return this.ids.slice(start + 1, this.subtreeEnd[start]).find((x) => candidates.has(x));
   }
 
+  /** A later enclosing ToC element ends continuation from an earlier heading. */
+  boundaryOwner(textId: string, ownerId: string | undefined, tocIds: string[]): number | undefined {
+    const current = this.ids.indexOf(textId);
+    const owner = ownerId ? this.ids.indexOf(ownerId) : -1;
+    if (current === -1 || (ownerId && owner === -1)) return undefined;
+    let result: number | undefined;
+    let latest = owner;
+    tocIds.forEach((id, index) => {
+      const start = this.ids.indexOf(id);
+      if (start > owner && start <= current && current < this.subtreeEnd[start] && start >= latest) {
+        latest = start;
+        result = index;
+      }
+    });
+    return result;
+  }
+
   private visit(element: IdTreeElement): void {
     const index = element.id ? this.ids.push(element.id) - 1 : -1;
     if (index !== -1) this.subtreeEnd.push(this.ids.length);
@@ -54,8 +71,19 @@ export class XhtmlIdTree {
   }
 }
 
+/** Child headings can hide a matched container from all flattened cue owners. */
+function representedTocHrefs(items: SyncNarrationItem[]): Set<string> {
+  const represented = new Set(items.flatMap((item) => [item.text, ...(item.tocHref ? [item.tocHref] : [])]));
+  const containers = new Set(items.map((item) => item.narrationContainerTocHrefs));
+  for (const hrefs of containers) {
+    if (hrefs) for (const href of hrefs) represented.add(href);
+  }
+  return represented;
+}
+
 /**
- * Gives each cue of one resource that has no `tocHref` the ToC entry that precedes it in
+ * Fills unowned cues and ends stale heading continuation at XHTML section boundaries.
+ * An unowned cue receives the ToC entry that precedes it in
  * document order. An uncued ToC target counts at its first cue descendant; when a target
  * and a deeper entry share that cue, the deeper (later) entry wins. Cues before every
  * entry use the resource's file-only entry when present, otherwise remain unowned.
@@ -66,6 +94,9 @@ export function assignUncuedTocOwners(
   tree: XhtmlIdTree | undefined
 ): void {
   const cueIds = new Set(resourceItems.map((item) => item.textId));
+  // Represented narration containers retain their caller scope when traversal returns.
+  const represented = representedTocHrefs(resourceItems);
+  const boundaries = resourceToc.filter((link) => !represented.has(link.href));
   const entries = new Map<number, Link>();
   for (const link of resourceToc) {
     const { textId } = parseTextField(link.href);
@@ -81,7 +112,16 @@ export function assignUncuedTocOwners(
 
   const sorted = [...entries.entries()].sort(([a], [b]) => a - b);
   resourceItems.forEach((item, index) => {
-    if (item.tocHref) return;
+    if (item.tocHref) {
+      const owner = parseTextField(item.tocHref);
+      if (normalizeHref(owner.textHref) !== normalizeHref(item.textHref)) return;
+      const boundary = tree?.boundaryOwner(item.textId, owner.textId || undefined,
+        boundaries.map((link) => parseTextField(link.href).textId));
+      if (boundary === undefined) return;
+      item.tocHref = boundaries[boundary].href;
+      item.tocTitle = boundaries[boundary].title;
+      return;
+    }
     const owner = [...sorted].reverse().find(([start]) => start <= index)?.[1];
     if (!owner) return;
     item.tocHref = owner.href;
@@ -92,7 +132,7 @@ export function assignUncuedTocOwners(
 /** Lookup-time resolution of uncued ToC targets for one Sync Narration session. */
 export class UncuedTocTargets {
   private readonly trees = new Map<string, Promise<XhtmlIdTree | undefined>>();
-  private readonly filled = new Set<string>();
+  private readonly filled = new Map<string, Promise<void>>();
 
   constructor(
     private readonly publication: ReadiumPublication,
@@ -100,15 +140,32 @@ export class UncuedTocTargets {
     private readonly toc: Link[]
   ) {}
 
+  /** Finish boundary corrections before owner-based navigation and playback can observe them. */
+  async prepareOwners(): Promise<void> {
+    const resources = new Set(this.items.filter((item) => item.tocHref).map((item) => normalizeHref(item.textHref)));
+    for (const resource of resources) {
+      const represented = representedTocHrefs(this.items.filter((item) => normalizeHref(item.textHref) === resource));
+      if (this.toc.some((link) => normalizeHref(link.href) === resource &&
+        parseTextField(link.href).textId && !represented.has(link.href))) {
+        await this.fillOwners(resource);
+      }
+    }
+  }
+
   /**
-   * Gives the cues of one resource a ToC owner when the narration nesting gave them none.
-   * Runs once per resource; cues emitted before it finishes keep no owner.
+   * Reconciles one resource once, sharing in-flight work with navigation and initialization.
    */
   async fillOwners(textHref: string): Promise<void> {
     const resource = normalizeHref(textHref);
-    if (this.filled.has(resource)) return;
-    this.filled.add(resource);
+    let pending = this.filled.get(resource);
+    if (!pending) {
+      pending = this.assignOwners(resource);
+      this.filled.set(resource, pending);
+    }
+    await pending;
+  }
 
+  private async assignOwners(resource: string): Promise<void> {
     const resourceToc = this.toc.filter((link) => normalizeHref(link.href) === resource);
     if (resourceToc.length === 0) return;
     const resourceItems = this.items.filter((item) => normalizeHref(item.textHref) === resource);

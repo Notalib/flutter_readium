@@ -83,7 +83,7 @@ jobs:
               - '.github/actions/**'
               - 'bin/**'
               - '.github/workflows/ci.yml'
-              - '.github/workflows/ios-unit-tests.yml'
+              - '.github/workflows/test.yml'
               - '.github/workflows/build-android.yml'
               - '.github/workflows/build-ios.yml'
               - '.github/workflows/build-web.yml'
@@ -117,11 +117,15 @@ jobs:
     if: needs.changes.outputs.ios == 'true'
     uses: ./.github/workflows/integration-test-ios.yml
 
-  ios-unit-tests:
-    name: iOS Native Unit Tests
+  unit-tests:
+    name: Unit Tests
     needs: changes
-    if: needs.changes.outputs.ios == 'true'
-    uses: ./.github/workflows/ios-unit-tests.yml
+    if: needs.changes.outputs.ios == 'true' || needs.changes.outputs.android == 'true' || needs.changes.outputs.web == 'true'
+    uses: ./.github/workflows/test.yml
+    with:
+      ios: ${{ needs.changes.outputs.ios == 'true' }}
+      android: ${{ needs.changes.outputs.android == 'true' }}
+      web: ${{ needs.changes.outputs.web == 'true' }}
 
   integration-android:
     name: Integration Tests Android
@@ -138,7 +142,7 @@ jobs:
   result:
     name: CI result
     if: always()
-    needs: [changes, build-ios, build-android, build-web, integration-ios, integration-android, integration-web]
+    needs: [changes, build-ios, build-android, build-web, unit-tests, integration-ios, integration-android, integration-web]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

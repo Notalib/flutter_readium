@@ -128,6 +128,16 @@ test('rerunning a workflow requests real tests rather than result reuse', async 
   assert.equal(f.calls.length, 0);
 });
 
+test('the CI result gate includes every preceding job, including unit tests', () => {
+  const workflow = readFileSync(join(__dirname, '../workflows/ci.yml'), 'utf8');
+  const jobs = [...workflow.split('\njobs:\n')[1].matchAll(/^  ([\w-]+):$/gm)]
+    .map((match) => match[1]).filter((job) => job !== 'result');
+  const needs = workflow.match(/  result:\n[\s\S]*?    needs: \[([^\]]+)\]/)[1]
+    .split(',').map((job) => job.trim());
+  assert.ok(jobs.includes('unit-tests'));
+  assert.deepEqual(needs.sort(), jobs.sort());
+});
+
 test('the CI result gate accepts intentional skips and rejects detection/test failures', () => {
   const workflow = readFileSync(join(__dirname, '../workflows/ci.yml'), 'utf8');
   const gate = workflow.match(/      - name: Check required jobs\n[\s\S]*?        run: \|\n([\s\S]*)$/)[1];

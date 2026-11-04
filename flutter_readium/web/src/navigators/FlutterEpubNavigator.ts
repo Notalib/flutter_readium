@@ -24,7 +24,11 @@ import {
 } from "../decorations/decorationFrameUtils";
 import { injectFlutterReadiumHelperScripts } from "../utils/iframeInjection";
 import { createLogger } from "../utils/ReadiumPluginLogger";
-import { FontFamilyDeclaration, injectFontFacesIntoWindow } from "../fonts/FontFamilyDeclarations";
+import {
+  FontFamilyDeclaration,
+  flutterAssetsUrl,
+  injectFontFacesIntoWindow,
+} from "../fonts/FontFamilyDeclarations";
 import { tryBuildImageTapPayload } from "../utils/ImageTapDetector";
 import {
   enrichWithTotalProgression,
@@ -102,6 +106,11 @@ export class FlutterEpubNavigator {
     const configuration: EpubNavigatorConfiguration = {
       preferences,
       defaults,
+      // The frame CSP only allows the publication's origin, so injected @font-face rules need the app's asset directory.
+      injectables: {
+        rules: [],
+        allowedDomains: fontFamilyDeclarations.length ? [flutterAssetsUrl(document.baseURI)] : [],
+      },
     };
 
     const p = new Peripherals({
