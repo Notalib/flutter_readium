@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.AbsoluteUrl
 
@@ -274,6 +275,14 @@ class ReadiumReaderWidget(
     override fun onExternalLinkActivated(url: AbsoluteUrl) {
         PluginLog.i(TAG, "::onExternalLinkActivated $url")
         emitOnExternalLinkActivated(url)
+    }
+
+    override fun onInternalLinkActivated(
+        from: Locator?,
+        link: Link,
+    ) {
+        PluginLog.i(TAG, "::onInternalLinkActivated ${link.href}")
+        channel.onInternalLinkActivated(from, link)
     }
 
     override fun onVisualCurrentLocationChanged(locator: Locator) {

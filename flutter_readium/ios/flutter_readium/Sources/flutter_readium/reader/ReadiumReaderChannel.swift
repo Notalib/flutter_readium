@@ -21,6 +21,15 @@ class ReadiumReaderChannel: FlutterMethodChannel {
     invokeMethod("onExternalLinkActivated", arguments: url.absoluteString as String?)
   }
 
+  func onInternalLinkActivated(from: Locator?, link: Link) {
+    guard let target = try? link.jsonString() else {
+      Log.reader.warn("::onInternalLinkActivated. Failed to serialise link: \(link.href)")
+      return
+    }
+    let fromJson: Any = (try? from?.jsonString()) ?? NSNull()
+    invokeMethod("onInternalLinkActivated", arguments: ["from": fromJson, "target": target])
+  }
+
   func onTextSelected(locator: Locator, selectedText: String?) {
     var json: [String: Any] = [:]
     if let locatorString = try? locator.jsonString(),

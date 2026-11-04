@@ -1,0 +1,2 @@
+**New `onInternalLinkActivated` callback on `ReadiumReaderWidget`.**
+Fires when an EPUB follows an internal link (end-note, index entry, cross-reference), with the position before the jump in `event.from` and the link in `event.target`, so apps can offer "Return to previous position". Notify-only: the link is always followed. Android and iOS only; on Android, links within the same XHTML file don't trigger it.
