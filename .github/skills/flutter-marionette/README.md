@@ -44,6 +44,12 @@ If you're adding Marionette to a different app, run:
 flutter pub add dev:marionette_mcp
 ```
 
+For the shell `marionette` command (used by the skill and for manual checks), install the CLI globally. Keep its version in step with the example's `marionette_*` dependencies:
+
+```sh
+dart pub global activate marionette_cli
+```
+
 ### 2b. Instrument your Flutter app
 
 Add the Flutter-side package to the app you want to control:
@@ -88,7 +94,7 @@ The Marionette MCP server (`marionette mcp`) is pre-configured in this repo:
 - **VS Code / Copilot** — `.vscode/mcp.json`
 - **Claude Code** — `.mcp.json` (project root)
 
-No manual configuration needed if you installed the global `marionette` CLI above.
+No manual configuration needed.
 
 ### 2d. Run the example app and connect
 

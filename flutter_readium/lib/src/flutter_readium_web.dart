@@ -119,13 +119,14 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   @override
-  Future<Publication> loadPublication(String pubUrl) async {
+  Future<Publication> loadPublication(String pubUrl) =>
+      _parsePublication(JsPublicationChannel().getPublication(pubUrl));
+
+  static Future<Publication> _parsePublication(Future<String> manifestJson) async {
     Publication? publication;
 
     try {
-      final publicationString = await JsPublicationChannel().getPublication(
-        pubUrl,
-      );
+      final publicationString = await manifestJson;
 
       var publicationJson = jsonDecode(publicationString) as Map<String, dynamic>;
 
@@ -204,7 +205,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   @override
   Future<Publication> openPublication(String pubUrl) async {
-    final publication = await loadPublication(pubUrl);
+    final publication = await _parsePublication(JsPublicationChannel().loadAsCurrentPublication(pubUrl));
 
     // Register the JS->Dart callbacks that ReadiumWebViewState would otherwise set up on
     // mount. Audio can be enabled as soon as the publication is loaded, so player state and

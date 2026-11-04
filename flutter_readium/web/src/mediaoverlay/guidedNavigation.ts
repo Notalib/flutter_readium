@@ -55,22 +55,24 @@ interface GuidedNavigationDocument {
 // ---------------------------------------------------------------------------
 
 /**
- * Returns true if the publication declares Guided Navigation either as a
- * publication-level link or as an alternate on any reading-order link.
- *
- * Note the asymmetry with `detectSyncNarration`, which only inspects
- * reading-order alternates: Sync Narration is always authored per-chapter, but
- * Guided Navigation can also live at the publication level as a single
- * document covering the whole book. We have to check both surfaces.
+ * Returns true if the publication has Guided Navigation and audio to play. A
+ * link alone is not enough: Readium's publication server adds a text-only one.
  */
 export function detectGuidedNavigation(publication: ReadiumPublication): boolean {
+  return _hasGuidedNavigationLink(publication) && _hasAudioResources(publication);
+}
+
+/** Unlike `detectSyncNarration`, also checks publication-level links: one document can cover the whole book. */
+function _hasGuidedNavigationLink(publication: ReadiumPublication): boolean {
   if (_publicationLevelLink(publication)) return true;
-  for (const link of publication.readingOrder.items) {
-    const alternates = link.alternates;
-    if (!alternates) continue;
-    if (alternates.findWithMediaType(GUIDED_NAVIGATION_MEDIA_TYPE)) return true;
-  }
-  return false;
+  return publication.readingOrder.items.some((link) =>
+    link.alternates?.findWithMediaType(GUIDED_NAVIGATION_MEDIA_TYPE)
+  );
+}
+
+function _hasAudioResources(publication: ReadiumPublication): boolean {
+  const isAudio = (link: Link) => link.type?.startsWith("audio/") ?? false;
+  return publication.allLinks.some((link) => isAudio(link) || link.alternates?.items.some(isAudio));
 }
 
 // ---------------------------------------------------------------------------
@@ -112,23 +114,23 @@ async function _parsePublicationLevelDocument(
   const resolved = resolveLink(link, {}, publication.baseURL);
   if (!resolved.ok) return [];
 
-  let document: GuidedNavigationDocument | null = null;
+  let gnDocument: GuidedNavigationDocument | null = null;
   try {
     const resource: Resource = publication.get(resolved.link);
     const json = await resource.readAsJSON();
-    document = _parseDocument(json);
+    gnDocument = _parseDocument(json);
   } catch (err) {
     log.warn("Strategy 1: failed to fetch/parse guided navigation document", err);
     return [];
   }
 
-  if (!document) {
+  if (!gnDocument) {
     log.warn("Strategy 1: guided navigation document had no usable 'guided' entries");
     return [];
   }
 
   const items: SyncNarrationItem[] = [];
-  for (const obj of document.guided) {
+  for (const obj of gnDocument.guided) {
     _flattenWithReadingOrderLookup(obj, items, publication);
   }
   return items;
@@ -155,22 +157,22 @@ async function _parseReadingOrderAlternates(
     if (seenHrefs.has(resolved.link.href)) continue;
     seenHrefs.add(resolved.link.href);
 
-    let document: GuidedNavigationDocument | null = null;
+    let gnDocument: GuidedNavigationDocument | null = null;
     try {
       const resource: Resource = publication.get(resolved.link);
       const json = await resource.readAsJSON();
-      document = _parseDocument(json);
+      gnDocument = _parseDocument(json);
     } catch (err) {
       log.warn("Strategy 2: failed to fetch/parse alternate for", roLink.href, err);
       continue;
     }
 
-    if (!document) {
+    if (!gnDocument) {
       log.warn("Strategy 2: alternate had no usable 'guided' entries for", roLink.href);
       continue;
     }
 
-    for (const obj of document.guided) {
+    for (const obj of gnDocument.guided) {
       _flattenWithReadingOrderLookup(obj, result, publication);
     }
   }

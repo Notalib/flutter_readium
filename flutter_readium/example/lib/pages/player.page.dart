@@ -86,10 +86,12 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
         content: Text(message),
         actions: [
           TextButton(
+            key: const ValueKey('audio_error_ok_button'),
             onPressed: () => Navigator.pop(ctx),
             child: const Text('OK'),
           ),
           TextButton(
+            key: const ValueKey('audio_error_retry_button'),
             onPressed: () {
               Navigator.pop(ctx);
               context.read<PlayerControlsBloc>().add(Play());
@@ -180,6 +182,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
                                 return const SizedBox.shrink();
                               }
                               return FilledButton.icon(
+                                key: const ValueKey('resync_narration_button'),
                                 onPressed: () => FlutterReadium().setNarrationSyncEnabled(true),
                                 icon: const Icon(Icons.sync),
                                 label: const Text('Re-sync'),
@@ -208,6 +211,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   List<Widget> _buildActionButtons(final bool isAudioBook, final bool isDivina) => <Widget>[
     if (!isAudioBook && !isDivina)
       IconButton(
+        key: const ValueKey('visual_settings_button'),
         icon: const Icon(Icons.format_paint),
         onPressed: () {
           final publication = context.read<PublicationBloc>().state.publication;
@@ -224,6 +228,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
         tooltip: 'Open visual reader settings',
       ),
     IconButton(
+      key: const ValueKey('audio_settings_button'),
       icon: const Icon(Icons.headphones),
       onPressed: () {
         final publication = context.read<PublicationBloc>().state.publication;
@@ -248,6 +253,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
       tooltip: 'Open audio/playback settings',
     ),
     IconButton(
+      key: const ValueKey('search_button'),
       icon: const Icon(Icons.search),
       onPressed: () async {
         final tappedSearchResult = await Navigator.pushNamed<dynamic>(
@@ -267,6 +273,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
       tooltip: 'Search in publication contents',
     ),
     IconButton(
+      key: const ValueKey('toc_button'),
       icon: const Icon(Icons.toc),
       onPressed: () async {
         final publication = context.read<PublicationBloc>().state.publication;

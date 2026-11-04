@@ -418,6 +418,9 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
      * Load and return the publication manifest from a URL without opening it.
      */
     private suspend fun loadPublication(pubUrlStr: String): Try<String, PublicationError> {
+        // Read the open publication as is, as iOS does: it must not be closed below.
+        ReadiumReader.currentPublicationFor(pubUrlStr)?.let { return Try.success(it.toDartManifestJson()) }
+
         val publication =
             ReadiumReader.loadPublicationFromUrl(pubUrlStr).getOrElse { error ->
                 return Try.failure(error)

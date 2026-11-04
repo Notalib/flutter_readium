@@ -26,6 +26,7 @@ class TableOfContentsPage extends StatelessWidget {
             actions: [
               if (pub != null && pub.pageList.isNotEmpty)
                 IconButton(
+                  key: const ValueKey('page_list_button'),
                   icon: const Icon(Icons.menu_book),
                   onPressed: () async {
                     // Replace ToC page with Page List page, if page is clicked, pop it back to Player page.
@@ -54,7 +55,7 @@ class TableOfContentsPage extends StatelessWidget {
                   itemCount: links.length,
                   itemBuilder: (context, idx) {
                     final tocLink = links[idx];
-                    return _buildLinkTile(context, tocLink);
+                    return _buildLinkTile(context, tocLink, path: '$idx');
                   },
                 );
               }
@@ -65,19 +66,24 @@ class TableOfContentsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildLinkTile(BuildContext context, Link link, {int level = 1}) {
+  /// [path] is the entry's index chain (e.g. `2_0`); titles and hrefs can repeat, so they can't key rows.
+  Widget _buildLinkTile(BuildContext context, Link link, {required String path, int level = 1}) {
     final title = link.title?.isNotEmpty == true ? link.title! : p.basenameWithoutExtension(link.href);
     if ((link.children.length) > 1) {
       final children = link.children;
       return ExpansionTile(
+        key: ValueKey('toc_item_$path'),
         title: Text(title),
         controlAffinity: ListTileControlAffinity.leading,
         backgroundColor: Colors.blue[min(max(level * 100, 0), 900)],
         initiallyExpanded: true,
-        children: children.map((c) => _buildLinkTile(context, c, level: level + 1)).toList(),
+        children: [
+          for (final (i, c) in children.indexed) _buildLinkTile(context, c, path: '${path}_$i', level: level + 1),
+        ],
       );
     } else {
       return ListTile(
+        key: ValueKey('toc_item_$path'),
         title: Text(title),
         contentPadding: EdgeInsets.only(left: 12.0 * level),
         trailing: Icon(Icons.arrow_forward_ios),

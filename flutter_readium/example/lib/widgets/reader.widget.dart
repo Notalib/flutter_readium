@@ -117,6 +117,28 @@ class ReaderWidget extends StatelessWidget {
                     );
                   }
                 },
+                onInternalLinkActivated: (event) {
+                  final from = event.from;
+                  if (from == null) return;
+                  // Flutter has no top-positioned SnackBar; the bottom margin pushes it up
+                  // to just below the app bar, clear of the player controls.
+                  final bottomMargin = MediaQuery.sizeOf(context).height - 170;
+                  ScaffoldMessenger.of(context)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(
+                      SnackBar(
+                        behavior: SnackBarBehavior.floating,
+                        margin: EdgeInsets.fromLTRB(16, 0, 16, bottomMargin),
+                        duration: const Duration(seconds: 8),
+                        content: const Text('Followed a link'),
+                        action: SnackBarAction(
+                          key: const ValueKey('return_to_previous_position_button'),
+                          label: 'Return',
+                          onPressed: () => FlutterReadium().goToLocator(from),
+                        ),
+                      ),
+                    );
+                },
               ),
             ],
           ),
@@ -151,10 +173,12 @@ class ReaderWidget extends StatelessWidget {
         content: Text('Selected: "${event.selectedText ?? '(no text)'}"'),
         actions: [
           TextButton(
+            key: const ValueKey('note_cancel_button'),
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
           TextButton(
+            key: const ValueKey('note_save_button'),
             onPressed: () {
               Navigator.pop(ctx);
               _applyHighlight(context, event);

@@ -6,6 +6,7 @@ import 'package:flutter_readium/flutter_readium.dart';
 import '../extensions/text_settings_theme.dart';
 import '../state/publication_bloc.dart';
 import '../state/text_settings_bloc.dart';
+import '../utils/index.dart';
 import 'index.dart';
 
 const List<String> _fontFamilies = [
@@ -472,6 +473,7 @@ class _CollapsibleSection extends StatelessWidget {
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
+        key: ValueKey('text_settings_section_${sanitizeForKey(title).toLowerCase()}'),
         title: Text(
           title,
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),

@@ -107,11 +107,44 @@ class PluginMediaService :
     private val notificationPlayerCustomCommandButtons =
         NotificationPlayerCustomCommandButton.entries.map { command -> command.commandButton }
 
-    override fun onConnect(
+    private var lastNotificationUpdate: String? = null
+
+    internal fun logNotificationUpdate(
+        player: Player,
+        startInForegroundRequired: Boolean,
+    ) {
+        if (PluginLog.level.value < PluginLogLevel.DEBUG.value) {
+            lastNotificationUpdate = null
+            return
+        }
+        val playbackState =
+            when (player.playbackState) {
+                Player.STATE_IDLE -> "IDLE"
+                Player.STATE_BUFFERING -> "BUFFERING"
+                Player.STATE_READY -> "READY"
+                Player.STATE_ENDED -> "ENDED"
+                else -> "UNKNOWN"
+            }
+        val canReadTimeline = player.isCommandAvailable(Player.COMMAND_GET_TIMELINE)
+        val timelineWindows = if (canReadTimeline) player.currentTimeline.windowCount else null
+        val snapshot =
+            "foregroundRequired=$startInForegroundRequired state=$playbackState " +
+                "playWhenReady=${player.playWhenReady} playing=${player.isPlaying} " +
+                "suppression=${player.playbackSuppressionReason} " +
+                "timelineWindows=$timelineWindows canReadTimeline=$canReadTimeline"
+        if (snapshot == lastNotificationUpdate) return
+        lastNotificationUpdate = snapshot
+        PluginLog.d(TAG, "::logNotificationUpdate $snapshot")
+    }
+
+    override fun onConnectAsync(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
-    ): MediaSession.ConnectionResult {
-        val connectionResult = super.onConnect(session, controller)
+    ): ListenableFuture<MediaSession.ConnectionResult> {
+        // Media3 1.11's synchronous default is a sentinel with empty commands.
+        // Start with controller-aware defaults so notification controls retain playback access.
+        val resultBuilder = MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
+        val connectionResult = resultBuilder.build()
         val availableSessionCommands = connectionResult.availableSessionCommands.buildUpon()
 
         // Registering custom player command buttons for player notification.
@@ -119,10 +152,34 @@ class PluginMediaService :
             commandButton.sessionCommand?.let(availableSessionCommands::add)
         }
 
-        return MediaSession.ConnectionResult.accept(
-            availableSessionCommands.build(),
-            connectionResult.availablePlayerCommands,
-        )
+        val result =
+            resultBuilder
+                .setAvailableSessionCommands(availableSessionCommands.build())
+                .build()
+        val notificationController = session.isMediaNotificationController(controller)
+        if (PluginLog.level.value >= PluginLogLevel.DEBUG.value) {
+            PluginLog.d(
+                TAG,
+                "::onConnectAsync notificationController=$notificationController " +
+                    "trusted=${controller.isTrusted} accepted=${result.isAccepted} " +
+                    "grantedCommands=${result.availablePlayerCommands.size()} " +
+                    "canReadTimeline=${result.availablePlayerCommands.contains(Player.COMMAND_GET_TIMELINE)} " +
+                    "canPlayPause=${result.availablePlayerCommands.contains(Player.COMMAND_PLAY_PAUSE)}",
+            )
+        }
+        if (PluginLog.level.value >= PluginLogLevel.WARN.value &&
+            result.isAccepted &&
+            notificationController &&
+            session.player.isCommandAvailable(Player.COMMAND_GET_TIMELINE) &&
+            !result.availablePlayerCommands.contains(Player.COMMAND_GET_TIMELINE)
+        ) {
+            PluginLog.w(
+                TAG,
+                "::onConnectAsync Notification controller accepted without timeline access; " +
+                    "media notification may not be shown.",
+            )
+        }
+        return Futures.immediateFuture(result)
     }
 
     override fun onPostConnect(
@@ -179,7 +236,7 @@ class PluginMediaService :
             sessionMutable.asStateFlow()
 
         fun closeSession() {
-            PluginLog.d(TAG, "closeSession")
+            PluginLog.d(TAG, "::closeSession hasSession=${session.value != null}")
             session.value?.let { session ->
                 session.mediaSession.release()
                 session.coroutineScope.cancel()
@@ -192,7 +249,7 @@ class PluginMediaService :
             navigator: N,
             onIsPlayingChanged: ((Boolean) -> Unit)? = null,
         ) where N : AnyMediaNavigator, N : Media3Adapter {
-            PluginLog.d(TAG, "openSession")
+            lastNotificationUpdate = null
 
             val activityIntent = createSessionActivityIntent()
             val player = navigator.asMedia3Player()
@@ -240,6 +297,7 @@ class PluginMediaService :
                     .build()
 
             addSession(mediaSession)
+            PluginLog.d(TAG, "::openSession registered sessions=${sessions.size}")
 
             val session =
                 Session(
@@ -340,18 +398,30 @@ class PluginMediaService :
         return START_NOT_STICKY
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = binder.session.value?.mediaSession
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
+        val session = binder.session.value?.mediaSession
+        PluginLog.d(TAG, "::onGetSession hasSession=${session != null}")
+        return session
+    }
+
+    override fun onUpdateNotification(
+        session: MediaSession,
+        startInForegroundRequired: Boolean,
+    ) {
+        logNotificationUpdate(session.player, startInForegroundRequired)
+        super.onUpdateNotification(session, startInForegroundRequired)
+    }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        PluginLog.d(TAG, "Task removed. Stopping session and service.")
+        PluginLog.d(TAG, "::onTaskRemoved Stopping session and service.")
         // Close the session to allow the service to be stopped.
         binder.closeSession()
         binder.stop()
     }
 
     override fun onDestroy() {
-        PluginLog.d(TAG, "Destroying MediaService.")
+        PluginLog.d(TAG, "::onDestroy Destroying media service.")
         binder.closeSession()
         // Ensure one more time that all notifications are gone and,
         // hopefully, pending intents cancelled.
@@ -662,15 +732,7 @@ class PluginSimpleBasePlayer(
             state.setAvailableCommands(commandsWithoutSeeking)
         }
 
-        PluginLog.d(
-            TAG,
-            "Command available: $COMMAND_GET_CURRENT_MEDIA_ITEM? - ${player.isCommandAvailable(
-                COMMAND_GET_CURRENT_MEDIA_ITEM,
-            )} - whole book? ${usesWholeBookTimebase()}",
-        )
-
         if (player.isCommandAvailable(COMMAND_GET_CURRENT_MEDIA_ITEM)) {
-            PluginLog.d(TAG, "Command available: $COMMAND_GET_CURRENT_MEDIA_ITEM - whole book? ${usesWholeBookTimebase()}")
             if (usesWholeBookTimebase()) {
                 state.setContentPositionMs {
                     publicationPositionMs() ?: player.contentPosition

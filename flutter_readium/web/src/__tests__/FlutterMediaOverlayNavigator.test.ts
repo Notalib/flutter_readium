@@ -7,6 +7,7 @@
  *   - _audioMimeType  (pure href → MIME type mapping)
  *   - _resolveItemHrefs  (relative → absolute href resolution)
  *   - _buildAudioReadingOrder  (synthetic reading order construction)
+ *   - _withCueTitles  (audio link titles from cue ToC titles)
  */
 
 import { Link } from "@readium/shared";
@@ -14,7 +15,7 @@ import { __testing__ } from "../navigators/FlutterMediaOverlayNavigator";
 import { SyncNarrationItem } from "../mediaoverlay/syncNarration";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 
-const { audioMimeType, resolveItemHrefs, buildAudioReadingOrder } = __testing__;
+const { audioMimeType, resolveItemHrefs, buildAudioReadingOrder, withCueTitles } = __testing__;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -255,12 +256,14 @@ describe("buildAudioReadingOrder", () => {
 
   it("attaches the first tocTitle found for the file as link title", () => {
     const items = [
-      makeItem("chap1.mp3", 0, 5, { tocTitle: "Chapter 1" }),
-      makeItem("chap1.mp3", 5, 10, { tocTitle: "Chapter 1 continued" }),
+      makeItem("https://host/book/chap1.mp3", 0, 5, { tocTitle: "Chapter 1" }),
+      makeItem("https://host/book/chap1.mp3", 5, 10, { tocTitle: "Chapter 1 continued" }),
     ];
     const pub = fakePub("https://host/book/manifest.json");
-    const ro = buildAudioReadingOrder(items, pub);
+    const ro = withCueTitles(buildAudioReadingOrder(items, pub), items);
     expect(ro[0].title).toBe("Chapter 1");
+    expect(ro[0].duration).toBe(10);
+    expect(ro[0].type).toBe("audio/mpeg");
   });
 
   it("leaves duration undefined when cue sum is 0 and no readingOrderDuration", () => {

@@ -103,10 +103,22 @@ extension Publication {
     }
   }
 
+  /// Whether the publication has guided navigation and audio to play.
+  /// A link alone is not enough: Readium's publication server adds a text-only one.
   var containsGuidedNavigationMediaOverlays: Bool {
+    containsGuidedNavigationLink && containsAudioResources
+  }
+
+  private var containsGuidedNavigationLink: Bool {
     let mt = MediaType("application/guided-navigation+json")!
     return !links.filterByMediaType(mt).isEmpty ||
       readingOrder.contains(where: { !$0.alternates.filterByMediaType(mt).isEmpty })
+  }
+
+  private var containsAudioResources: Bool {
+    func isAudio(_ link: Link) -> Bool { link.mediaType?.isAudio == true }
+
+    return (readingOrder + resources).contains(where: { isAudio($0) || $0.alternates.contains(where: isAudio) })
   }
 
   /// Whether the publication has any audio-text synchronization data,
@@ -131,7 +143,7 @@ extension Publication {
         }
         return item
       }
-      return FlutterMediaOverlay(items: items, readingOrderDuration: overlay.readingOrderDuration ?? overlay.totalDuration)
+      return FlutterMediaOverlay(items: items, readingOrderDuration: overlay.readingOrderDuration ?? overlay.totalDuration, narrationContainerTocHrefs: overlay.narrationContainerTocHrefs)
     }
   }
 
@@ -217,7 +229,7 @@ extension Publication {
           FlutterMediaOverlayItem(
             audio: item.audio, text: item.text, position: position, readingOrderDuration: duration)
         }
-        return FlutterMediaOverlay(items: items, readingOrderDuration: duration)
+        return FlutterMediaOverlay(items: items, readingOrderDuration: duration, narrationContainerTocHrefs: overlay.narrationContainerTocHrefs)
       }
       guard !positionedOverlays.isEmpty else { return nil }
       return enrichOverlaysWithToc(positionedOverlays)
@@ -252,7 +264,7 @@ extension Publication {
           FlutterMediaOverlayItem(
             audio: item.audio, text: item.text, position: position, readingOrderDuration: duration)
         }
-        return FlutterMediaOverlay(items: items, readingOrderDuration: duration)
+        return FlutterMediaOverlay(items: items, readingOrderDuration: duration, narrationContainerTocHrefs: overlay.narrationContainerTocHrefs)
       }
       allOverlays += positionedOverlays
     }

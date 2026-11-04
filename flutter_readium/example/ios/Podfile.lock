@@ -6,6 +6,9 @@ PODS:
   - DifferenceKit/Core (1.3.0)
   - DifferenceKit/UIKitExtension (1.3.0):
     - DifferenceKit/Core
+  - file_picker_darwin (1.0.0):
+    - Flutter
+    - FlutterMacOS
   - Flutter (1.0.0)
   - flutter_readium (0.0.1):
     - Flutter
@@ -48,6 +51,7 @@ PODS:
     - Flutter
 
 DEPENDENCIES:
+  - file_picker_darwin (from `.symlinks/plugins/file_picker_darwin/darwin`)
   - Flutter (from `Flutter`)
   - flutter_readium (from `.symlinks/plugins/flutter_readium/ios`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
@@ -76,6 +80,8 @@ SPEC REPOS:
     - SwiftSoup
 
 EXTERNAL SOURCES:
+  file_picker_darwin:
+    :path: ".symlinks/plugins/file_picker_darwin/darwin"
   Flutter:
     :path: Flutter
   flutter_readium:
@@ -92,6 +98,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   CryptoSwift: e2e7776512f250e66205955da748e7a4e4abffe0
   DifferenceKit: ab185c4d7f9cef8af3fcf593e5b387fb81e999ca
+  file_picker_darwin: 4c2b9a50ea44cb3b071381ea0cf48591bdd80251
   Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
   flutter_readium: a4b23fa14c9f8a0c3c903119b3244810b2d1e837
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
