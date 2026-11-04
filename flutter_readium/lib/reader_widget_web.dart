@@ -40,7 +40,13 @@ class ReadiumReaderWidget extends StatefulWidget {
   final void Function(SelectionActionEvent)? onSelectionAction;
   final void Function(DecorationInteractionEvent)? onDecorationInteraction;
   final ValueChanged<ImageTapEvent>? onImageTapped;
+
+  /// Actions shown in a floating toolbar above the selected text.
+  ///
+  /// Web draws the toolbar itself, since the browser's selection menu cannot be extended.
   final List<SelectionAction>? selectionActions;
+
+  /// Not supported on web: the browser's native selection menu cannot be customised, so this is ignored.
   final Set<DefaultSelectionAction>? allowedDefaultActions;
   final List<ReaderFontFamily> fontFamilyDeclarations;
   final bool disablePageTurnsWhileScrolling;
@@ -56,12 +62,35 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   void initState() {
     super.initState();
     _log.d('Widget initiated');
+    _pushSelectionActions();
   }
 
+  @override
+  void didUpdateWidget(covariant ReadiumReaderWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_actionsJson(oldWidget) != _actionsJson(widget)) {
+      _pushSelectionActions();
+    }
+  }
+
+  // No reset on dispose: the reader is a singleton, so a replacing widget may
+  // already have pushed its own actions, and every widget pushes on init.
   @override
   void dispose() {
     _log.d('Widget disposed');
     super.dispose();
+  }
+
+  static String _actionsJson(ReadiumReaderWidget w) =>
+      json.encode((w.selectionActions ?? const <SelectionAction>[]).map((a) => a.toJson()).toList());
+
+  // The toolbar is a nicety; a JS failure must not break widget init.
+  void _pushSelectionActions() {
+    try {
+      JsPublicationChannel().setSelectionActions(_actionsJson(widget));
+    } on PlatformException catch (e) {
+      _log.w('setSelectionActions failed: $e');
+    }
   }
 
   @override

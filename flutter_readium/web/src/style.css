@@ -186,3 +186,40 @@ table.has-header tr td.mobile-header h6 {
 table.has-header thead tr:first-child {
   display: none;
 }
+
+/* Floating custom selection actions (see selection/SelectionToolbar.ts). */
+.flutter-readium-selection-toolbar {
+  position: absolute;
+  z-index: 10;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  background: #fff;
+  color: #1a1a1a;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  font: 14px/1.2 system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.flutter-readium-selection-toolbar button {
+  padding: 6px 10px;
+  background: transparent;
+  color: inherit;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.flutter-readium-selection-toolbar button:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.flutter-readium-selection-toolbar button:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: -2px;
+}

@@ -47,6 +47,10 @@ Calling `applyDecorations` with the same group id **replaces** all existing deco
 await reader.applyDecorations('highlights', []);
 ```
 
+## Decoration taps
+
+`onDecorationInteraction` on `ReadiumReaderWidget` fires when the user taps a decoration applied through `applyDecorations`. On web this covers highlight, underline and spotlight styles, and the event carries the group id you passed. Decorations that TTS and media overlay draw themselves are not tappable.
+
 ## Serialisation
 
 ```dart

@@ -5,23 +5,38 @@
  * subgroup / style state used by the reader facade.
  */
 
-import { EpubNavigator, WebPubNavigator } from "@readium/navigator";
-import { Decoration, DecorationLayout, DecorationWidth } from "@readium/navigator-html-injectables";
+import {
+  Decoration,
+  DecorationStyleType,
+  DecorationWidth,
+  EpubNavigator,
+  WebPubNavigator,
+} from "@readium/navigator";
 import { Locator } from "@readium/shared";
 import {
-  UNDERLINE_GROUP_SUFFIX,
   SPOTLIGHT_GROUP_SUFFIX,
-  sendDecorate,
   navIframeWindows,
-  registerPendingDecorationGroup,
   setSpotlightGroupOnIframes,
   clearSpotlightState,
 } from "./decorationFrameUtils";
 import { dartColorToCss } from "../utils/colors";
+import { ReadiumBridge } from "../bridge/ReadiumBridge";
+
+export interface ApplyDecorationsOptions {
+  /**
+   * Report taps on these decorations through `onDecorationInteraction`.
+   * Only for groups the app applied itself; TTS / media-overlay highlights are not tappable.
+   */
+  tappable?: boolean;
+}
 
 export class DecorationController {
-  // Maps group name → set of decoration IDs currently applied.
-  private readonly _decorationsByGroup: Map<string, Set<string>> = new Map();
+  constructor(private readonly _bridge: Pick<ReadiumBridge, "emitDecorationInteraction">) {}
+
+  // Upstream (sub)groups with an observer on `_observedNav`.
+  // Upstream's destroy() drops its own observers, so a new navigator starts clean.
+  private _observedNav: EpubNavigator | WebPubNavigator | undefined;
+  private readonly _observedGroups = new Set<string>();
 
   // Stored decoration styles for TTS/media-overlay use.
   // Defaults match iOS/Android: yellow highlight for utterance, black underline for range.
@@ -42,15 +57,13 @@ export class DecorationController {
    * Apply a set of decorations to the visual navigator.
    * Replaces any previously applied decorations in the same group.
    */
-  applyDecorations(nav: EpubNavigator | WebPubNavigator, group: string, decorationsJson: string): void {
-    const underlineGroup = group + UNDERLINE_GROUP_SUFFIX;
+  applyDecorations(
+    nav: EpubNavigator | WebPubNavigator,
+    group: string,
+    decorationsJson: string,
+    options: ApplyDecorationsOptions = {}
+  ): void {
     const spotlightGroup = group + SPOTLIGHT_GROUP_SUFFIX;
-
-    // Clear all subgroups for replacement semantics.
-    for (const grp of [group, underlineGroup, spotlightGroup]) {
-      sendDecorate(nav, grp, "clear", undefined);
-      this._decorationsByGroup.set(grp, new Set());
-    }
 
     const decorationsRaw: Array<{
       id: string;
@@ -58,51 +71,47 @@ export class DecorationController {
       style: { style: string; tint: string };
     }> = JSON.parse(decorationsJson);
 
-    // Convert tints from Dart's AARRGGBB to CSS RRGGBBAA at the entry point so
-    // all downstream paths (highlight fill, underline CSS) see CSS colors.
-    for (const item of decorationsRaw) {
-      item.style.tint = dartColorToCss(item.style.tint);
-    }
-
-    const iframes = navIframeWindows(nav);
-
-    // Look ahead to collect the first tint per subgroup for FIFO pairing.
-    const firstTintByGroup = new Map<string, { isUnderline: boolean; tint: string }>();
-    for (const raw of decorationsRaw) {
-      const grp = this._subgroupFor(group, raw.style.style);
-      if (!firstTintByGroup.has(grp)) {
-        firstTintByGroup.set(grp, { isUnderline: raw.style.style === "underline", tint: raw.style.tint });
-      }
-    }
-    for (const [grp, meta] of firstTintByGroup) {
-      registerPendingDecorationGroup(iframes, grp, meta.isUnderline, meta.tint);
-    }
+    // Every subgroup gets a list, even an empty one, so that a subgroup the new
+    // list no longer uses is cleared (replacement semantics).
+    const bySubgroup = new Map<string, Decoration[]>([
+      [group, []],
+      [spotlightGroup, []],
+    ]);
 
     for (const raw of decorationsRaw) {
-      const usesBoundsLayout = raw.style.style === "underline";
-      const targetGroup = this._subgroupFor(group, raw.style.style);
+      const isSpotlight = raw.style.style === "spotlight";
+      // Convert tints from Dart's AARRGGBB to CSS RRGGBBAA at the entry point so
+      // upstream's Decorator and the spotlight CSS see CSS colors.
+      const tint = dartColorToCss(raw.style.tint);
 
-      const decoration: Decoration = {
+      bySubgroup.get(isSpotlight ? spotlightGroup : group)!.push({
         id: raw.id,
         locator: Locator.deserialize(raw.locator)!,
         style: {
-          tint: raw.style.tint,
+          type: raw.style.style === "underline"
+            ? DecorationStyleType.Underline
+            : DecorationStyleType.Highlight,
+          tint,
           width: DecorationWidth.Wrap,
-          // Underline decorations use bounds layout to avoid clipping the underline at the edges of the text.
-          ...(usesBoundsLayout ? { layout: DecorationLayout.Bounds } : {}),
           // Keep plugin-selected decoration tints faithful on web instead of
           // letting Readium adjust them to satisfy its contrast heuristic.
           enforceContrast: false,
         },
-      };
-      sendDecorate(nav, targetGroup, "add", decoration);
-      this._decorationsByGroup.get(targetGroup)!.add(raw.id);
+      });
+    }
+
+    for (const [subgroup, decorations] of bySubgroup) {
+      nav.applyDecorations(decorations, subgroup);
+      if (options.tappable) this._observe(nav, subgroup, group);
     }
 
     // Spotlight is driven by decoration presence: activate when the spotlight
     // subgroup is non-empty, deactivate when empty.
-    const hasSpotlight = (this._decorationsByGroup.get(spotlightGroup)?.size ?? 0) > 0;
-    setSpotlightGroupOnIframes(iframes, spotlightGroup, hasSpotlight);
+    setSpotlightGroupOnIframes(
+      navIframeWindows(nav),
+      spotlightGroup,
+      bySubgroup.get(spotlightGroup)!.length > 0
+    );
   }
 
   /**
@@ -123,17 +132,39 @@ export class DecorationController {
     onStylesUpdated?.(this._utteranceStyle, this._rangeStyle);
   }
 
-  /** Clear all stored decoration group state (call on closePublication). */
+  /** Release the closed navigator and the spotlight mirror (call on closePublication). */
   reset(): void {
-    this._decorationsByGroup.clear();
+    this._observedNav = undefined;
     clearSpotlightState();
   }
 
-  private _subgroupFor(group: string, style: string): string {
-    switch (style) {
-      case "underline": return group + UNDERLINE_GROUP_SUFFIX;
-      case "spotlight": return group + SPOTLIGHT_GROUP_SUFFIX;
-      default:          return group; // "highlight" and anything unknown
+  /**
+   * Makes `subgroup` tappable, once per navigator. Reports `parentGroup` (the name
+   * the app used), never the internal spotlight subgroup name.
+   */
+  private _observe(
+    nav: EpubNavigator | WebPubNavigator,
+    subgroup: string,
+    parentGroup: string
+  ): void {
+    if (this._observedNav !== nav) {
+      this._observedNav = nav;
+      this._observedGroups.clear();
     }
+    if (this._observedGroups.has(subgroup)) return;
+
+    nav.registerDecorationObserver(subgroup, {
+      onDecorationActivated: (event) => {
+        this._bridge.emitDecorationInteraction({
+          decorationId: event.decoration.id,
+          group: parentGroup,
+          type: "tap",
+          // serialize() keeps otherLocations Map entries that a plain stringify drops.
+          locator: event.decoration.locator.serialize(),
+        });
+        return true;
+      },
+    });
+    this._observedGroups.add(subgroup);
   }
 }

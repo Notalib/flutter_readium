@@ -9,6 +9,8 @@ import { ReadiumBridge } from "./bridge/ReadiumBridge";
 import { PublicationManager } from "./publication/PublicationManager";
 // Decorations
 import { DecorationController } from "./decorations/DecorationController";
+// Selection actions
+import { SelectionToolbar, SelectionActionConfig } from "./selection/SelectionToolbar";
 // Model
 import { ReadiumReaderStatus } from "./model/ReadiumReaderStatus";
 // Utils
@@ -17,6 +19,7 @@ import { ReadiumPublication, findLinkByHref } from "./utils/ReadiumExtensions";
 // Navigators
 import { FlutterEpubNavigator } from "./navigators/FlutterEpubNavigator";
 import { FlutterWebPubNavigator } from "./navigators/FlutterWebPubNavigator";
+import { buildSelectionLocator, buildTextSelectionPayload, SelectionHooks } from "./navigators/navigatorUtils";
 import { FlutterDivinaNavigator } from "./navigators/FlutterDivinaNavigator";
 import {
   FlutterAudioNavigator,
@@ -169,7 +172,33 @@ class _ReadiumReader {
   // Collaborators
   private readonly _bridge = new ReadiumBridge();
   private readonly _pubManager = new PublicationManager();
-  private readonly _decorations = new DecorationController();
+  private readonly _decorations = new DecorationController(this._bridge);
+  private readonly _selectionToolbar = new SelectionToolbar((event) =>
+    this._bridge.emitSelectionAction(event)
+  );
+
+  /** Wires navigator text selections to the Dart event and the selection-actions toolbar. */
+  private readonly _selectionHooks: SelectionHooks = {
+    onTextSelected: (selection, locator, frame) => {
+      this._bridge.emitTextSelected(buildTextSelectionPayload(locator, selection.text));
+      const nav = this._nav;
+      if (!frame || !nav) return;
+      this._selectionToolbar.show({
+        frame,
+        rect: selection,
+        resolve: () => {
+          // The selection can change (e.g. touch handles) without another pointerup.
+          const text = frame.window.getSelection()?.toString();
+          if (!text) return undefined;
+          return {
+            text,
+            locator: buildSelectionLocator(nav.currentLocator, { ...selection, text }, frame.window),
+          };
+        },
+      });
+    },
+    onViewChanged: () => this._selectionToolbar.hide(),
+  };
 
   /** The active visual navigator (EPUB, WebPub or DiViNa), for navigation calls. */
   private get _visualNav(): VisualNavigatorLike | undefined {
@@ -478,6 +507,7 @@ class _ReadiumReader {
           // opening the publication just like a missing-navigator guard.
           throw new ReadiumWebError("Container element not found", ReadiumWebErrorCode.noPublication);
         }
+        this._selectionToolbar.attach(container);
         if (publication.conformsToEpub) {
           log.info("Publication conforms to EPUB profile");
           await FlutterEpubNavigator.create(
@@ -500,7 +530,8 @@ class _ReadiumReader {
                 injectMOBreakCSSIntoWindow(wnd);
               }
             },
-            fontFamilyDeclarations
+            fontFamilyDeclarations,
+            this._selectionHooks
           );
         } else if (publication.conformsToDivina) {
           log.info("Publication conforms to DiViNa profile (comic)");
@@ -528,7 +559,8 @@ class _ReadiumReader {
               this._nav = nav;
               this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
             },
-            fontFamilyDeclarations
+            fontFamilyDeclarations,
+            this._selectionHooks
           );
         }
       }
@@ -691,12 +723,11 @@ class _ReadiumReader {
   /**
    * Replace the entire decoration group with the provided list.
    *
-   * Decorations are routed to one of three upstream subgroups based on style:
-   *   - `highlight` → `<group>` (filled rectangle behind text)
-   *   - `underline` → `<group>__underline` (border-bottom via injected CSS)
+   * Decorations are routed to one of two upstream subgroups based on style:
+   *   - `highlight`, `underline` → `<group>` (upstream Highlight / Underline styles)
    *   - `spotlight` → `<group>__spotlight` (filled rectangle + body-dim CSS)
    *
-   * All three subgroups are cleared on each call for replacement semantics. Spotlight
+   * Both subgroups are cleared on each call for replacement semantics. Spotlight
    * CSS is activated/deactivated automatically based on whether the spotlight subgroup
    * is non-empty after routing.
    *
@@ -710,7 +741,23 @@ class _ReadiumReader {
       console.warn("applyDecorations: navigator not ready, skipping");
       return;
     }
+    this._decorations.applyDecorations(this._nav, group, decorationsJson, { tappable: true });
+  }
+
+  /** Plugin-owned highlights (TTS, media overlay). Unlike {@link applyDecorations}, taps are not reported. */
+  private _applyInternalDecorations(group: string, decorationsJson: string): void {
+    if (!this._nav) return;
     this._decorations.applyDecorations(this._nav, group, decorationsJson);
+  }
+
+  /**
+   * Sets the custom actions shown in the floating selection toolbar.
+   * Browsers cannot extend their native context menu, so web draws its own.
+   *
+   * @param actionsJson  JSON array of `{ id, title }` (Dart `SelectionAction.toJson()`); `[]` clears.
+   */
+  public setSelectionActions(actionsJson: string): void {
+    this._selectionToolbar.setActions(JSON.parse(actionsJson) as SelectionActionConfig[]);
   }
 
   /**
@@ -781,6 +828,7 @@ class _ReadiumReader {
     this._lastMediaOverlayLocatorKey = null;
     this._isComicBook = false;
     this._decorations.reset();
+    this._selectionToolbar.detach();
 
     // Detach the visual navigator reference synchronously so any late
     // media-overlay sync callback (which guards on `this._nav`) becomes a no-op
@@ -1036,7 +1084,7 @@ class _ReadiumReader {
       this._uncuedTocTargets = undefined;
       this._lastMediaOverlayLocatorKey = null;
       if (this._nav) {
-        this.applyDecorations("media_overlay_utterance", "[]");
+        this._applyInternalDecorations("media_overlay_utterance", "[]");
         this._removeMOBreakCSSOnIframes();
       }
     }
@@ -1140,7 +1188,7 @@ class _ReadiumReader {
       this._narrationSyncEnabled,
       this._decorations.utteranceStyle,
       this._decorations.rangeStyle,
-      (group, decorationsJson) => this.applyDecorations(group, decorationsJson)
+      (group, decorationsJson) => this._applyInternalDecorations(group, decorationsJson)
     );
     const fromLocator = fromLocatorJson
       ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
@@ -1365,7 +1413,7 @@ class _ReadiumReader {
             style: this._decorations.utteranceStyle,
           },
         ];
-        this.applyDecorations(
+        this._applyInternalDecorations(
           "media_overlay_utterance",
           JSON.stringify(decoration)
         );

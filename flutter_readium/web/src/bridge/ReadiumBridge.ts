@@ -57,6 +57,31 @@ export class ReadiumBridge {
   }
 
   /**
+   * Emit a decoration tap to Flutter. Mirrors Dart `DecorationInteractionEvent.fromJson`.
+   * `locator` must already be a `Locator.serialize()` result.
+   */
+  emitDecorationInteraction(event: {
+    decorationId: string;
+    group: string;
+    type: "tap";
+    locator: object;
+  }): void {
+    window.onDecorationInteractionCallback?.(JSON.stringify(event));
+  }
+
+  /**
+   * Emit a tap on a configured selection action to Flutter. Mirrors Dart
+   * `SelectionActionEvent.fromJson`. `locator` must already be a `Locator.serialize()` result.
+   */
+  emitSelectionAction(event: {
+    actionId: string;
+    locator: object;
+    selectedText: string;
+  }): void {
+    window.onSelectionActionCallback?.(JSON.stringify(event));
+  }
+
+  /**
    * Emit a non-fatal error to Flutter.
    * @param message Human-readable error description.
    * @param code    Optional machine-readable error code.
