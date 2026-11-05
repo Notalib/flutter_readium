@@ -81,7 +81,7 @@ class EpubReaderFragment :
          * Called when an external link is activated.
          */
         fun onExternalLinkActivated(url: AbsoluteUrl)
-        
+
         /**
          * Called when an internal link is about to be followed. `from` is the position before the jump.
          */
@@ -793,6 +793,18 @@ class EpubReaderFragment :
         model.preferences = preferences
         val navigatorFactory = model.navigatorFactory!!
 
+        // App assets from setCssInjections/setJavaScriptInjections are linked from every resource,
+        // so they must be served too. Missing files are skipped: serving them crashes Readium's WebViewServer.
+        val assets = requireContext().assets
+        val injectedAssets =
+            (ReadiumReader.cssInjections + ReadiumReader.javaScriptInjections)
+                .map { it.servedPath }
+                .filter { path ->
+                    runCatching { assets.open(path).close() }
+                        .onFailure { PluginLog.w(TAG, "::attachNavigator() - injected asset not found: $path") }
+                        .isSuccess
+                }
+
         val navigatorConfig =
             EpubNavigatorFragment
                 .Configuration(
@@ -806,7 +818,7 @@ class EpubReaderFragment :
                         listOf("flutter_assets/packages/flutter_readium/assets/.*") +
                             model.fontFamilyDeclarations.flatMap { family ->
                                 family.faces.map { face -> face.asset }
-                            },
+                            } + injectedAssets,
                     // Use experimentalPositioning in decoration templates. It places highlights behind text, instead of on top.
                     decorationTemplates =
                         HtmlDecorationTemplates
