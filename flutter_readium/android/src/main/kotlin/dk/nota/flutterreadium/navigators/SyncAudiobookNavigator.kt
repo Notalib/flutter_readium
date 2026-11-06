@@ -10,13 +10,19 @@ import dk.nota.flutterreadium.cleanHref
 import dk.nota.flutterreadium.copyWithTimeFragment
 import dk.nota.flutterreadium.findReadingOrderLink
 import dk.nota.flutterreadium.getReadingOrderItemDuration
+import dk.nota.flutterreadium.makeSyncAudiobook
 import dk.nota.flutterreadium.getTextId
+import dk.nota.flutterreadium.SyncTimelineStore
 import dk.nota.flutterreadium.models.FlutterMediaOverlay
 import dk.nota.flutterreadium.progression
 import dk.nota.flutterreadium.timeWithDuration
 import dk.nota.flutterreadium.tocHref
 import dk.nota.flutterreadium.xhtmlIdTree
+import dk.nota.flutterreadium.withMainContext
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.launchIn
@@ -24,6 +30,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import org.readium.navigator.media.audio.AudioNavigator
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.extensions.time
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -40,15 +47,20 @@ private const val TAG = "SyncAudiobookNavigator"
 private const val SYNC_AUDIO_DECORATION_ID_UTTERANCE = "synced-utterance"
 
 @OptIn(ExperimentalCoroutinesApi::class, ExperimentalReadiumApi::class)
-class SyncAudiobookNavigator(
+class SyncAudiobookNavigator internal constructor(
     publication: Publication,
     /**
      * The media overlays for the current publication, if any. These are used to map between the audio narration and the text
      */
-    private val mediaOverlays: List<FlutterMediaOverlay?>,
+    private var mediaOverlays: List<FlutterMediaOverlay?>,
     timebasedListener: TimebasedListener,
     initialLocator: Locator?,
     preferences: FlutterAudioPreferences,
+    /**
+     * Lazy timeline store when playback is streamed; null keeps the eager (fully parsed)
+     * overlay list, i.e. today's behavior including the process-death restore path.
+     */
+    private val store: SyncTimelineStore? = null,
 ) : AudiobookNavigator(publication, timebasedListener, initialLocator, preferences) {
     init {
         // We need to translate the epub based locator to an audio based locator
@@ -64,6 +76,13 @@ class SyncAudiobookNavigator(
             pendingTextInitialLocator = null
         }
         super.initNavigator()
+
+        // Pre-warm the lookahead window (web `prepareWindow`): loads land in the store, the
+        // playlist widens at the next margin tick - playback start stays at one JSON fetch.
+        store?.let { timeline ->
+            prewarm =
+                launch { timeline.fillAhead(timeline.loadedTailIndex()) }
+        }
     }
 
     val decorationGroup = "sync-audio"
@@ -77,6 +96,141 @@ class SyncAudiobookNavigator(
     /** Parsed XHTML id trees by resource, null when a resource could not be read. */
     private val xhtmlIdTrees = mutableMapOf<Url, XhtmlIdTree?>()
 
+    /**
+     * In-flight/serialized window extension. [extending] mutes cue mapping while the old player
+     * is being replaced; [extension] lets the ended-edge takeover join the same attempt.
+     */
+    private var extending = false
+    private var extension: Deferred<Boolean>? = null
+
+    /** Startup lookahead job; extensions join it so a segment is never fetched twice. */
+    private var prewarm: Job? = null
+
+    /** Cue count of the overlay list the current navigator was built from. */
+    private val loadedCues: Int
+        get() = mediaOverlays.sumOf { it?.items?.size ?: 0 }
+
+    /**
+     * Lookahead driver, called from the periodic locator flow: when less than
+     * [SyncTimelineStore.LOOKAHEAD_MARGIN_SECONDS] remain on the current track and segments are
+     * still loadable, fetch ahead and extend the window.
+     */
+    private fun maybeExtendWindow(
+        locator: Locator,
+        trackDuration: Duration?,
+        timeOffset: Duration,
+    ) {
+        val store = store ?: return
+        if (isNavigatorDisposed || extending || extension != null || prewarm?.isActive == true) return
+        // Paused ticks must not churn the window (the web mapper driver only runs during
+        // playback); rebuilds while paused race paused seeks. The edge takeover covers
+        // a playhead that reaches the loaded tail.
+        val pb = audioNavigator?.playback?.value ?: return
+        if (!pb.playWhenReady || pb.state is AudioNavigator.State.Ended) return
+        if (!store.hasLoadableBeyond(store.loadedTailIndex())) return
+        val remaining = trackDuration?.minus(timeOffset) ?: return
+        if (remaining > SyncTimelineStore.LOOKAHEAD_MARGIN_SECONDS.seconds) return
+        PluginLog.d(
+            TAG,
+            "::maybeExtendWindow - ${remaining.inWholeSeconds}s left on ${locator.href}; extending window",
+        )
+        extendWindow()
+    }
+
+    /** Starts (or joins) the serialized window extension. */
+    private fun extendWindow(): Deferred<Boolean> {
+        extension?.let { return it }
+        val attempt = async { runWindowExtension() }
+        extension = attempt
+        attempt.invokeOnCompletion { if (extension === attempt) extension = null }
+        return attempt
+    }
+
+    /**
+     * Fetches the next segments, then - only when new cues landed - swaps in the wider pseudo
+     * publication and rebuilds the player at the current audio locator (the same teardown +
+     * media-session reopen sequence the stream-recovery rebuild runs).
+     */
+    private suspend fun runWindowExtension(): Boolean {
+        val store = store ?: return false
+        if (isNavigatorDisposed || extending) return false
+        extending = true
+        prewarm?.join()
+        try {
+            val current =
+                audioNavigator?.currentLocator?.value
+                    ?: state[CURRENT_TIMEBASE_LOCATOR_KEY] as? Locator
+            store.fillAhead(
+                store.roIndexForAudio(current?.href?.toString()) ?: store.loadedTailIndex(),
+            )
+
+            val (pseudoPublication, overlays) = store.sourcePublication.makeSyncAudiobook(store)
+            val cues = overlays?.sumOf { it?.items?.size ?: 0 } ?: 0
+            if (overlays == null || cues <= loadedCues) return false
+
+            val wasPlaying = audioNavigator?.playback?.value?.playWhenReady ?: false
+            val previousPublication = publication
+            val previousOverlays = mediaOverlays
+            publication = pseudoPublication
+            mediaOverlays = overlays
+            val rebuilt =
+                rebuildNavigator(current) ?: run {
+                    // Keep the overlay list aligned with the player the navigator actually has:
+                    // an extended list on a torn-down player maps cues to tracks that are gone.
+                    publication = previousPublication
+                    mediaOverlays = previousOverlays
+                    PluginLog.w(TAG, "::runWindowExtension - rebuild failed with $cues cues; surfacing the edge instead")
+                    return false
+                }
+            if (wasPlaying) {
+                withMainContext { rebuilt.play() }
+            }
+            PluginLog.d(
+                TAG,
+                "::runWindowExtension - window extended to $cues cues / ${overlays.size} overlays " +
+                    "(tail segment ${store.loadedTailIndex()})",
+            )
+            ReadiumReader.onSyncTimelineWindowExtended(
+                store.totalDurationSecs(),
+                pseudoPublication.readingOrder.map { it.duration },
+            )
+            return true
+        } finally {
+            extending = false
+        }
+    }
+
+    override val takesOverAtEdge: Boolean
+        get() = store != null
+
+    /**
+     * End of the last known track. Extends the window and rebuilds while more segments are
+     * loadable (true = the ended emission stays suppressed); false is the honest end - nothing
+     * loadable remains, or every load failed - which reaches clients like the eager path does.
+     */
+    override suspend fun takeOverAtEdge(): Boolean {
+        val store = store ?: return false
+        if (isNavigatorDisposed) return false
+        if (extension == null && !store.hasLoadableBeyond(store.loadedTailIndex())) return false
+        return extendWindow().await()
+    }
+
+    /**
+     * Seek/goTo beyond the loaded window: fetch the segment covering [href] so cue mapping can
+     * resolve it, and widen the playlist when the target track is not in it yet. Bounded loop:
+     * a joined lookahead may have snapshotted the window before this fetch landed; the next
+     * pass extends again until the live list carries the target's cues.
+     */
+    private suspend fun ensureWindowFor(href: String?) {
+        val store = store ?: return
+        for (attempt in 0 until 3) {
+            extension?.await()
+            store.ensureSegmentForText(href)
+            if (store.loadedCueCount() <= loadedCues) return
+            extendWindow().await()
+        }
+    }
+
     override fun setupNavigatorListeners() {
         val navigator = audioNavigator
         if (navigator == null) {
@@ -85,12 +239,14 @@ class SyncAudiobookNavigator(
         }
 
         super.setupNavigatorListeners()
-
         navigator.currentLocator
             .map { locator ->
                 val duration = publication.getReadingOrderItemDuration(locator.href)
                 val timeOffset = locator.locations.timeWithDuration(duration) ?: 0.seconds
-
+                maybeExtendWindow(locator, duration, timeOffset)
+                // Mid window-extension: the outgoing player's trailing ticks must not emit
+                // cues mapped from the not-yet-swapped overlay list.
+                if (extending) return@map null
                 mediaOverlays
                     .firstNotNullOfOrNull {
                         it?.findItemInRange(
@@ -117,6 +273,9 @@ class SyncAudiobookNavigator(
 
     @OptIn(InternalReadiumApi::class)
     override fun onCurrentLocatorChanges(locator: Locator) {
+        // Mid window-extension: the outgoing player's locators must not reach clients; the
+        // rebuilt navigator re-emits the position.
+        if (extending) return
         val readingOrderLink = publication.findReadingOrderLink(locator.href)
 
         val duration = publication.getReadingOrderItemDuration(locator.href)
@@ -147,7 +306,14 @@ class SyncAudiobookNavigator(
                         fal.locations.copy(
                             fragments = locator.locations.fragments,
                             progression = locator.locations.progression,
-                            totalProgression = locator.locations.totalProgression,
+                            // The player's totalProgression is relative to the pseudo publication,
+                            // which under streaming is only the loaded window; the store knows the
+                            // book. Fall back to the player value on the eager path.
+                            totalProgression =
+                                store?.locatorProgression(
+                                    locator.href.toString(),
+                                    timeOffset?.inWholeMilliseconds?.let { it / 1000.0 },
+                                ) ?: locator.locations.totalProgression,
                         ),
                 )
             }
@@ -173,6 +339,7 @@ class SyncAudiobookNavigator(
             return super.play(fromLocator)
         }
 
+        ensureWindowFor(fromLocator.href.toString())
         val audioLocator = anchorUncuedTextLocator(fromLocator)?.let { mapTextLocatorToMediaOverlayLocator(it) }
         if (audioLocator != null) {
             super.play(audioLocator)
@@ -186,6 +353,7 @@ class SyncAudiobookNavigator(
     }
 
     suspend fun seekToLocator(locator: Locator): Boolean {
+        ensureWindowFor(locator.href.toString())
         val audioLocator =
             anchorUncuedTextLocator(locator)?.let { mapTextLocatorToMediaOverlayLocator(it) } ?: run {
                 PluginLog.d(TAG, "::seekToLocator - no audio locator found for $locator")
@@ -328,6 +496,7 @@ class SyncAudiobookNavigator(
     }
 
     override fun dispose() {
+        store?.cancelPending()
         launch {
             ReadiumReader.applyDecorations(listOf(), group = decorationGroup)
         }

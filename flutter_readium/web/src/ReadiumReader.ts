@@ -28,7 +28,7 @@ import {
 } from "./navigators/FlutterAudioNavigator";
 import { AudioRecoveryPolicy, setCurrentAudioRecoveryPolicy } from "./navigators/AudioStreamErrorPolicy";
 import { FlutterTTSNavigator } from "./navigators/FlutterTTSNavigator";
-import { initializeMediaOverlayNavigator, initializeGuidedNavigationNavigator } from "./navigators/FlutterMediaOverlayNavigator";
+import { initializeMediaOverlayNavigator, initializeGuidedNavigationNavigator, MediaOverlaySession } from "./navigators/FlutterMediaOverlayNavigator";
 // Preferences
 import { setEpubPreferencesFromString, pluginPrefsFromJson } from "./preferences/FlutterEpubPreferences";
 import { ttsPreferencesFromJson } from "./preferences/FlutterTTSPreferences";
@@ -146,6 +146,8 @@ class _ReadiumReader {
   /** Parsed sync-narration items for the current MediaOverlay publication. Empty for plain audiobooks. */
   private _syncItems: SyncNarrationItem[] = [];
   private _uncuedTocTargets: UncuedTocTargets | undefined;
+  /** Live streaming session (window extension + lazy seeks); undefined on the eager fallback. */
+  private _mediaOverlaySession: MediaOverlaySession | undefined;
   /**
    * Unified runtime narration-sync flag. When true (default), audio-driven
    * visual sync is active: MediaOverlay cues scroll the EPUB navigator, and TTS
@@ -306,6 +308,9 @@ class _ReadiumReader {
     // seek audio nav, and also scroll the visual navigator to the text position.
     // Mirrors FlutterMediaOverlayNavigator.seek(toLocator:) on iOS/Android.
     if (this._audioNav && this._syncItems.length > 0) {
+      // Streaming: a target outside the loaded window needs its segment
+      // fetched (and the playlist extended) before text→audio mapping works.
+      await this._mediaOverlaySession?.ensureWindowForText(locator.href);
       // Only fall back to the resource's first cue when this ToC/bookmark tap
       // crosses into a *different* resource than the one currently playing —
       // an uncued anchor within the current chapter must not rewind audio to
@@ -776,6 +781,8 @@ class _ReadiumReader {
       // torn-down frame).
       setAudioEmissionsEnabled(false);
       FlutterAudioNavigator.resetRecovery();
+      this._mediaOverlaySession?.dispose();
+      this._mediaOverlaySession = undefined;
       this._audioNav?.stop();
       this._audioNav?.destroy();
       this._audioNav = undefined;
@@ -898,6 +905,8 @@ class _ReadiumReader {
     this._audioNav = undefined;
     this._audioNavPublication = undefined;
     this._stoppedAudioLocator = undefined;
+    this._mediaOverlaySession?.dispose();
+    this._mediaOverlaySession = undefined;
     this._syncItems = [];
     this._uncuedTocTargets = undefined;
     this._lastMediaOverlayLocatorKey = null;
@@ -921,6 +930,24 @@ class _ReadiumReader {
 
     const requested = locatorJson ? Locator.deserialize(JSON.parse(locatorJson)) : undefined;
     const uncued = useSyncNarrationLookup ? this._uncuedTocTargets : undefined;
+    // Streaming: a *text* locator outside the loaded window must fetch its
+    // segment before mapping — one retry with the mapped (audio) locator,
+    // which isn't in the reading order and so cannot re-enter this branch.
+    const isTextLocator = requested
+      ? (this._publication?.readingOrder.items ?? []).some(
+          (link) => normalizeHref(link.href) === normalizeHref(requested.href)
+        )
+      : false;
+    if (requested && isTextLocator && this._mediaOverlaySession &&
+        !this._syncItems.some((item) => normalizeHref(item.textHref) === normalizeHref(requested.href))) {
+      const session = this._mediaOverlaySession;
+      void session.ensureWindowForText(requested.href).then(() => {
+        if (this._mediaOverlaySession !== session) return;
+        const mapped = this._mapActiveTextLocator(requested, useSyncNarrationLookup);
+        if (mapped) this.play(JSON.stringify(mapped.serialize()));
+      });
+      return;
+    }
     if (requested && uncued?.isUncued(requested)) {
       void uncued.anchor(requested).then((anchored) => {
         if (this._uncuedTocTargets !== uncued || !anchored) return;
@@ -1031,6 +1058,8 @@ class _ReadiumReader {
         ? "(Media Overlay / Guided Navigation)"
         : "(plain audiobook)"
     );
+    this._mediaOverlaySession?.dispose();
+    this._mediaOverlaySession = undefined;
     this._audioNav = undefined;
     this._audioNavPublication = undefined;
     audioNav.stop();
@@ -1469,6 +1498,8 @@ class _ReadiumReader {
       if (resolvedFromLocator) {
         let locator = resolvedFromLocator;
         if (this._syncItems.length > 0) {
+          // Streaming: resume far into the book needs its segment first.
+          await this._mediaOverlaySession?.ensureWindowForText(locator.href);
           const useSyncNarrationLookup = this._hasSyncNarration && !this._hasGuidedNavigation;
           if (useSyncNarrationLookup) {
             const anchored = await this._anchorUncuedTextLocator(locator);
@@ -1495,7 +1526,7 @@ class _ReadiumReader {
       const publication = this._publication;
       const fromLocator = resolvedFromLocator;
       this._lastMediaOverlayLocatorKey = null;
-      await initializeGuidedNavigationNavigator(
+      const session = await initializeGuidedNavigationNavigator(
         publication,
         fromLocator,
         preferencesJsonString,
@@ -1509,6 +1540,7 @@ class _ReadiumReader {
         },
         this._bridge
       );
+      if (this._audioNavPublication === publication) this._mediaOverlaySession = session;
       if (this._audioNavPublication !== publication) return;
       const nav = this._audioNav as AudioNavigator | undefined;
       if (nav) {
@@ -1525,7 +1557,7 @@ class _ReadiumReader {
       const publication = this._publication;
       const fromLocator = resolvedFromLocator;
       this._lastMediaOverlayLocatorKey = null;
-      await initializeMediaOverlayNavigator(
+      const session = await initializeMediaOverlayNavigator(
         publication,
         fromLocator,
         prefsJson,
@@ -1539,6 +1571,7 @@ class _ReadiumReader {
         },
         this._bridge
       );
+      if (this._audioNavPublication === publication) this._mediaOverlaySession = session;
       if (this._audioNavPublication !== publication) return;
       const nav = this._audioNav as AudioNavigator | undefined;
       if (nav) {

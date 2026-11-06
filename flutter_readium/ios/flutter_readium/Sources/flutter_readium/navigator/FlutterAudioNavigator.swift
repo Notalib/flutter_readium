@@ -453,14 +453,34 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   /// equal to the resource duration.
   public func navigator(_ navigator: AudioNavigator, shouldPlayNextResource info: MediaPlaybackInfo) -> Bool {
     if !canGoForward {
-      Log.navigator.info("Resource \(info.resourceIndex) finished — no next resource, publication ended")
-      _playbackIntent = false
-      resetResourceLoadingWatchdog(resourceIndex: info.resourceIndex)
-      submitEndedStateToListener(info: info)
+      if takesOverTimelineEdge(at: info) {
+        // Streaming window: more segments are loadable, so this is not the end.
+        Log.navigator.info("Resource \(info.resourceIndex) finished — deferring ended while the timeline window extends")
+        // The stall watchdog must not fire while the next segment loads.
+        resetResourceLoadingWatchdog(resourceIndex: info.resourceIndex)
+        _endedResourceIndex = info.resourceIndex
+      } else {
+        Log.navigator.info("Resource \(info.resourceIndex) finished — no next resource, publication ended")
+        submitPublicationEnded(info: info)
+      }
     } else {
       Log.navigator.debug("Resource \(info.resourceIndex) finished, advancing to next resource")
     }
     return true
+  }
+
+  /// True when a subclass takes over the end-of-timeline edge: the last known
+  /// track finished but more cue segments are still loadable, so `.ended` must
+  /// wait for the window extension. Base audiobooks never take over.
+  @MainActor internal func takesOverTimelineEdge(at info: MediaPlaybackInfo) -> Bool {
+    false
+  }
+
+  /// Terminal end of publication: clear the play intent and report `.ended`.
+  @MainActor internal func submitPublicationEnded(info: MediaPlaybackInfo) {
+    _playbackIntent = false
+    resetResourceLoadingWatchdog(resourceIndex: info.resourceIndex)
+    submitEndedStateToListener(info: info)
   }
 
   public func navigator(_ navigator: any ReadiumNavigator.Navigator, presentError error: ReadiumNavigator.NavigatorError) {
@@ -633,7 +653,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   /// Tears down and rebuilds the upstream navigator. Required for recovery:
   /// upstream never replaces a failed AVPlayerItem for the same resource index.
   @MainActor
-  private func rebuildNavigator(at locator: Locator?) async -> Bool {
+  internal func rebuildNavigator(at locator: Locator?) async -> Bool {
     guard !_disposed else {
       return false
     }
