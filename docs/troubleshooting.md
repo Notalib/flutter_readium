@@ -25,9 +25,9 @@ from the local app bundle. Run `bin/install` after creating a checkout, or build
 before rebuilding the app:
 
 ```bash
-cd flutter_readium/assets/_helper_scripts
+cd flutter_readium
 npm ci --ignore-scripts
-npm run build
+npm run build:helpers
 ```
 
 CI already generates these files through `.github/actions/build-webview-helpers`.
