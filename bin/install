@@ -11,11 +11,9 @@ fi
 
 "$REPO_ROOT/bin/forAll" flutter pub get
 
-# Install helper-script dependencies (used by example/lib/flutter_readium:copy_js_file)
-(cd "$REPO_ROOT/flutter_readium/assets/_helper_scripts" && npm ci --ignore-scripts && npm run build:dev)
-
-# Make sure web dependencies are installed (package.json lives at the plugin root)
-(cd "$REPO_ROOT/flutter_readium" && (npm ci --ignore-scripts && npm run build:dev))
+# Install web + helper-script dependencies (single workspace lockfile) and
+# build both bundles.
+(cd "$REPO_ROOT/flutter_readium" && npm ci --ignore-scripts && npm run build:dev && npm run build:helpers:dev)
 
 "$REPO_ROOT/bin/fetch_test_resources"
 

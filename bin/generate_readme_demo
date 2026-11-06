@@ -36,7 +36,6 @@ while [ "$#" -gt 0 ]; do
 done
 
 EXAMPLE_DIR="$REPO_ROOT/flutter_readium/example"
-HELPER_DIR="$REPO_ROOT/flutter_readium/assets/_helper_scripts"
 OUTPUT_DIR="$REPO_ROOT/docs/assets/readme"
 BUILD_DIR="$REPO_ROOT/build/readme-demo"
 GIF_PATH="$OUTPUT_DIR/flutter-readium-demo.gif"
@@ -97,10 +96,7 @@ xcrun simctl status_bar "$DEVICE_ID" override \
   --batteryState charged \
   --batteryLevel 100
 
-if [ ! -d "$HELPER_DIR/node_modules" ]; then
-  (cd "$HELPER_DIR" && npm ci --ignore-scripts)
-fi
-(cd "$HELPER_DIR" && npm run build:dev)
+(cd "$REPO_ROOT/flutter_readium" && npm run build:helpers:dev)
 for helper in flutterReadiumTools.js flutterReadiumTools.css; do
   [ -s "$REPO_ROOT/flutter_readium/assets/helpers/$helper" ] || {
     echo "Missing built WebView helper: $helper" >&2
