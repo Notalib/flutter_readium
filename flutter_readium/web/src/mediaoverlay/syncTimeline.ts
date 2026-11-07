@@ -340,13 +340,13 @@ export class SyncTimelineStore {
         tocTitle: this.toc.find((l) => l.href === item.tocHref)?.title,
       }));
     }
-    const document = parseGuidedNavigationDocument(json);
-    if (!document) {
+    const gnDocument = parseGuidedNavigationDocument(json);
+    if (!gnDocument) {
       log.warn(`Guided navigation segment ${roIndex} had no usable 'guided' entries`);
       return null;
     }
     const items: SyncNarrationItem[] = [];
-    flattenGuidedNavigationDocument(document, items, this.publication);
+    flattenGuidedNavigationDocument(gnDocument, items, this.publication);
     // Sliding-window ToC enrichment runs per segment; a chapter spanning two
     // documents can miss cross-boundary title inheritance (accepted: titles
     // fall back to cue owners, and playback never depends on tocTitle).

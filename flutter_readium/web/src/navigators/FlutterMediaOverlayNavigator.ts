@@ -405,17 +405,17 @@ export class MediaOverlaySession implements StreamingTimeline {
     audioLocator: Locator | undefined,
     resumePlaying: boolean
   ): Promise<void> {
-    const mapper: AudioLocatorMapper = (nav, audioLocator) => {
+    const mapper: AudioLocatorMapper = (nav, navLocator) => {
       this.playbackWasActive = nav.isPlaying;
       if (this.rebuild && nav !== this.nav) {
         // Mid window-extension: the outgoing navigator's trailing events must
         // not emit cues mapped from the new merged list.
-        return { stateLocator: audioLocator };
+        return { stateLocator: navLocator };
       }
       this.maybeExtendFrom(nav);
-      const resolvedTime = getTime(audioLocator.locations) ?? nav.currentTime;
+      const resolvedTime = getTime(navLocator.locations) ?? nav.currentTime;
       const item = findItemByAudioTime(
-        this.items, audioLocator.href, resolvedTime, this.sourceLabel === "SyncNarration"
+        this.items, navLocator.href, resolvedTime, this.sourceLabel === "SyncNarration"
       );
       if (item) {
         if (!item.tocHref) void this.ownerTargets?.fillOwners(item.textHref);
@@ -431,12 +431,12 @@ export class MediaOverlaySession implements StreamingTimeline {
         if (shouldEmitPublicTextLocator) this.lastPublicTextLocatorKey = publicKey;
 
         return {
-          stateLocator: combinedLocatorForItem(item, audioLocator),
+          stateLocator: combinedLocatorForItem(item, navLocator),
           textLocator: shouldEmitDetailedTextLocator ? detailedTextLocator : undefined,
           publicTextLocator: shouldEmitPublicTextLocator ? publicTextLocator : undefined,
         };
       }
-      return { stateLocator: audioLocator };
+      return { stateLocator: navLocator };
     };
 
     // Wrap the caller's callback to enrich it with the cue duration.

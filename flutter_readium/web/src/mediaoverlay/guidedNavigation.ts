@@ -170,11 +170,11 @@ async function _parseReadingOrderAlternates(
       try {
         const resource: Resource = publication.get(gnLink);
         const json = await resource.readAsJSON();
-        const document = _parseDocument(json);
-        if (!document) {
+        const gnDocument = _parseDocument(json);
+        if (!gnDocument) {
           log.warn("Strategy 2: alternate had no usable 'guided' entries for", roLink.href);
         }
-        return document;
+        return gnDocument;
       } catch (err) {
         log.warn("Strategy 2: failed to fetch/parse alternate for", roLink.href, err);
         return null;
@@ -310,11 +310,11 @@ function _publicationLevelLink(
 export const parseGuidedNavigationDocument = _parseDocument;
 export const publicationLevelGuidedNavigationLink = _publicationLevelLink;
 export function flattenGuidedNavigationDocument(
-  document: GuidedNavigationDocument,
+  parsed: GuidedNavigationDocument,
   out: SyncNarrationItem[],
   publication: ReadiumPublication
 ): void {
-  for (const obj of document.guided) {
+  for (const obj of parsed.guided) {
     _flattenWithReadingOrderLookup(obj, out, publication);
   }
 }
