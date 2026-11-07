@@ -1,7 +1,14 @@
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-export default tseslint.config({
+export default tseslint.config(
+  {
+    // Global ignore (standalone object): the bare `eslint` run walks transpiled
+    // bundles (e.g. lib/helpers/readiumReader.js after bin/install); their inline
+    // disable comments reference rules this TS-only config never registers.
+    ignores: ['**/*.js'],
+  },
+  {
   files: ['web/src/**/*.ts'],
   // Tests shadow globals on purpose (mocked `fetch`), and they are not minified.
   ignores: ['web/src/__tests__/**'],

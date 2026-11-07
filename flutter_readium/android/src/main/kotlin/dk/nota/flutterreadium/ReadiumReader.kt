@@ -1620,7 +1620,27 @@ object ReadiumReader :
         val initialLocator = locator?.let { publication.normalizeLocator(it) }
 
         // Handle karaoke books - by creating a pseudo audio publication from the media overlays.
-        val (ap, overlays) = publication.makeSyncAudiobook()
+        // Streaming: only the segment covering the start position is fetched up front; the rest of
+        // the timeline is discovered ahead of playback by SyncAudiobookNavigator. Falls back to the
+        // eager full parse when no store applies or the initial window is empty.
+        val ail = locator?.let { publication.normalizeLocator(it) } ?: epubNavigator?.currentLocator?.value
+        var timelineStore = syncTimelineStoreFor(publication)
+        val (ap, overlays) =
+            if (timelineStore == null) {
+                publication.makeSyncAudiobook()
+            } else {
+                val start = timelineStore.nearestSegmentIndex(timelineStore.roIndexForText(ail?.href?.toString()) ?: 0)
+                timelineStore.loadSegment(start)
+                val built = publication.makeSyncAudiobook(timelineStore)
+                if (built.second == null) {
+                    PluginLog.d(TAG, "::audioEnable - streaming window empty; falling back to eager parse")
+                    timelineStore.cancelPending()
+                    timelineStore = null
+                    publication.makeSyncAudiobook()
+                } else {
+                    built
+                }
+            }
 
         audiobookNavigator?.dispose()
         syncAudiobookNavigator?.dispose()
@@ -1642,7 +1662,6 @@ object ReadiumReader :
             currentTimebasedPublicationDurationMs = computePublicationDurationMs(ap.readingOrder.map { it.duration })
         } else {
             PluginLog.d(TAG, "::audioEnable - media-overlay book")
-            val ail = initialLocator ?: epubNavigator?.currentLocator?.value
             syncAudiobookNavigator =
                 SyncAudiobookNavigator(
                     ap,
@@ -1650,14 +1669,49 @@ object ReadiumReader :
                     this@ReadiumReader,
                     ail,
                     preferences,
+                    timelineStore,
                 ).apply {
                     initNavigator()
                 }
             if (preventMOColumnBreaksActive) {
                 epubEvaluateJavascript("window.flutterReadium.injectMOBreakCSS()")
             }
-            currentTimebasedPublicationDurationMs = computePublicationDurationMs(ap.readingOrder.map { it.duration })
+            currentTimebasedPublicationDurationMs =
+                timelineStore?.totalDurationSecs()?.takeIf { it.isFinite() && it > 0.0 }?.let { it * 1000.0 }
+                    ?: computePublicationDurationMs(ap.readingOrder.map { it.duration })
         }
+    }
+
+    /**
+     * The streaming timeline store for [publication], or null when playback must stay on the
+     * eager path (GN strategy 1, no per-item alternates, plain audiobook).
+     */
+    private fun syncTimelineStoreFor(publication: Publication): SyncTimelineStore? {
+        if (!publication.hasSyncNarration()) return null
+        val kind =
+            if (publication.hasGuidedNavigationMediaOverlays()) {
+                SyncTimelineKind.GuidedNavigation
+            } else {
+                SyncTimelineKind.SyncNarration
+            }
+        return SyncTimelineStore.forPublication(publication, kind)
+    }
+
+    /**
+     * Called by [SyncAudiobookNavigator] after a streaming window extension rebuilt the player.
+     * The pseudo publication only carries the loaded window, so the book-wide total comes from the
+     * timeline store's declared durations when it has them, else from the (growing) window.
+     */
+    fun onSyncTimelineWindowExtended(
+        totalDurationSeconds: Double?,
+        windowDurationsSeconds: List<Double?>,
+    ) {
+        val totalMs =
+            totalDurationSeconds?.takeIf { it.isFinite() && it > 0.0 }?.let { it * 1000.0 }
+                ?: computePublicationDurationMs(windowDurationsSeconds)
+        if (totalMs == null || totalMs == currentTimebasedPublicationDurationMs) return
+        PluginLog.d(TAG, "::onSyncTimelineWindowExtended - total duration ${totalMs}ms")
+        currentTimebasedPublicationDurationMs = totalMs
     }
 
     suspend fun audioUpdatePreferences(preferences: FlutterAudioPreferences) {
