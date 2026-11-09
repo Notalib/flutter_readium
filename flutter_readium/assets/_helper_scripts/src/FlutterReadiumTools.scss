@@ -159,7 +159,8 @@ table {
 // — DIM —
 :root[style*="--USER__textColor"] body.flutter-readium-spotlight-active *:not(a),
 body.flutter-readium-spotlight-active *:not(a) {
-  color: rgba(0, 0, 0, 0.22) !important;
+  // Derived from the theme text colour so the dim stays visible on dark themes.
+  color: color-mix(in srgb, var(--USER__textColor, black) 50%, transparent) !important;
 }
 
 // PATH 1: CSS Custom Highlight API — sub-element precision.
