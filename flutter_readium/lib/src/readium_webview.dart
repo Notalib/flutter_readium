@@ -18,6 +18,7 @@ class ReadiumWebView extends StatefulWidget {
     this.onSelectionAction,
     this.onDecorationInteraction,
     this.onImageTapped,
+    this.onExternalLinkActivated,
     this.fontFamilyDeclarations = const [],
   });
 
@@ -27,6 +28,7 @@ class ReadiumWebView extends StatefulWidget {
   final void Function(SelectionActionEvent)? onSelectionAction;
   final void Function(DecorationInteractionEvent)? onDecorationInteraction;
   final void Function(ImageTapEvent)? onImageTapped;
+  final void Function(String)? onExternalLinkActivated;
   final List<ReaderFontFamily> fontFamilyDeclarations;
 
   @override
@@ -92,6 +94,17 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
     widget.onImageTapped?.call(event);
   }
 
+  /// Returns `true` if the app handled the link, so the web side skips its confirm + new tab.
+  @js_interop.JSExport()
+  bool onExternalLinkActivatedHandler(final String href) {
+    final callback = widget.onExternalLinkActivated;
+    if (callback == null) {
+      return false;
+    }
+    callback(href);
+    return true;
+  }
+
   @js_interop.JSExport()
   void onTimebasedPlayerStateHandler(final String jsonString) {
     final json = jsonDecode(jsonString) as Map<String, dynamic>;
@@ -121,6 +134,7 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
     onDecorationInteractionCallback = onDecorationInteractionHandler.toJS;
     onErrorCallback = onErrorHandler.toJS;
     onImageTappedCallback = onImageTappedHandler.toJS;
+    onExternalLinkActivatedCallback = onExternalLinkActivatedHandler.toJS;
   }
 
   void createPlatformView(int id, web.HTMLDivElement htmlElement) async {

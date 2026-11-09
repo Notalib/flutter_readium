@@ -67,14 +67,16 @@ mkdir -p "$CHROMEDRIVER_DIR"
 INSTALL_OUTPUT=$(npx --yes @puppeteer/browsers install "chromedriver@$CHROME_VERSION" --path "$CHROMEDRIVER_DIR" 2>&1)
 echo "$INSTALL_OUTPUT"
 
-# Extract the binary path from install output (format: "chromedriver@<version> <path>")
-CHROMEDRIVER_BIN=$(echo "$INSTALL_OUTPUT" | grep -oE '/.*chromedriver$' | head -1)
+# Extract the binary path from the "chromedriver@<version> <path>" result line. Match only
+# that line: npm's "npm notice run ... --path <dir>" echo also ends in "chromedriver".
+CHROMEDRIVER_BIN=$(echo "$INSTALL_OUTPUT" | awk '$1 ~ /^chromedriver@/ { print $2; exit }')
 if [ -z "$CHROMEDRIVER_BIN" ]; then
   # Fallback: find it in the cache dir
   CHROMEDRIVER_BIN=$(find "$CHROMEDRIVER_DIR" -name chromedriver -type f | head -1)
 fi
 
-if [ -z "$CHROMEDRIVER_BIN" ] || [ ! -x "$CHROMEDRIVER_BIN" ]; then
+# -f as well as -x: a directory also passes -x.
+if [ ! -f "$CHROMEDRIVER_BIN" ] || [ ! -x "$CHROMEDRIVER_BIN" ]; then
   echo "ERROR: Could not find chromedriver binary after install."
   echo "Install output was: $INSTALL_OUTPUT"
   exit 1

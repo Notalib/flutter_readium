@@ -8,6 +8,7 @@ import android.view.View
 import androidx.fragment.app.commitNow
 import androidx.lifecycle.lifecycleScope
 import dk.nota.flutterreadium.EpubImageTapBridge
+import dk.nota.flutterreadium.EpubSameDocumentLinkBridge
 import dk.nota.flutterreadium.FlutterEpubPreferences
 import dk.nota.flutterreadium.NarrationSyncInterface
 import dk.nota.flutterreadium.PluginLog
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
+import org.readium.r2.navigator.HyperlinkNavigator
 import org.readium.r2.navigator.OverflowableNavigator
 import org.readium.r2.navigator.SelectableNavigator
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
@@ -33,15 +35,22 @@ import org.readium.r2.navigator.epub.css.FontStyle
 import org.readium.r2.navigator.epub.css.FontWeight
 import org.readium.r2.navigator.html.HtmlDecorationTemplate
 import org.readium.r2.navigator.html.HtmlDecorationTemplates
+import org.readium.r2.navigator.input.InputListener
+import org.readium.r2.navigator.input.KeyEvent
+import org.readium.r2.navigator.input.TapEvent
 import org.readium.r2.navigator.preferences.FontFamily
+import org.readium.r2.navigator.preferences.ReadingProgression
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
+import org.readium.r2.shared.publication.Href
 import org.readium.r2.shared.publication.Layout
+import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.util.AbsoluteUrl
+import org.readium.r2.shared.util.Url
 
 private const val TAG = "EpubReaderFragment"
 
@@ -72,6 +81,20 @@ class EpubReaderFragment :
          * Called when an external link is activated.
          */
         fun onExternalLinkActivated(url: AbsoluteUrl)
+        
+        /**
+         * Called when an internal link is about to be followed. `from` is the position before the jump.
+         */
+        fun onInternalLinkActivated(
+            from: Locator?,
+            link: Link,
+        )
+
+        /**
+         * Called for a native tap that content did not consume: [toggleControls] for a center tap,
+         * otherwise an edge tap (whether or not the page turned).
+         */
+        fun onNativeTap(toggleControls: Boolean)
     }
 
     var listener: Listener? = null
@@ -107,6 +130,19 @@ class EpubReaderFragment :
         listener?.onExternalLinkActivated(url)
     }
 
+    /**
+     * Called before the navigator follows an in-publication link. Runs before the jump, so
+     * currentLocator is still the position we are leaving. Notify only, never veto.
+     */
+    @ExperimentalReadiumApi
+    override fun shouldFollowInternalLink(
+        link: Link,
+        context: HyperlinkNavigator.LinkContext?,
+    ): Boolean {
+        listener?.onInternalLinkActivated(epubNavigator?.currentLocator?.value, link)
+        return true
+    }
+
     override fun onPageChanged(
         pageIndex: Int,
         totalPages: Int,
@@ -117,7 +153,63 @@ class EpubReaderFragment :
             "::onPageChanged $pageIndex/$totalPages ${locator.href} ${locator.progression}",
         )
 
+        cacheReflowablePage(pageIndex, totalPages, locator)
         listener?.onPageChanged(pageIndex, totalPages, locator)
+    }
+
+    /** Last reported page, in reading order: the position of its resource and its logical page. */
+    private class ReflowablePage(
+        val readingOrderPosition: Int,
+        val pageIndex: Int,
+        val totalPages: Int,
+    )
+
+    private var reflowablePage: ReflowablePage? = null
+
+    // The toolkit reports the physical page, which is mirrored in RTL.
+    private fun cacheReflowablePage(
+        pageIndex: Int,
+        totalPages: Int,
+        locator: Locator,
+    ) {
+        val rtl = epubNavigator?.overflow?.value?.readingProgression == ReadingProgression.RTL
+        val position =
+            ReadiumReader.currentPublication?.readingOrder?.indexOfFirst {
+                it.href.resolve().isEquivalent(locator.href)
+            }
+        reflowablePage =
+            if (position == null || position < 0) {
+                null
+            } else {
+                ReflowablePage(position, logicalPageIndex(pageIndex, totalPages, rtl), totalPages)
+            }
+    }
+
+    // The cache is cleared on any change it cannot follow, so a stale page never blocks a turn.
+    override fun go(
+        locator: Locator?,
+        animated: Boolean,
+    ): Boolean {
+        reflowablePage = null
+        return super.go(locator, animated)
+    }
+
+    /**
+     * The toolkit's reflowable turns return true once queued (acceptance, not movement), even at the
+     * publication ends. This rejects that no-op from the last reported page; unknown state never does.
+     */
+    private fun turnUnlessAtBoundary(
+        forward: Boolean,
+        turn: () -> Boolean,
+    ): Boolean {
+        val page = reflowablePage
+        val readingOrderSize = ReadiumReader.currentPublication?.readingOrder?.size
+        if (page != null && readingOrderSize != null &&
+            isAtPublicationBoundary(forward, page.readingOrderPosition, readingOrderSize, page.pageIndex, page.totalPages)
+        ) {
+            return false
+        }
+        return turn().also { if (it) reflowablePage = null }
     }
 
     override fun onPageLoaded() {
@@ -126,8 +218,23 @@ class EpubReaderFragment :
         lifecycleScope.launch {
             applyCustomCssVariables()
             injectImageTapListeners()
+            injectSameDocumentLinkListener()
         }
         listener?.onPageLoaded()
+    }
+
+    // The WebView scrolls to same-resource links itself, so [shouldFollowInternalLink] never sees
+    // them. Runs on a WebView thread, before the jump: currentLocator is still the position we leave.
+    private fun onSameDocumentLink(hash: String) {
+        val from = epubNavigator?.currentLocator?.value
+        val href = from?.let { Url("${it.href.removeFragment()}$hash") }
+        if (from == null || href == null) {
+            PluginLog.w(TAG, "::onSameDocumentLink dropped $hash (from=${from != null})")
+            return
+        }
+        lifecycleScope.launch {
+            listener?.onInternalLinkActivated(from, Link(href = Href(href)))
+        }
     }
 
     private suspend fun injectImageTapListeners() {
@@ -152,6 +259,29 @@ class EpubReaderFragment :
                         nh: img.naturalHeight || 0
                     }));
                 }, true);
+            })();
+            """.trimIndent(),
+        )
+    }
+
+    // Noterefs are skipped: the toolkit already reports those through its footnote path.
+    private suspend fun injectSameDocumentLinkListener() {
+        evaluateJavascript(
+            """
+            (function() {
+                if (window.__flutterSameDocumentLinkReady) return;
+                if (typeof FlutterSameDocumentLinkBridge === 'undefined') return;
+                window.__flutterSameDocumentLinkReady = true;
+                document.addEventListener('click', function(e) {
+                    var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+                    if (!a) return;
+                    var type = (a.getAttribute('epub:type') || '') + ' ' + (a.getAttribute('role') || '');
+                    if (type.indexOf('noteref') >= 0) return;
+                    if (e.defaultPrevented || !a.hash) return;
+                    if (a.href.split('#')[0] === location.href.split('#')[0]) {
+                        FlutterSameDocumentLinkBridge.onSameDocumentLink(a.hash);
+                    }
+                });
             })();
             """.trimIndent(),
         )
@@ -226,6 +356,8 @@ class EpubReaderFragment :
             requireOrLog(TAG, epubVm, "No epubVm available.") ?: return
 
         model.preferences = preferences
+        // Preferences can change the layout and direction until the next page callback.
+        reflowablePage = null
 
         val navigator =
             requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return
@@ -258,35 +390,31 @@ class EpubReaderFragment :
     /**
      * Navigate backward. Readium component handles RTL / LTR
      */
-    suspend fun goBackward(animated: Boolean) {
+    suspend fun goBackward(animated: Boolean): Boolean {
         PluginLog.d(TAG, "::goBackward")
         val navigator =
-            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return
+            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return false
 
         if (layoutMode.isFixed) {
             PluginLog.d(TAG, "::goBackward - fixed layout mode")
-            goBackwardFixed(animated)
-            return
+            return goBackwardFixed(animated)
         }
 
         if (!layoutMode.isFixed && scrollMode) {
-            goBackwardVertical(animated)
-            return
+            return goBackwardVertical(animated)
         }
 
         return withMainContext {
-            if (navigator.goBackward(animated)) {
-                PluginLog.d(TAG, "::goBackward: Went back.")
-            } else {
-                PluginLog.d(TAG, "::goBackward: Couldn't go back.")
-            }
+            val moved = turnUnlessAtBoundary(forward = false) { navigator.goBackward(animated) }
+            PluginLog.d(TAG, if (moved) "::goBackward: Went back." else "::goBackward: Couldn't go back.")
+            moved
         }
     }
 
     /**
      * Go backward one reading-order item in fixed-layout mode.
      */
-    private suspend fun goBackwardFixed(animated: Boolean) =
+    private suspend fun goBackwardFixed(animated: Boolean): Boolean =
         goFixedByReadingOrderOffset(
             offset = -1,
             animated = animated,
@@ -298,26 +426,26 @@ class EpubReaderFragment :
     /**
      * Go backwards in vertical scroll mode.
      */
-    private suspend fun goBackwardVertical(animated: Boolean) {
+    private suspend fun goBackwardVertical(animated: Boolean): Boolean {
         if (layoutMode.isFixed || !scrollMode) {
             PluginLog.e(TAG, "::goBackwardVertical - this is only meant for vertical scroll mode")
         }
 
         val locator =
-            requireOrLog(TAG, currentLocator?.value, "No current locator.") ?: return
+            requireOrLog(TAG, currentLocator?.value, "No current locator.") ?: return false
 
         val navigator =
-            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return
+            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return false
 
         val viewPortSize =
-            requireOrLog(TAG, currentViewPortSize(), "Failed to load view port size.") ?: return
+            requireOrLog(TAG, currentViewPortSize(), "Failed to load view port size.") ?: return false
 
         val publication =
-            requireOrLog(TAG, ReadiumReader.currentPublication, "No current publication.") ?: return
+            requireOrLog(TAG, ReadiumReader.currentPublication, "No current publication.") ?: return false
 
         val prevProgression = viewPortSize.prevProgression
         if (viewPortSize.progression <= 0.0 && prevProgression <= 0.0) {
-            val position = readingOrderPositionOrLog(publication, locator) ?: return
+            val position = readingOrderPositionOrLog(publication, locator) ?: return false
 
             // Current progress is already at the top and prevProgression is <= 0.0,
             // We need to go to the previous file in the readingOrder.
@@ -325,12 +453,12 @@ class EpubReaderFragment :
             if (prevPosition < 0) {
                 // Reached the beginning
                 PluginLog.d(TAG, "::goBackwardVertical - reached the beginning.")
-                return
+                return false
             }
 
             PluginLog.d(TAG, "::goBackwardVertical go to previous chapter, progression:$prevProgression")
             val prevLink =
-                requireOrLog(TAG, publication.readingOrder.getOrNull(prevPosition), "Reached the beginning.") ?: return
+                requireOrLog(TAG, publication.readingOrder.getOrNull(prevPosition), "Reached the beginning.") ?: return false
             val prevLocator =
                 requireOrLog(
                     TAG,
@@ -339,7 +467,7 @@ class EpubReaderFragment :
                         totalProgression = null,
                     ),
                     "Failed to make locator from link.",
-                ) ?: return
+                ) ?: return false
 
             return withMainContext {
                 navigator.go(prevLocator, animated)
@@ -347,41 +475,38 @@ class EpubReaderFragment :
         }
 
         scrollToProgression(prevProgression)
+        return true
     }
 
     /**
      * Navigate forward. Readium component handles RTL / LTR
      */
     @OptIn(InternalReadiumApi::class)
-    suspend fun goForward(animated: Boolean) {
+    suspend fun goForward(animated: Boolean): Boolean {
         PluginLog.d(TAG, "::goForward")
         val navigator =
-            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return
+            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return false
 
         if (!layoutMode.isFixed && scrollMode) {
-            goForwardVertical(animated)
-            return
+            return goForwardVertical(animated)
         }
 
         if (layoutMode.isFixed) {
             PluginLog.d(TAG, "::goForward - fixed layout mode")
-            goForwardFixed(animated)
-            return
+            return goForwardFixed(animated)
         }
 
         return withMainContext {
-            if (navigator.goForward(animated)) {
-                PluginLog.d(TAG, "::goForward: Went forward.")
-            } else {
-                PluginLog.d(TAG, "::goForward: Couldn't go forward.")
-            }
+            val moved = turnUnlessAtBoundary(forward = true) { navigator.goForward(animated) }
+            PluginLog.d(TAG, if (moved) "::goForward: Went forward." else "::goForward: Couldn't go forward.")
+            moved
         }
     }
 
     /**
      * Go forward one reading-order item in fixed-layout mode.
      */
-    private suspend fun goForwardFixed(animated: Boolean) =
+    private suspend fun goForwardFixed(animated: Boolean): Boolean =
         goFixedByReadingOrderOffset(
             offset = 1,
             animated = animated,
@@ -399,28 +524,28 @@ class EpubReaderFragment :
         boundaryMessage: String,
         successMessage: String,
         failureMessage: String,
-    ) {
+    ): Boolean {
         val locator =
-            requireOrLog(TAG, currentLocator?.value, "No current locator.") ?: return
+            requireOrLog(TAG, currentLocator?.value, "No current locator.") ?: return false
         PluginLog.d(TAG, "::goFixedByReadingOrderOffset - current locator: $locator")
 
         val navigator =
-            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return
+            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return false
 
         val publication =
-            requireOrLog(TAG, ReadiumReader.currentPublication, "No current publication.") ?: return
+            requireOrLog(TAG, ReadiumReader.currentPublication, "No current publication.") ?: return false
 
-        val position = readingOrderPositionOrLog(publication, locator) ?: return
+        val position = readingOrderPositionOrLog(publication, locator) ?: return false
         PluginLog.d(
             TAG,
             "::goFixedByReadingOrderOffset - resolved reading-order position: $position of ${publication.readingOrder.size}",
         )
 
         val targetLink =
-            requireOrLog(TAG, publication.readingOrder.getOrNull(position + offset), boundaryMessage) ?: return
+            requireOrLog(TAG, publication.readingOrder.getOrNull(position + offset), boundaryMessage) ?: return false
 
         val targetLocator =
-            requireOrLog(TAG, publication.locatorFromLink(targetLink), "Failed to make locator from link.") ?: return
+            requireOrLog(TAG, publication.locatorFromLink(targetLink), "Failed to make locator from link.") ?: return false
         PluginLog.d(TAG, "::goFixedByReadingOrderOffset - target link: ${targetLink.href}")
         PluginLog.d(TAG, "::goFixedByReadingOrderOffset - target locator: $targetLocator")
 
@@ -432,49 +557,51 @@ class EpubReaderFragment :
             } else {
                 PluginLog.d(TAG, "::goFixedByReadingOrderOffset - $failureMessage ${targetLink.href}.")
             }
+            moved
         }
     }
 
     /**
      * Go forward in vertical scroll mode
      */
-    private suspend fun goForwardVertical(animated: Boolean) {
+    private suspend fun goForwardVertical(animated: Boolean): Boolean {
         if (layoutMode.isFixed || !scrollMode) {
             PluginLog.e(TAG, "::goForwardVertical - this is only meant for vertical scroll mode")
         }
 
         val locator =
-            requireOrLog(TAG, currentLocator?.value, "No current locator.") ?: return
+            requireOrLog(TAG, currentLocator?.value, "No current locator.") ?: return false
 
         val navigator =
-            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return
+            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return false
 
         val viewPortSize =
-            requireOrLog(TAG, currentViewPortSize(), "Failed to load view port size.") ?: return
+            requireOrLog(TAG, currentViewPortSize(), "Failed to load view port size.") ?: return false
 
         val publication =
-            requireOrLog(TAG, ReadiumReader.currentPublication, "No current publication.") ?: return
+            requireOrLog(TAG, ReadiumReader.currentPublication, "No current publication.") ?: return false
 
         val endProgression = viewPortSize.endProgression
         val nextProgression = viewPortSize.nextProgression
 
         if (nextProgression >= 1.0 && endProgression >= 1.0) {
-            val position = readingOrderPositionOrLog(publication, locator) ?: return
+            val position = readingOrderPositionOrLog(publication, locator) ?: return false
 
             // Attempted to over the end of the current file.
             val nextPosition = position + 1
             if (nextPosition >= publication.readingOrder.size) {
                 PluginLog.d(TAG, "::goForwardVertical - reached end.")
-                return
+                return false
             }
 
             PluginLog.d(TAG, "::goForwardVertical. load next chapter, progression:$nextProgression")
             val nextLink =
-                requireOrLog(TAG, publication.readingOrder.getOrNull(nextPosition), "Reached end.") ?: return
+                requireOrLog(TAG, publication.readingOrder.getOrNull(nextPosition), "Reached end.") ?: return false
             return withMainContext { navigator.go(nextLink, animated) }
         }
 
         scrollToProgression(nextProgression)
+        return true
     }
 
     /**
@@ -581,6 +708,7 @@ class EpubReaderFragment :
             }
 
             epubNavigator = null
+            reflowablePage = null
             started.value = false
             pageLoaded.value = false
 
@@ -593,6 +721,52 @@ class EpubReaderFragment :
     }
 
     private var attachingNavigatorFragment = false
+
+    private fun pagedTurn(
+        forward: Boolean,
+        turn: () -> Boolean,
+    ) = if (layoutMode.isFixed || scrollMode) turn() else turnUnlessAtBoundary(forward, turn)
+
+    /**
+     * Wraps the stock [DirectionalNavigationAdapter] so zones, RTL and keys stay upstream. The
+     * wrapped navigator records whether a turn was attempted, so a failed edge turn is not a center tap.
+     */
+    private fun createNativeInputListener(navigator: OverflowableNavigator): InputListener {
+        var turnAttempted = false
+        val recordingNavigator =
+            object : OverflowableNavigator by navigator {
+                override fun goForward(animated: Boolean): Boolean {
+                    turnAttempted = true
+                    return pagedTurn(forward = true) { navigator.goForward(animated) }
+                }
+
+                override fun goBackward(animated: Boolean): Boolean {
+                    turnAttempted = true
+                    return pagedTurn(forward = false) { navigator.goBackward(animated) }
+                }
+            }
+        val adapter = DirectionalNavigationAdapter(recordingNavigator)
+
+        return object : InputListener {
+            override fun onTap(event: TapEvent): Boolean {
+                turnAttempted = false
+                val turned = adapter.onTap(event)
+                if (turned) {
+                    ReadiumReader.enterManualModeIfNarrating("onTap")
+                }
+                listener?.onNativeTap(toggleControls = !turnAttempted)
+                return turned
+            }
+
+            override fun onKey(event: KeyEvent): Boolean {
+                val consumed = adapter.onKey(event)
+                if (consumed) {
+                    ReadiumReader.enterManualModeIfNarrating("onKey")
+                }
+                return consumed
+            }
+        }
+    }
 
     /**
      * Attach the navigator fragment to this reader fragment.
@@ -619,6 +793,24 @@ class EpubReaderFragment :
         model.preferences = preferences
         val navigatorFactory = model.navigatorFactory!!
 
+        // App-supplied assets (font faces, setCssInjections/setJavaScriptInjections) must be served
+        // to the WebView. Missing files are skipped: serving them crashes Readium's WebViewServer.
+        val assets = requireContext().assets
+        val existing: (List<String>) -> List<String> = { paths ->
+            paths.filter { path ->
+                runCatching { assets.open(path).close() }
+                    .onFailure { PluginLog.w(TAG, "::attachNavigator() - asset not found: $path") }
+                    .isSuccess
+            }
+        }
+        val fontAssets = existing(model.fontFamilyDeclarations.flatMap { family -> family.faces.map { face -> face.asset } })
+        val injectedAssets =
+            existing(
+                (ReadiumReader.cssInjections + ReadiumReader.javaScriptInjections)
+                    .map { it.servedPath }
+                    .distinct(),
+            )
+
         val navigatorConfig =
             EpubNavigatorFragment
                 .Configuration(
@@ -629,10 +821,7 @@ class EpubReaderFragment :
                     // To reference assets from other flutter packages use 'flutter_assets/packages/<package>/assets/.*'
                     // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
                     servedAssets =
-                        listOf("flutter_assets/packages/flutter_readium/assets/.*") +
-                            model.fontFamilyDeclarations.flatMap { family ->
-                                family.faces.map { face -> face.asset }
-                            },
+                        listOf("flutter_assets/packages/flutter_readium/assets/.*") + fontAssets + injectedAssets,
                     // Use experimentalPositioning in decoration templates. It places highlights behind text, instead of on top.
                     decorationTemplates =
                         HtmlDecorationTemplates
@@ -679,6 +868,11 @@ class EpubReaderFragment :
                     // TODO: This is a temporary solution until kotlin-toolkit supports image tap events natively.
                     // Register JS→native bridge for window.onImageTappedCallback(string).
                     registerJavascriptInterface("FlutterImageBridge") { _ -> EpubImageTapBridge() }
+
+                    // TODO: Drop once kotlin-toolkit reports same-document link taps to the navigator listener.
+                    registerJavascriptInterface("FlutterSameDocumentLinkBridge") { _ ->
+                        EpubSameDocumentLinkBridge(this@EpubReaderFragment::onSameDocumentLink)
+                    }
                 }
 
         val fragmentFactory =
@@ -706,8 +900,8 @@ class EpubReaderFragment :
         }
 
         (epubNavigator as OverflowableNavigator).apply {
-            // This will automatically turn pages when tapping the screen edges or arrow keys.
-            addInputListener(DirectionalNavigationAdapter(this))
+            // Turns pages when tapping the screen edges or pressing arrow keys.
+            addInputListener(createNativeInputListener(this))
         }
 
         navigator = epubNavigator
@@ -854,5 +1048,28 @@ class EpubReaderFragment :
                     """<div class="flutter-readium-spotlight" data-css-selector="$sel" data-text-highlight="$hl" data-text-before="$bef" data-tint="$bgColor" style="z-index: -1; box-sizing: border-box;"/>"""
                 },
             )
+    }
+}
+
+/** Mirrors the toolkit's physical page index to the logical one for RTL. */
+internal fun logicalPageIndex(
+    physicalIndex: Int,
+    totalPages: Int,
+    rtl: Boolean,
+): Int = if (rtl && totalPages > 0) totalPages - 1 - physicalIndex else physicalIndex
+
+/** True when a turn in [forward] direction from this page has nowhere to go in the publication. */
+internal fun isAtPublicationBoundary(
+    forward: Boolean,
+    readingOrderPosition: Int,
+    readingOrderSize: Int,
+    pageIndex: Int,
+    totalPages: Int,
+): Boolean {
+    if (totalPages <= 0) return false
+    return if (forward) {
+        readingOrderPosition == readingOrderSize - 1 && pageIndex >= totalPages - 1
+    } else {
+        readingOrderPosition == 0 && pageIndex <= 0
     }
 }

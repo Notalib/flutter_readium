@@ -25,6 +25,7 @@ import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubNavigatorFactory
 import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.AbsoluteUrl
@@ -106,6 +107,14 @@ class EpubNavigator :
         fun onExternalLinkActivated(url: AbsoluteUrl)
 
         /**
+         * Called when an internal link is about to be followed. `from` is the position before the jump.
+         */
+        fun onInternalLinkActivated(
+            from: Locator?,
+            link: Link,
+        )
+
+        /**
          * Called when the current locator has changed.
          */
         fun onVisualCurrentLocationChanged(locator: Locator)
@@ -114,6 +123,12 @@ class EpubNavigator :
          * Called when the visual reader is ready.
          */
         fun onVisualReaderIsReady()
+
+        /**
+         * Called for a native tap that content did not consume: [toggleControls] for a center tap,
+         * otherwise an edge tap (whether or not the page turned).
+         */
+        fun onNativeTap(toggleControls: Boolean) {}
     }
 
     /**
@@ -355,8 +370,19 @@ class EpubNavigator :
         }
     }
 
+    override fun onNativeTap(toggleControls: Boolean) {
+        visualListener.onNativeTap(toggleControls)
+    }
+
     override fun onExternalLinkActivated(url: AbsoluteUrl) {
         visualListener.onExternalLinkActivated(url)
+    }
+
+    override fun onInternalLinkActivated(
+        from: Locator?,
+        link: Link,
+    ) {
+        visualListener.onInternalLinkActivated(from, link)
     }
 
     override fun onCurrentLocatorChanges(locator: Locator) {
@@ -403,7 +429,10 @@ class EpubNavigator :
 
         withMainContext {
             PluginLog.d(TAG, "::goBackward")
-            navigator.goBackward(animated)
+            // Explicit page command: only an accepted turn counts as the user taking control.
+            if (navigator.goBackward(animated)) {
+                ReadiumReader.enterManualModeIfNarrating("goBackward")
+            }
         }
     }
 
@@ -419,7 +448,10 @@ class EpubNavigator :
 
         withMainContext {
             PluginLog.d(TAG, "::goForward")
-            navigator.goForward(animated)
+            // Explicit page command: only an accepted turn counts as the user taking control.
+            if (navigator.goForward(animated)) {
+                ReadiumReader.enterManualModeIfNarrating("goForward")
+            }
         }
     }
 

@@ -6,7 +6,7 @@ on:
 jobs:
 
   web:
-    name: Web (ChromeDriver)
+    name: Web
     runs-on: ubuntu-latest
     timeout-minutes: 20
 

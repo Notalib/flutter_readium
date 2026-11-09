@@ -24,7 +24,8 @@ ReadiumReaderWidget(
   ],
   shouldShowControls: true,   // whether built-in nav controls are shown
   verticalScroll: false,      // overrides scroll mode preference
-  onExternalLinkActivated: (uri) { /* handle external URLs */ },
+  onExternalLinkActivated: (url) { /* handle external URLs */ },
+  onInternalLinkActivated: (event) { /* event.from, event.target */ },
   goBackwardSemanticLabel: 'Previous page',
   goForwardSemanticLabel: 'Next page',
   toggleShowControlsSemanticLabel: 'Toggle controls',
@@ -41,7 +42,8 @@ ReadiumReaderWidget(
 | `fontFamilyDeclarations` | `List<ReaderFontFamily>` | `[]` | Static Flutter font assets available to EPUB/WebPub font-family preferences |
 | `shouldShowControls` | `bool` | `true` | Show built-in navigation controls |
 | `verticalScroll` | `bool?` | from preferences | Override scroll/paginated mode |
-| `onExternalLinkActivated` | `void Function(Uri)?` | `null` | Called when the reader activates an external link |
+| `onExternalLinkActivated` | `void Function(String)?` | `null` | Called with the URL when the reader activates an external link. On web, passing it replaces the built-in confirm dialog and new-tab behaviour |
+| `onInternalLinkActivated` | `ValueChanged<InternalLinkEvent>?` | `null` | Called when the reader follows an internal link. `event.from` is the position before the jump (null if unknown), `event.target` the link target. Notify-only: the link is always followed and cannot be vetoed. EPUB on Android and iOS only; never called on web, PDF, DiViNa or audiobooks |
 | `goBackwardSemanticLabel` | `String?` | `null` | Accessibility label for the backward control |
 | `goForwardSemanticLabel` | `String?` | `null` | Accessibility label for the forward control |
 | `toggleShowControlsSemanticLabel` | `String?` | `null` | Accessibility label for the controls toggle |

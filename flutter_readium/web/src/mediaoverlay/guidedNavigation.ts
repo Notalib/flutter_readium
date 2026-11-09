@@ -114,23 +114,23 @@ async function _parsePublicationLevelDocument(
   const resolved = resolveLink(link, {}, publication.baseURL);
   if (!resolved.ok) return [];
 
-  let document: GuidedNavigationDocument | null = null;
+  let gnDocument: GuidedNavigationDocument | null = null;
   try {
     const resource: Resource = publication.get(resolved.link);
     const json = await resource.readAsJSON();
-    document = _parseDocument(json);
+    gnDocument = _parseDocument(json);
   } catch (err) {
     log.warn("Strategy 1: failed to fetch/parse guided navigation document", err);
     return [];
   }
 
-  if (!document) {
+  if (!gnDocument) {
     log.warn("Strategy 1: guided navigation document had no usable 'guided' entries");
     return [];
   }
 
   const items: SyncNarrationItem[] = [];
-  for (const obj of document.guided) {
+  for (const obj of gnDocument.guided) {
     _flattenWithReadingOrderLookup(obj, items, publication);
   }
   return items;
@@ -157,22 +157,22 @@ async function _parseReadingOrderAlternates(
     if (seenHrefs.has(resolved.link.href)) continue;
     seenHrefs.add(resolved.link.href);
 
-    let document: GuidedNavigationDocument | null = null;
+    let gnDocument: GuidedNavigationDocument | null = null;
     try {
       const resource: Resource = publication.get(resolved.link);
       const json = await resource.readAsJSON();
-      document = _parseDocument(json);
+      gnDocument = _parseDocument(json);
     } catch (err) {
       log.warn("Strategy 2: failed to fetch/parse alternate for", roLink.href, err);
       continue;
     }
 
-    if (!document) {
+    if (!gnDocument) {
       log.warn("Strategy 2: alternate had no usable 'guided' entries for", roLink.href);
       continue;
     }
 
-    for (const obj of document.guided) {
+    for (const obj of gnDocument.guided) {
       _flattenWithReadingOrderLookup(obj, result, publication);
     }
   }

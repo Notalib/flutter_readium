@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -52,7 +52,8 @@ void main() {
     });
 
     testWidgets(
-      'mid-resource stall after initial progress does not trigger resource-loading recovery',
+      'mid-resource stall after initial progress is handled by stall recovery, not the '
+      'resource-loading watchdog',
       skip: kIsWeb,
       (_) async {
         final server = await StallingAudioServer.start();
@@ -134,8 +135,28 @@ void main() {
           reason: 'The watchdog fired while the partial audio was still starting',
         );
 
+        bool isRetry(ReadiumError error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry;
+        // The watchdog's retry names resource loading, the stall handler's names the stall.
+        bool isWatchdogRetry(ReadiumError error) => isRetry(error) && error.message.contains('Resource loading');
+
+        if (defaultTargetPlatform == TargetPlatform.iOS) {
+          // AVPlayer runs without automatic stall waiting, so once the offset stops moving
+          // the plugin's stall handler starts recovery. The fixture never serves the rest of
+          // the track, so that recovery ends in the terminal network error.
+          await waitUntil(
+            () => errors.any((error) => isRetry(error) && error.message.contains('stalled')),
+            timeout: fixtureAudio + const Duration(seconds: 6),
+            reason: 'The mid-resource stall did not start stall recovery',
+          );
+          await waitUntil(
+            () => errors.any((error) => error.codeEnum == ReadiumErrorCode.audioStreamNetworkError),
+            timeout: const Duration(seconds: 15),
+            reason: 'Stall recovery against the dead fixture never reached its terminal error',
+          );
+        }
+
         await expectConditionHolds(
-          () => !errors.any((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
+          () => !errors.any(defaultTargetPlatform == TargetPlatform.iOS ? isWatchdogRetry : isRetry),
           duration: stallObservation,
           reason: 'A later mid-resource stall must not restart resource-loading recovery',
         );

@@ -5,6 +5,63 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 <!-- towncrier release notes start -->
 
+## [0.9.1] - 2026-11-09
+
+### Fixed
+
+- **Spotlight dimmed text was invisible on dark themes.**
+  The surrounding text was dimmed with a fixed black at 22% opacity, which disappears on a dark background. The dim now uses the theme text colour at 50% opacity.
+- **Android: opening a publication from an `https://` URL failed with an invalid-URL error.**
+  The absolute-scheme check used `Regex.matches`, which requires the whole string to match the `scheme://` prefix pattern, so every real URL failed it and got a bogus `file://` prepended. The check is now a prefix match.
+- **iOS: background playback survives automatic chapter changes on slow connections.**
+  With the app in the background, the brief pause inside an automatic track change made the shared Readium `AudioSession` release the `AVAudioSession`. Playback usually carried on regardless, but when the next track was slow to start iOS could suspend the app in the gap and the book stopped. Audio navigators now run through a session wrapper that keeps the session active while a pause is automatic (chapter change, stall, recovery); a pause the user asks for and closing the publication still release it.
+- **iOS: a stalled stream now recovers instead of staying paused.**
+  The player runs without automatic stall waiting, so a buffer underrun left it paused for good. The navigator now observes `AVPlayerItemPlaybackStalled` and, if playback has not moved on after a short grace period, runs the existing network recovery (rebuild at the current offset, `AudioStreamNetworkError` if the connection does not return).
+- **Android: app assets passed to `setCssInjections`/`setJavaScriptInjections` never loaded in EPUBs.**
+  The `<link>`/`<script>` tags were injected, but the navigator only served the plugin's own assets and font faces, so the WebView received a "not found" page instead. Injected app assets are now served as well. An injected asset or font face missing from the app bundle is now skipped with a warning instead of crashing the app.
+- **Web: embedding the reader in a larger page disabled the page's scrolling.**
+  The plugin's bundled stylesheet set `overflow: hidden` on `html` and `body` and restyled the host page's `body`, tables and fonts. It now only styles the reader's own elements. Full-page Flutter apps are unaffected, as Flutter sets these itself.
+- **Web: the reader ignored the height of the element it was embedded in.**
+  Its wrapper was forced to the viewport height minus 96px, so a reader in a shorter or taller column overflowed or left a gap. It now takes the size Flutter gives it. A full-screen reader is about 40px taller than before.
+
+## [0.9.0] - 2026-11-04
+
+### Added
+
+- **New `onInternalLinkActivated` callback on `ReadiumReaderWidget`.**
+  Fires when an EPUB follows an internal link (end-note, index entry, cross-reference), with the position before the jump in `event.from` and the link in `event.target`, so apps can offer "Return to previous position". Notify-only: the link is always followed. Android and iOS only.
+- Android: `loadPublication`/`openPublication` now accept URLs with any absolute scheme. Previously any string not starting with `http` or `file` was blindly prefixed with `file://`, which corrupted Storage Access Framework `content://` URIs handed out by a file picker. Such URLs are now passed through untouched and resolved by Readium's `AssetRetriever` (which reads `content://` through its `contentResolver`). Plain local file paths keep working as before.
+
+### Changed
+
+- **Web: Readium ts-toolkit upgraded to navigator 2.13.2 / shared 2.8.0.**
+  Decorations drawn as overlays now follow the text when the reader scrolls instead of staying where they were drawn, and decorations no longer render hidden behind the page content in some layouts.
+  EPUB navigation no longer hangs after the page was hidden mid-navigation, and swiping to the next chapter of a reflowable EPUB no longer opens it at the previous chapter's progression.
+
+### Removed
+
+- **macOS: removed the no-op desktop stub, so pub.dev no longer lists macOS as supported.**
+  The stub answered every call with "not implemented", because the Readium swift-toolkit is iOS-only.
+  Host apps that also target macOS still build, and reader calls there throw `MissingPluginException` as before.
+  Mac users can run the iOS build via "Designed for iPad". ([#246](https://github.com/Notalib/flutter_readium/issues/246))
+
+### Fixed
+
+- **EPUB (Android, iOS): tapping the reader now hides or toggles the controls consistently with the native tap zones.**
+  An edge tap turns the page and hides the controls, a center tap toggles them once without turning a page, and in scroll mode a tap that content ignores toggles them. Swipe behavior is unchanged. ([#281](https://github.com/Notalib/flutter_readium/issues/281))
+- **`ReadiumReaderWidget` callbacks now follow rebuilds, and `onExternalLinkActivated` fires on every platform.**
+  On iOS and Android, callbacks from a rebuilt widget were ignored; the first ones kept being called.
+  `onExternalLinkActivated` was never delivered to the app on any platform.
+  On web, passing it now replaces the built-in confirm dialog and new tab. ([#298](https://github.com/Notalib/flutter_readium/issues/298))
+- **Correct the current section in publications with nested tables of contents.**
+  Playback could keep reporting a previous subsection after entering another section when its section wrapper was absent from the narration cues. Section boundaries now update the reported entry and the next/previous navigation lookup consistently on iOS, Android, and web.
+- **Web: EPUBs failed to open in release builds when `fontFamilyDeclarations` was set.**
+  The minified bundle resolved the font base URL from the wrong variable, so loading a chapter threw `Invalid URL`. Font faces now resolve against the host page again.
+- **Web: `goToLocator` ignored the position inside a chapter.**
+  Only the chapter's href reached the navigator, so fragments, progression and text were dropped and the chapter opened at its first page. The full locator is now passed on. A position-less `initialLocator` also keeps its progression and text.
+- **Web: custom fonts from `fontFamilyDeclarations` never loaded in EPUBs.**
+  The EPUB frame's Content Security Policy only allowed fonts from the publication's own location, so the browser blocked the app's font assets. The app's asset directory is now allowed too.
+
 ## [0.8.0] - 2026-10-27
 
 ### Changed (breaking)

@@ -1906,4 +1906,22 @@ void main() {
       expect(collection, Collection(localizedName: name, position: position));
     });
   });
+
+  group('InternalLinkEvent', () {
+    test('round-trips through toJson and fromJson', () {
+      final event = InternalLinkEvent(
+        from: Locator(href: 'ch1.xhtml', type: 'application/xhtml+xml'),
+        target: Link(href: 'notes.xhtml#n1'),
+      );
+
+      final decoded = InternalLinkEvent.fromJson(event.toJson());
+
+      expect(decoded.from?.href, 'ch1.xhtml');
+      expect(decoded.target.href, 'notes.xhtml#n1');
+    });
+
+    test('throws when target is missing', () {
+      expect(() => InternalLinkEvent.fromJson({'from': null}), throwsArgumentError);
+    });
+  });
 }

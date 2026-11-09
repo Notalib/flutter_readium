@@ -28,8 +28,8 @@ export interface ReadiumErrorEventData {
 
 export class ReadiumBridge {
   /** Emit the current reader status to Flutter. */
-  emitReaderStatus(status: ReadiumReaderStatus): void {
-    window.updateReaderStatus?.(status);
+  emitReaderStatus(readerStatus: ReadiumReaderStatus): void {
+    window.updateReaderStatus?.(readerStatus);
   }
 
   /**

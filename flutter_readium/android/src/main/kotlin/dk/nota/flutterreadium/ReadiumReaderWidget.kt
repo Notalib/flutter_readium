@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.AbsoluteUrl
 
@@ -276,6 +277,14 @@ class ReadiumReaderWidget(
         emitOnExternalLinkActivated(url)
     }
 
+    override fun onInternalLinkActivated(
+        from: Locator?,
+        link: Link,
+    ) {
+        PluginLog.i(TAG, "::onInternalLinkActivated ${link.href}")
+        channel.onInternalLinkActivated(from, link)
+    }
+
     override fun onVisualCurrentLocationChanged(locator: Locator) {
         PluginLog.d(TAG, "::onVisualCurrentLocationChanged $locator")
 
@@ -289,9 +298,14 @@ class ReadiumReaderWidget(
         PluginLog.d(TAG, "::onVisualCurrentLocationChanged emitted text locator update")
     }
 
+    override fun onNativeTap(toggleControls: Boolean) {
+        channel.onNativeTap(toggleControls)
+    }
+
     override fun onVisualReaderIsReady() {
         PluginLog.i(TAG, "::onVisualReaderIsReady")
-        channel.onReaderReady()
+        // Only the EPUB reader reports native taps; Dart keeps classifying raw pointer taps for the rest.
+        channel.onReaderReady(nativeTapFeedback = !(ReadiumReader.isPdf || ReadiumReader.isComic))
 
         if (!hasSentReady) {
             ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Ready)

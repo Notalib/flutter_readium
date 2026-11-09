@@ -5,6 +5,7 @@ on:
 
 jobs:
   build-ios:
+    name: iOS
     # Pinned to macos-26 to match the integration-test-ios job — divergent
     # macOS/Xcode between build and integration is a recurring source of bugs.
     runs-on: macos-26

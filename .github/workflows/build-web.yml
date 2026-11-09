@@ -5,6 +5,7 @@ on:
 
 jobs:
   build-web:
+    name: Web
     runs-on: ubuntu-latest
     timeout-minutes: 15
 

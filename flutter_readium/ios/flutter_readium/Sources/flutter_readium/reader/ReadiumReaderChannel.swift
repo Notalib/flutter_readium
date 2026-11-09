@@ -9,8 +9,14 @@ class ReadiumReaderChannel: FlutterMethodChannel {
       taskQueue: nil)
   }
 
-  func onReaderReady() {
-    invokeMethod("onReaderReady", arguments: nil)
+  /// `nativeTapFeedback` tells Dart that this reader reports taps via `onNativeTap`.
+  func onReaderReady(nativeTapFeedback: Bool = false) {
+    invokeMethod("onReaderReady", arguments: nativeTapFeedback)
+  }
+
+  /// A tap that content did not consume: `toggleControls` for a center tap, otherwise an edge tap.
+  func onNativeTap(toggleControls: Bool) {
+    invokeMethod("onNativeTap", arguments: toggleControls)
   }
 
   func onPageChanged(locator: Locator) {
@@ -19,6 +25,15 @@ class ReadiumReaderChannel: FlutterMethodChannel {
 
   func onExternalLinkActivated(url: URL) {
     invokeMethod("onExternalLinkActivated", arguments: url.absoluteString as String?)
+  }
+
+  func onInternalLinkActivated(from: Locator?, link: Link) {
+    guard let target = try? link.jsonString() else {
+      Log.reader.warn("::onInternalLinkActivated. Failed to serialise link: \(link.href)")
+      return
+    }
+    let fromJson: Any = (try? from?.jsonString()) ?? NSNull()
+    invokeMethod("onInternalLinkActivated", arguments: ["from": fromJson, "target": target])
   }
 
   func onTextSelected(locator: Locator, selectedText: String?) {

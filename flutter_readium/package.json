@@ -1,4 +1,13 @@
 {
+  "private": true,
+  "workspaces": [
+    "assets/_helper_scripts"
+  ],
+  "overrides": {
+    "minimatch": "^11.0.5",
+    "glob": "^14.0.4",
+    "deepmerge": "4.1.2"
+  },
   "dependencies": {
     "@readium/navigator": "^2.13.2",
     "@readium/navigator-html-injectables": "^2.9.1",
@@ -15,16 +24,19 @@
     "@rollup/plugin-typescript": "^12.3.0",
     "@types/jest": "^30.0.0",
     "cross-env": "^10.1.0",
+    "eslint": "^10.14.0",
+    "globals": "^17.13.0",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.5.2",
-    "js-yaml": "3.15",
     "postcss": "^8.5.24",
     "rollup": "^4.62.3",
     "rollup-plugin-postcss": "^4.0.2",
     "rollup-plugin-visualizer": "^7.0.1",
+    "terser": "^5.48.0",
     "ts-jest": "^29.4.12",
     "tslib": "^2.8.1",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1"
   },
   "scripts": {
     "copy_example_js": "cd example && dart run flutter_readium:copy_js_file web dev",
@@ -37,6 +49,7 @@
     "build:helpers:dev": "cd assets/_helper_scripts && npm run build:dev",
     "build:helpers:stats": "cd assets/_helper_scripts && npm run build:stats",
     "typecheck": "tsc --noEmit -p web/src/tsconfig.test.json",
+    "lint": "eslint",
     "test": "jest --config web/src/jest.config.js"
   },
   "engines": {

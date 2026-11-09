@@ -27,11 +27,13 @@ class ReadiumReaderChannel extends MethodChannel {
     super.name, {
     required this.onReaderReady,
     required this.onPageChanged,
+    this.onNativeTap,
     this.onExternalLinkActivated,
     this.onTextSelected,
     this.onSelectionAction,
     this.onDecorationInteraction,
     this.onImageTapped,
+    this.onInternalLinkActivated,
   }) {
     setMethodCallHandler(onMethodCall);
   }
@@ -44,7 +46,14 @@ class ReadiumReaderChannel extends MethodChannel {
   /// fires it from the navigator's resource-loaded callback; iOS fires it from
   /// the first navigator location change. If the native navigator never
   /// reports either, this is never called.
-  final void Function() onReaderReady;
+  ///
+  /// The argument tells whether this native reader reports taps through [onNativeTap]. Readers
+  /// that do not (PDF, comics) leave tap classification to the Flutter pointer observer.
+  final void Function(bool nativeTapFeedback) onReaderReady;
+
+  /// Called for a native tap that content did not consume. `true` is a center tap that toggles
+  /// the controls; `false` is an edge tap, which only hides them.
+  final void Function(bool toggleControls)? onNativeTap;
 
   /// Called by the native side whenever the visible page changes.
   final void Function(Locator) onPageChanged;
@@ -63,6 +72,9 @@ class ReadiumReaderChannel extends MethodChannel {
 
   /// Called when the user taps an image in the EPUB.
   void Function(ImageTapEvent)? onImageTapped;
+
+  /// Called when the reader follows an internal (in-publication) link. Notify-only.
+  void Function(InternalLinkEvent)? onInternalLinkActivated;
 
   /// Go e.g. navigate to a specific locator in the publication.
   Future<void> go(
@@ -91,8 +103,8 @@ class ReadiumReaderChannel extends MethodChannel {
     return _invokeMethod(_ReaderChannelMethodInvoke.goForward, animated);
   }
 
-  /// Signals that the user manually interacted with the reader (a swipe or
-  /// edge-tap page navigation). The native side enters narration "manual mode"
+  /// Signals that the user manually interacted with the reader (a swipe, or an edge-tap on
+  /// readers without native tap feedback). The native side enters narration "manual mode"
   /// if narration is currently driving the reader; otherwise it is a no-op.
   Future<void> notifyUserNavigation() {
     _log.d(name);
@@ -147,7 +159,11 @@ class ReadiumReaderChannel extends MethodChannel {
       switch (call.method) {
         case 'onReaderReady':
           _log.d('onReaderReady');
-          onReaderReady();
+          onReaderReady(call.arguments == true);
+
+          return null;
+        case 'onNativeTap':
+          onNativeTap?.call(call.arguments == true);
 
           return null;
         case 'onPageChanged':
@@ -200,6 +216,13 @@ class ReadiumReaderChannel extends MethodChannel {
           final event = ImageTapEvent.fromJson(eventJson);
           _log.d('onImageTapped ${event.href}');
           onImageTapped?.call(event);
+
+          return null;
+        case 'onInternalLinkActivated':
+          final args = Map<String, dynamic>.from(call.arguments as Map);
+          final event = InternalLinkEvent.fromJson(args);
+          _log.d('onInternalLinkActivated ${event.target.href}');
+          onInternalLinkActivated?.call(event);
 
           return null;
         default:

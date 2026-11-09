@@ -78,6 +78,10 @@ jobs:
               - 'flutter_readium/example/web/**'
               - 'flutter_readium/package.json'
               - 'flutter_readium/package-lock.json'
+              - 'flutter_readium/eslint.config.mjs'
+              - 'flutter_readium/assets/_helper_scripts/package.json'
+              - 'flutter_readium/rollup.config.mjs'
+              - 'flutter_readium/rollup.shared.mjs'
             ci:
               - '.github/scripts/ci-baseline*'
               - '.github/actions/**'

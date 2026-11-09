@@ -41,8 +41,6 @@ assets/helpers/stats.json
 # NOTE: intentionally NOT ignored (committed, tracked paths) — ignoring a tracked
 # path makes `dart pub publish` warn. These are excluded from the published tarball
 # via .pubignore instead:
-#   assets/_helper_scripts/.eslintrc.js  — TS toolchain config (root *.js rule)
-!assets/_helper_scripts/.eslintrc.js
 !web/src/jest.config.js
 !web/src/__tests__/style.stub.js
 !web/src/style.css

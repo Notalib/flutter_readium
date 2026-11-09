@@ -114,6 +114,12 @@ internal fun shouldInjectMOColumnBreakCss(
     preventMOColumnBreaks: Boolean,
 ): Boolean = isMOActive && preventMOColumnBreaks
 
+/** True when [urlStr] already carries an absolute scheme (`scheme://`, RFC 3986). */
+internal fun hasAbsoluteUrlScheme(urlStr: String): Boolean = absoluteSchemeRegex.containsMatchIn(urlStr)
+
+/** Matches any URL that already carries an absolute scheme (RFC 3986 scheme + `://`). */
+private val absoluteSchemeRegex = Regex("^[a-zA-Z][a-zA-Z0-9+.\\-]*://")
+
 /**
  * Index into [tocSelectors] of the ToC entry that owns [cssSelector]: the last entry that starts
  * at or before it in document order; preludes use a file-only entry or remain unowned. An uncued ToC target starts at its
@@ -819,9 +825,6 @@ object ReadiumReader :
         return openPublication(pubUrl)
     }
 
-    /** Matches any URL that already carries an absolute scheme (RFC 3986 scheme + `://`). */
-    private val absoluteSchemeRegex = Regex("^[a-zA-Z][a-zA-Z0-9+.\\-]*://")
-
     /**
      * Helper function for resolving a URL and make sure a file path is turned into a URL.
      */
@@ -830,7 +833,7 @@ object ReadiumReader :
         // Already an absolute URL with a scheme Readium can resolve itself (http(s), file,
         // or an Android SAF content:// from a file picker — AssetRetriever resolves those via
         // its contentResolver). Anything else is assumed to be a plain local file path.
-        if (!absoluteSchemeRegex.matches(pubUrlStr)) {
+        if (!hasAbsoluteUrlScheme(pubUrlStr)) {
             pubUrlStr = "file://$pubUrlStr"
         }
         // Create AbsoluteUrl, return PublicationError.InvalidPublicationUrl if null
@@ -1544,7 +1547,7 @@ object ReadiumReader :
         // An explicit locator jump (TOC / bookmark / search) during active narration is
         // handled by the timebasedNavigator.goToLocator branch above (narration follows the
         // jump). This branch is only reached when narration is NOT active, so a jump must not
-        // enter manual mode. Page-turns (epubGoForward/epubGoBackward) do enter manual mode.
+        // enter manual mode. Accepted page-turns (EpubNavigator.goForward/goBackward and native input) do enter manual mode.
         epubGoToLocator(toLocator, true)
     }
 
@@ -1693,8 +1696,19 @@ object ReadiumReader :
         currentReaderWidget?.onPageChanged(pageIndex, totalPages, locator)
     }
 
+    override fun onNativeTap(toggleControls: Boolean) {
+        currentReaderWidget?.onNativeTap(toggleControls)
+    }
+
     override fun onExternalLinkActivated(url: AbsoluteUrl) {
         currentReaderWidget?.onExternalLinkActivated(url)
+    }
+
+    override fun onInternalLinkActivated(
+        from: Locator?,
+        link: Link,
+    ) {
+        currentReaderWidget?.onInternalLinkActivated(from, link)
     }
 
     override fun onVisualCurrentLocationChanged(locator: Locator) {
@@ -1758,7 +1772,6 @@ object ReadiumReader :
                 return
             }
 
-        enterManualModeIfNarrating("epubGoBackward")
         navigator.goBackward(animated)
     }
 
@@ -1772,7 +1785,6 @@ object ReadiumReader :
                 return
             }
 
-        enterManualModeIfNarrating("epubGoForward")
         navigator.goForward(animated)
     }
 
@@ -1967,11 +1979,9 @@ object ReadiumReader :
     /**
      * If narration is active, enters manual mode and emits the state change.
      *
-     * Called from explicit page navigation (`goForward`/`goBackward`) and from in-reader user
-     * gestures: the Flutter `reader_widget.dart` `Listener` detects a swipe / edge-tap and calls
-     * the reader-view channel `"notifyUserNavigation"`, which routes here. Those pointer events
-     * fire only for genuine user interaction (audio-driven page turns are programmatic and never
-     * reach the Listener), so they are a clean "user took control" signal.
+     * Called after an accepted page turn from an explicit command or native EPUB tap / key input.
+     * Swipes (paginated EPUB), scroll-mode drags and PDF/comic taps still arrive via the channel
+     * `"notifyUserNavigation"`, sent by the Flutter `reader_widget.dart` `Listener`.
      */
     fun enterManualModeIfNarrating(callSite: String) {
         if (!isNarrationActive()) return

@@ -49,8 +49,8 @@ function getIframeState(wnd: Window): IframeDecorationState {
 export function navIframeWindows(
   nav: EpubNavigator | WebPubNavigator
 ): Window[] {
-  const frames: any[] = (nav as any)._cframes ?? [];
-  return frames
+  const cframes: any[] = (nav as any)._cframes ?? [];
+  return cframes
     .map((f) => f?.window as Window | undefined)
     .filter((w): w is Window => !!w);
 }

@@ -93,10 +93,12 @@ flutter run -d chrome         # for web platform
 
 For web, make sure you run `bin/update_web_example` after any TypeScript change.
 
-For dependency size analysis:
+For dependency size analysis (run from `flutter_readium/`, the npm workspace root):
 
-- helper scripts: `cd flutter_readium/assets/_helper_scripts && npm run build:stats` (outputs `flutter_readium/assets/helpers/stats.html` and `flutter_readium/assets/helpers/stats.json`)
-- web bundle: `cd flutter_readium && npm run build:stats` (outputs `flutter_readium/build/rollup-stats.html` and `flutter_readium/build/rollup-stats.json`)
+- helper scripts: `npm run build:helpers:stats` (outputs `flutter_readium/assets/helpers/stats.html` and `flutter_readium/assets/helpers/stats.json`)
+- web bundle: `npm run build:stats` (outputs `flutter_readium/build/rollup-stats.html` and `flutter_readium/build/rollup-stats.json`)
+
+The `overrides` block in `flutter_readium/package.json` clears npm audit findings. `deepmerge` is pinned to 4.1.2 as a downgrade: GHSA-gcqx-w48m-w2h4 covers 4.2.0–4.3.1 and no fixed 4.x exists, so never bump it up until upstream ships a patch.
 
 ---
 
@@ -110,7 +112,7 @@ cd flutter_readium_platform_interface && flutter test
 cd flutter_readium && flutter test
 ```
 
-CI is orchestrated by [.github/workflows/ci.yml](.github/workflows/ci.yml). Its reusable [.github/workflows/test.yml](.github/workflows/test.yml) runs Dart, web, Android, and iOS unit tests in separate jobs, selecting native/web suites using platform change detection. Dart unit tests run whenever any platform is selected. All selected unit tests, builds, and integration tests contribute to the `CI result` check. You can also manually dispatch the Tests workflow to run all unit-test suites.
+CI is orchestrated by [.github/workflows/ci.yml](.github/workflows/ci.yml). Its reusable [.github/workflows/test.yml](.github/workflows/test.yml) runs Dart, web, Android, and iOS unit tests in separate jobs, selecting native/web suites using platform change detection. Dart unit tests run whenever any platform is selected. All selected unit tests, builds, and integration tests contribute to the `CI result` check. You can also manually dispatch the Unit Tests workflow to run all unit-test suites.
 
 ### Integration tests
 

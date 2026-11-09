@@ -5,7 +5,7 @@ on:
 
 jobs:
   ios:
-    name: iOS (Simulator)
+    name: iOS
     # Pinned to macos-26 (Arm64, GA) rather than macos-latest: the latest alias
     # can lag behind the newest image, and we need the iOS 26 runtime that ships
     # the pinned SIMULATOR_DEVICE below.

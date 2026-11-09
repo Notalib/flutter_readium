@@ -25,9 +25,10 @@ export function scrollVisibleIframes(direction: "up" | "down"): void {
 }
 
 /**
- * Handles an external-protocol locator href by prompting the user before
- * opening it in a new tab. For unrecognised hrefs (internal links that fell
- * through), logs a warning.
+ * Handles an external-protocol locator href by offering it to the Flutter app
+ * first. If the app does not handle it, prompts the user before opening it in
+ * a new tab. For unrecognised hrefs (internal links that fell through), logs a
+ * warning.
  */
 export function handleExternalLocator(href: string): void {
   if (
@@ -36,6 +37,7 @@ export function handleExternalLocator(href: string): void {
     href.startsWith("mailto:") ||
     href.startsWith("tel:")
   ) {
+    if (window.onExternalLinkActivatedCallback?.(href) === true) return;
     if (confirm(`Open "${href}" ?`)) window.open(href, "_blank");
   } else {
     log.warn("Unhandled locator href:", href);
