@@ -242,8 +242,12 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     windowBusy = true
     extensionInFlight = Task { @MainActor [weak self] in
       defer {
-        self?.windowBusy = false
-        self?.extensionInFlight = nil
+        // After dispose the extension slot is meaningless; don't write through a
+        // dead navigator (a future caller without the _disposed re-entry guards
+        // would otherwise race a post-teardown windowBusy reset).
+        guard let self, !self._disposed else { return }
+        self.windowBusy = false
+        self.extensionInFlight = nil
       }
       await self?.extendWindow()
     }

@@ -331,8 +331,8 @@ export class MediaOverlaySession implements StreamingTimeline {
     if (!duration || duration <= 0) return;
     if (duration - nav.currentTime > LOOKAHEAD_MARGIN_S) return;
     this.lookaheadQueued = true;
-        const roIndex =
-          store.roIndexForAudio(nav.currentLocator.href) ?? tail;
+    const roIndex =
+      store.roIndexForAudio(nav.currentLocator.href) ?? tail;
     void (async () => {
       try {
         await store.fillAhead(roIndex);

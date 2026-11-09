@@ -1540,8 +1540,12 @@ class _ReadiumReader {
         },
         this._bridge
       );
-      if (this._audioNavPublication === publication) this._mediaOverlaySession = session;
-      if (this._audioNavPublication !== publication) return;
+      if (this._audioNavPublication !== publication) {
+        // The publication advanced mid-init: this session is nobody's — drop it.
+        session?.dispose();
+        return;
+      }
+      this._mediaOverlaySession = session;
       const nav = this._audioNav as AudioNavigator | undefined;
       if (nav) {
         const mappedStart = fromLocator
@@ -1571,8 +1575,11 @@ class _ReadiumReader {
         },
         this._bridge
       );
-      if (this._audioNavPublication === publication) this._mediaOverlaySession = session;
-      if (this._audioNavPublication !== publication) return;
+      if (this._audioNavPublication !== publication) {
+        session?.dispose();
+        return;
+      }
+      this._mediaOverlaySession = session;
       const nav = this._audioNav as AudioNavigator | undefined;
       if (nav) {
         const targets = this._uncuedTocTargets;
