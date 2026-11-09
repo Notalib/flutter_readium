@@ -31,16 +31,7 @@ void main() {
           methodCall,
         ) async {
           log.add(methodCall);
-          switch (methodCall.method) {
-            case 'openPublication':
-              return '';
-            case 'ttsEnable':
-              return true;
-            case 'goForward':
-              return true;
-            default:
-              return null;
-          }
+          return null;
         },
       );
       log.clear();
