@@ -1,8 +1,10 @@
 # Web Platform (TypeScript) Structural Refactor
 
+> **Status (2026-11): partly done.** The `web/_scripts/` → `web/src/` rename has landed. The facade goal has not: `ReadiumReader.ts` is still about 1600 lines, against the 150-200 line facade target below. The "Context" section describes the code before the rename, so its line counts (991, 502) are stale.
+
 ## Context
 
-The web implementation lives in `flutter_readium/flutter_readium/web/_scripts/` and is built by webpack into `lib/helpers/readiumReader.js`. Today it centers on **`ReadiumReader.ts` — a 991-line god class** (`_ReadiumReader`, exported to `globalThis.ReadiumReader`) with ~30 public methods that mix publication lifecycle, visual navigation, EPUB preferences, decorations, audio playback, TTS, and media-overlay sync, and which holds *all* state. Navigators are created by free `initialize*()` functions returning bare upstream `@readium/navigator` objects, and `helpers.ts` (502 lines) is a grab-bag of manifest fetching, color conversion, decoration frame-comms, and iframe injection. Naming is inconsistent (`webPubPrefences.ts` typo; `Epub` vs `EPUB`).
+The web implementation lives in `flutter_readium/web/src/` and is built by webpack into `lib/helpers/readiumReader.js`. Today it centers on **`ReadiumReader.ts` — a 991-line god class** (`_ReadiumReader`, exported to `globalThis.ReadiumReader`) with ~30 public methods that mix publication lifecycle, visual navigation, EPUB preferences, decorations, audio playback, TTS, and media-overlay sync, and which holds *all* state. Navigators are created by free `initialize*()` functions returning bare upstream `@readium/navigator` objects, and `helpers.ts` (502 lines) is a grab-bag of manifest fetching, color conversion, decoration frame-comms, and iframe injection. Naming is inconsistent (`webPubPrefences.ts` typo; `Epub` vs `EPUB`).
 
 By contrast the **native iOS/Android sides** use clean OO abstractions: a `ReadiumReaderView` protocol (visual nav), a `FlutterTimebasedNavigator` protocol with TTS/Audio/MediaOverlay strategy implementations, `Flutter*`-prefixed wrapper classes (prefix dodges upstream-Readium name collisions), dedicated `model/`/`preferences/`/`events/` dirs, and factory dispatch on publication type.
 
@@ -162,7 +164,7 @@ Run from repo root unless noted:
 
 ## Execution
 
-- **Plan persisted in repo** at `docs/web-ts-refactor-plan.md` (committed as the first commit on the feature branch) so it travels with the PR and reviewers can follow the step map.
+- **Plan persisted in repo** at `docs/plans/todo/web-ts-refactor.md` (committed as the first commit on the feature branch) so it travels with the PR and reviewers can follow the step map.
 - Implementation proceeds **sequentially**, one atomic commit per numbered step (0 → 15); each step runs only after the previous step's verification gate passes. Steps are dependent — re-export shims/barrels are removed only in step 15, so steps must not be reordered or parallelized.
 
 ## CHANGELOG
