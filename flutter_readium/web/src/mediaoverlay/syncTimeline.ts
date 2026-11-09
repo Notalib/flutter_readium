@@ -209,24 +209,34 @@ export class SyncTimelineStore {
   }
 
   /**
-   * Load until at most LOOKAHEAD_SEGMENTS segments sit ahead of `roIndex`
-   * (already-loaded ones count toward the budget, so repeated calls from the
-   * tick loop are no-ops once the window is full — without the count, each
-   * call would grow the window by K again and prefetch the whole book).
+   * Ensure the next LOOKAHEAD_SEGMENTS segment slots ahead of `roIndex` are
+   * settled (loaded, or exhausted past MAX_SEGMENT_FAILURES). Position-bound:
+   * counting loaded segments anywhere ahead instead would let the old forward
+   * window eat the whole budget after a backward jump, starving the chapters
+   * right after the jump target (playback would skip into the old window).
+   * A transiently failed slot is retried in place and never consumes budget,
+   * so one flaky pass cannot burn the window and concede an end of book while
+   * segments are still loadable (ADR 0003 "honest end").
    */
   async fillAhead(roIndex: number): Promise<void> {
-    let ahead = 0;
-    for (const i of this.resolvedSegments.keys()) {
-      if (i > roIndex && this.loaded.has(i)) ahead++;
-    }
-    let loadedCount = ahead;
-    let from = roIndex + 1;
-    while (!this.disposed && loadedCount < LOOKAHEAD_SEGMENTS) {
-      const next = this.nextLoadableSegment(from);
+    let filled = 0;
+    let cursor = roIndex + 1;
+    while (!this.disposed && filled < LOOKAHEAD_SEGMENTS) {
+      const next = this.nextLoadableSegment(cursor);
       if (next === undefined) return;
+      // Slots the scan skipped are already settled; they consume budget.
+      for (const i of this.segmentIndexes()) {
+        if (i >= cursor && i < next) filled++;
+      }
+      if (filled >= LOOKAHEAD_SEGMENTS) return;
       await this.loadSegment(next);
-      loadedCount++;
-      from = next + 1;
+      const settled =
+        this.loaded.has(next) ||
+        (this.failures.get(this.resolvedSegments.get(next)!.href) ?? 0) >= MAX_SEGMENT_FAILURES;
+      if (settled) {
+        filled++;
+        cursor = next + 1;
+      }
     }
   }
 

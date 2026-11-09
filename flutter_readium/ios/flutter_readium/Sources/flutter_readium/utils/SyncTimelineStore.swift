@@ -196,19 +196,22 @@ final class SyncTimelineStore {
     return overlays()
   }
 
-  /// Extend the loaded window to K segments ahead of `roIndex`.
-  /// Segments already loaded ahead of the playhead count toward the budget, so
-  /// repeated calls from the same position are no-ops once the window is full —
-  /// without that, the locator-tick driver prefetches the whole book on short
-  /// tracks (K per call).
+  /// Ensure the next `lookaheadSegments` segment *slots* ahead of `roIndex` are
+  /// loaded. The budget is position-bound (which slots), not load-count-bound:
+  /// counting loaded segments anywhere ahead would let the old forward window
+  /// eat the budget after a backward jump — playback would then skip into that
+  /// window — and one flaky pass would burn the whole budget and concede an end
+  /// of book while segments are still loadable (ADR 0003 "honest end"). A
+  /// failed load stays in its slot and is retried until it loads or hits
+  /// `maxSegmentFailures`, whichever comes first.
   func fillAhead(from roIndex: Int) async {
-    var loadedCount = resolvedSegments.keys.filter { $0 > roIndex && isLoaded($0) }.count
-    var from = roIndex + 1
-    while !disposed, loadedCount < Self.lookaheadSegments {
-      guard let next = nextLoadableSegment(from: from) else { return }
-      await loadSegment(roIndex: next)
-      loadedCount += 1
-      from = next + 1
+    let ahead = segmentIndexes().filter { $0 > roIndex }.prefix(Self.lookaheadSegments)
+    for i in ahead {
+      if disposed { return }
+      while loaded[i] == nil,
+            (failures[resolvedSegments[i]!.href] ?? 0) < Self.maxSegmentFailures {
+        await loadSegment(roIndex: i)
+      }
     }
   }
 

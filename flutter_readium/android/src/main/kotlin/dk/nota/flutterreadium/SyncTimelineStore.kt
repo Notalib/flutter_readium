@@ -219,18 +219,24 @@ internal class SyncTimelineStore private constructor(
     /** Cue count of the current window; compare before/after a load to detect new cues. */
     fun loadedCueCount(): Int = loaded.values.sumOf { overlays -> overlays.sumOf { it.items.size } }
 
-    /** Sequentially extend the loaded window up to K segments past [roIndex]. */
+    /**
+     * Ensure the next [LOOKAHEAD_SEGMENTS] segment *slots* past [roIndex] are loaded.
+     * The budget is position-bound (which slots), not load-count-bound: counting loaded
+     * segments anywhere ahead would let the old forward window eat the budget after a
+     * backward jump - playback would then skip into that window - and one flaky pass
+     * would burn the whole budget and concede an end of book while segments are still
+     * loadable (ADR 0003 "honest end"). A failed load stays in its slot and is retried
+     * until it loads or hits MAX_SEGMENT_FAILURES, whichever comes first.
+     */
     suspend fun fillAhead(roIndex: Int) {
-        // Count already-loaded segments towards the budget: the playhead tick driver re-fires
-        // while remaining < margin, so this must be a no-op once the window is full (K=3 ahead
-        // of the PLAYHEAD, not K new segments per call).
-        var loadedCount = loaded.keys.count { it > roIndex }
-        var from = roIndex + 1
-        while (!disposed && loadedCount < LOOKAHEAD_SEGMENTS) {
-            val next = nextLoadableSegment(from) ?: return
-            loadSegment(next)
-            loadedCount++
-            from = next + 1
+        val ahead = segmentIndexes().filter { it > roIndex }.take(LOOKAHEAD_SEGMENTS)
+        for (i in ahead) {
+            if (disposed) return
+            while (!loaded.containsKey(i) &&
+                (failures[resolvedSegments.getValue(i).href.toString()] ?: 0) < MAX_SEGMENT_FAILURES
+            ) {
+                loadSegment(i)
+            }
         }
     }
 

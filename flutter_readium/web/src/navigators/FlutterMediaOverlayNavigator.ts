@@ -238,9 +238,13 @@ export class MediaOverlaySession implements StreamingTimeline {
    */
   async takeOverAtEdge(): Promise<boolean> {
     if (this.disposed || !this.store) return false;
+    const before = this.items.length;
     if (this.rebuild) {
       await this.rebuild.catch(() => undefined);
-      return !this.disposed;
+      if (this.disposed) return false;
+      // The joined rebuild took the edge over only if it grew the live window
+      // AND left a working navigator; a failed rebuild must not swallow ended.
+      if (this.items.length > before && this.nav) return true;
     }
     const store = this.store;
     const roIndex =
@@ -248,10 +252,9 @@ export class MediaOverlaySession implements StreamingTimeline {
     if (store.nextLoadableSegment(roIndex + 1) === undefined) {
       return false; // nothing left to load: honest end
     }
-    const before = this.items.length;
     await store.fillAhead(roIndex);
     await this.extend();
-    return !this.disposed && this.items.length > before;
+    return !this.disposed && !!this.nav && this.items.length > before;
   }
 
   // -------------------------------------------------------------------------
