@@ -3,9 +3,18 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    // Generated build artifacts may sit in the working tree and carry
+    // Generated and vendored JS may sit in the working tree and carry
     // eslint-disable comments for rules this config does not register.
-    ignores: ['assets/helpers/**', 'assets/_helper_scripts/dist/**', 'build/**', 'example/build/**', 'lib/helpers/**'],
+    // ESLint 10 does not read .gitignore, so list them all here.
+    ignores: [
+      'assets/helpers/**',
+      'assets/_helper_scripts/dist/**',
+      'build/**',
+      'example/build/**',
+      'example/web/**',
+      'example/ios/**',
+      'lib/helpers/**',
+    ],
   },
   {
     files: ['web/src/**/*.ts'],

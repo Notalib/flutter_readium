@@ -96,6 +96,8 @@ xcrun simctl status_bar "$DEVICE_ID" override \
   --batteryState charged \
   --batteryLevel 100
 
+# The workspace build needs deps; install them if a fresh checkout has not run bin/install.
+[ -d "$REPO_ROOT/flutter_readium/node_modules" ] || (cd "$REPO_ROOT/flutter_readium" && npm ci --ignore-scripts)
 (cd "$REPO_ROOT/flutter_readium" && npm run build:helpers:dev)
 for helper in flutterReadiumTools.js flutterReadiumTools.css; do
   [ -s "$REPO_ROOT/flutter_readium/assets/helpers/$helper" ] || {
