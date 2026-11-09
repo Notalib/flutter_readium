@@ -54,10 +54,9 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     )
     self._initialLocator = resolveLocator(initialLocator)
 
-    // Upstream runs AVPlayer with automaticallyWaitsToMinimizeStalling = false and does not
-    // observe stalls, so a buffer underrun leaves the player paused for good (see
-    // handlePlaybackStalled). The notification is posted on the item, not the player; one
-    // audio player exists at a time, so object: nil is precise enough.
+    // Upstream disables automatic stall waiting and does not observe stalls, so an underrun
+    // leaves the player paused; see handlePlaybackStalled. The notification is posted on the
+    // item and only one audio player exists at a time, so object: nil is fine.
     _playbackStalledObserver = NotificationCenter.default.addObserver(
       forName: .AVPlayerItemPlaybackStalled, object: nil, queue: .main
     ) { [weak self] _ in
@@ -89,11 +88,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
         preferences: AudioPreferences(fromFlutterPrefs: _preferences),
         playbackRefreshInterval: _preferences.updateIntervalSecs,
       ),
-      // The shared AudioSession ends the AVAudioSession when a paused navigator
-      // reports from the background — which the pause inside every automatic
-      // chapter change triggers with the screen locked, killing playback. The
-      // wrapper drops that report only while playback is still intended, so a
-      // user pause keeps releasing the session.
+      // Keeps the AVAudioSession active through automatic pauses in the background; see
+      // the class doc.
       audioSession: BackgroundPlaybackAudioSession(isPlaybackIntended: { [weak self] in
         self?._playbackIntent ?? false
       })
@@ -657,14 +653,11 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     }
   }
 
-  /// `AVPlayerItemPlaybackStalled` while playback is intended. In non-waiting mode the
-  /// player drops to `.paused` on an underrun and never resumes by itself, which with the
-  /// screen locked reads as "the book just stopped". Give it a short grace period first: a
-  /// seek into unbuffered audio also posts a stall and normally recovers on its own. If the
-  /// offset still has not moved, run the same recovery as a retryable read error, which
-  /// rebuilds the player at the current offset and reports a terminal network error if the
-  /// connection does not come back. User pauses clear the intent flag before pausing, and
-  /// a stall during an interruption is the system's doing, so both are left alone.
+  /// In non-waiting mode the player drops to `.paused` on an underrun and does not resume by
+  /// itself. A seek into unbuffered audio also posts a stall and normally recovers, so wait
+  /// one backoff delay first; if the offset still has not moved, run the same recovery as a
+  /// retryable read error. A user pause clears the intent first and a stall during an
+  /// interruption is the system's, so both are left alone.
   @MainActor
   private func handlePlaybackStalled() {
     guard _playbackIntent, !_disposed, !_hasFailed, _recoveryTask == nil, _stallCheckTask == nil,
