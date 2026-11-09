@@ -205,12 +205,14 @@ internal class SyncTimelineStore private constructor(
     }
 
     /**
-     * Loaded overlays ascending by segment, starting at [startIndex] - the list handed
-     * to the navigator. Empty when nothing is loaded (caller falls back to eager parse).
+     * Loaded overlays ascending by segment - the list handed to the navigator.
+     * Cumulative: segments are never evicted behind the playhead, so earlier
+     * chapters stay mappable and book-wide totals remain computable (ADR 0003
+     * "cumulative forward window"). Empty when nothing is loaded (caller falls
+     * back to eager parse).
      */
-    fun windowOverlays(startIndex: Int = 0): List<FlutterMediaOverlay?> =
+    fun windowOverlays(): List<FlutterMediaOverlay?> =
         loaded
-            .filterKeys { it >= startIndex }
             .toSortedMap()
             .values
             .flatten()
