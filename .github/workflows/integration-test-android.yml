@@ -5,7 +5,7 @@ on:
 
 jobs:
   android:
-    name: Android (Emulator)
+    name: Android API ${{ matrix.api-level }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
 

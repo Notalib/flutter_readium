@@ -1,4 +1,4 @@
-name: Tests
+name: Unit Tests
 
 on:
   workflow_call:
@@ -19,6 +19,7 @@ on:
 
 jobs:
   test:
+    name: Dart
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -59,6 +60,7 @@ jobs:
           fail_ci_if_error: false
 
   web-test:
+    name: Web
     if: github.event_name == 'workflow_dispatch' || inputs.web
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -85,6 +87,7 @@ jobs:
         working-directory: flutter_readium
 
   android-unit-test:
+    name: Android
     if: github.event_name == 'workflow_dispatch' || inputs.android
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -148,7 +151,7 @@ jobs:
           key: ${{ steps.gradle-cache.outputs.cache-primary-key }}
 
   ios-unit-tests:
-    name: iOS (Native Unit Tests)
+    name: iOS
     if: github.event_name == 'workflow_dispatch' || inputs.ios
     # XCTest can shut down the simulator, so keep it separate from integration tests.
     runs-on: macos-26-xlarge

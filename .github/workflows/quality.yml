@@ -18,6 +18,7 @@ concurrency:
 
 jobs:
   format-and-analyze:
+    name: Format and Analyze
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -51,6 +52,7 @@ jobs:
         working-directory: ${{ matrix.package }}
 
   readium-pins:
+    name: Readium Pins
     runs-on: ubuntu-latest
     timeout-minutes: 5
 

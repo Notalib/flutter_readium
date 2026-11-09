@@ -5,6 +5,7 @@ on:
 
 jobs:
   build-android:
+    name: Android
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
