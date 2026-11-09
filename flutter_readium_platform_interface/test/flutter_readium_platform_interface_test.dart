@@ -121,6 +121,22 @@ void main() {
       expect(methodChannelReadium.onExternalPlaybackCommand, same(stream));
     });
 
+    test('closePublication resets the locator, status and narration-sync streams', () async {
+      final streams = <String, Stream<Object?> Function()>{
+        'onTextLocatorChanged': () => methodChannelReadium.onTextLocatorChanged,
+        'onReaderStatusChanged': () => methodChannelReadium.onReaderStatusChanged,
+        'onNarrationSyncChanged': () => methodChannelReadium.onNarrationSyncChanged,
+      };
+      final before = {for (final e in streams.entries) e.key: e.value()};
+
+      await methodChannelReadium.closePublication();
+
+      // A fresh stream means a fresh native listen, so no event buffered for the closed publication is replayed.
+      for (final e in streams.entries) {
+        expect(e.value(), isNot(same(before[e.key])), reason: e.key);
+      }
+    });
+
     test('setPDFPreferences stores the preferences as the default for later readers', () async {
       const preferences = PDFPreferences(layout: PDFLayout.paginated);
 
