@@ -13,7 +13,6 @@ import {
   SPOTLIGHT_GROUP_SUFFIX,
   sendDecorate,
   navIframeWindows,
-  registerPendingDecorationGroup,
   setSpotlightGroupOnIframes,
   clearSpotlightState,
 } from "./decorationFrameUtils";
@@ -65,13 +64,6 @@ export class DecorationController {
     }
 
     const iframes = navIframeWindows(nav);
-
-    // Register each subgroup once so its upstream <style> can be paired with it
-    // for spotlight (see registerPendingDecorationGroup).
-    const subgroups = new Set(decorationsRaw.map((raw) => this._subgroupFor(group, raw.style.style)));
-    for (const grp of subgroups) {
-      registerPendingDecorationGroup(iframes, grp);
-    }
 
     for (const raw of decorationsRaw) {
       const targetGroup = this._subgroupFor(group, raw.style.style);

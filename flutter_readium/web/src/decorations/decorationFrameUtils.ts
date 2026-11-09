@@ -13,9 +13,9 @@ export const UNDERLINE_GROUP_SUFFIX = "__underline";
 
 /**
  * Group-name suffix used to mark a decoration group as a "spotlight" group.
- * While any spotlight group is active, all body text is dimmed and each active
- * group's `::highlight()` range restores its original colour, focusing the
- * reader on the spotlit range.
+ * While any spotlight group is active, all body text is dimmed. The spotlit
+ * range stays readable because the toolkit's own `::highlight()` rule sets its
+ * text colour.
  */
 export const SPOTLIGHT_GROUP_SUFFIX = "__spotlight";
 
@@ -24,15 +24,7 @@ const IFRAME_STATE_KEY = "__flutterReadiumDecorationState";
 const SPOTLIGHT_CLASS = "flutter-readium-spotlight";
 const SPOTLIGHT_STYLE_ID = "flutter-readium-spotlight-style";
 
-interface PendingGroup {
-  group: string;
-}
-
 interface IframeDecorationState {
-  // FIFO of groups whose first-ever `add` is awaiting upstream's <style> creation
-  pendingNewGroups: PendingGroup[];
-  // Our group name → upstream internal id (e.g. "readium-decoration-3")
-  groupInternalId: Map<string, string>;
   // Currently-active spotlight groups (mirrors module state, kept for reapply).
   // A set, not a single value, so independent groups (e.g. tts_utterance and
   // tts_range) can each spotlight without clearing one another.
@@ -46,11 +38,7 @@ const _spotlightGroups = new Set<string>();
 function getIframeState(wnd: Window): IframeDecorationState {
   const w = wnd as any;
   if (!w[IFRAME_STATE_KEY]) {
-    w[IFRAME_STATE_KEY] = {
-      pendingNewGroups: [],
-      groupInternalId: new Map<string, string>(),
-      spotlightGroups: new Set<string>(),
-    } as IframeDecorationState;
+    w[IFRAME_STATE_KEY] = { spotlightGroups: new Set<string>() } as IframeDecorationState;
   }
   return w[IFRAME_STATE_KEY];
 }
@@ -93,21 +81,6 @@ export function navIframeWindows(
 }
 
 /**
- * Record that the next upstream-created decoration `<style>` element in each
- * iframe should be paired with this group (the parent–side FIFO contract).
- * Called before sending the first `add` to a group; deduplicated against
- * already-paired groups so re-applies on existing groups don't push stale entries.
- */
-export function registerPendingDecorationGroup(iframes: Window[], group: string): void {
-  for (const wnd of iframes) {
-    const state = getIframeState(wnd);
-    if (state.groupInternalId.has(group)) continue;
-    if (state.pendingNewGroups.some((p) => p.group === group)) continue;
-    state.pendingNewGroups.push({ group });
-  }
-}
-
-/**
  * Clear all module-level spotlight state. Call on publication close so the
  * stale set does not re-apply the dim to the next publication's iframes when
  * `injectDecorationOverrides` fires on them.
@@ -118,8 +91,7 @@ export function clearSpotlightState(): void {
 
 /**
  * Activate or deactivate spotlight for a *single* group across the given
- * iframes. While any group is active, all body text is dimmed and every active
- * group's `::highlight()` pseudo-elements restore original colour. Each group
+ * iframes. While any group is active, all body text is dimmed. Each group
  * toggles only its own contribution, so e.g. clearing `tts_range` never removes
  * a spotlight set by `tts_utterance`.
  *
@@ -163,28 +135,11 @@ function applySpotlightToIframe(wnd: Window): void {
     styleEl.textContent = "";
     return;
   }
-  // Collect the upstream internal ids of every active spotlight group (plus its
-  // underline sub-group, if any) so each gets its colour/fill restored.
-  const internalIds: string[] = [];
-  for (const group of groups) {
-    const mainId = state.groupInternalId.get(group);
-    if (mainId) internalIds.push(mainId);
-    const underlineId = state.groupInternalId.get(group + UNDERLINE_GROUP_SUFFIX);
-    if (underlineId) internalIds.push(underlineId);
-  }
-
-  // Restore the spotlit range's text colour so the body-wide dim doesn't apply
-  // inside it. The fill (background-color) is left alone — the caller controls
-  // it by passing a tint with the spotlight decoration: a non-transparent tint
-  // renders as a fill inside the spotlit range, while a null/transparent tint
-  // gives pure dim-outside-only.
-  const restoreRules = internalIds
-    .map(
-      (id) =>
-        `body.${SPOTLIGHT_CLASS} ::highlight(${id}) { color: initial !important; }`
-    )
-    .join("\n  ");
-
+  // The spotlit range is not dimmed: the toolkit's `::highlight()` rule sets its own
+  // `color`, and pseudo-element styles are cascaded separately from the `!important`
+  // below. The fill is controlled by the spotlight decoration's tint: a non-transparent
+  // tint fills the range, a transparent one gives pure dim-outside-only.
+  //
   // Selector specificity must beat ReadiumCSS's `customColors_pref.css` rule
   // (`:root[style*="--USER__textColor"] body { color: ... !important }`, specificity
   // (0,2,1)) which fires on EPUB-profile publications whenever the user has set
@@ -196,69 +151,18 @@ function applySpotlightToIframe(wnd: Window): void {
     body.${SPOTLIGHT_CLASS} *:not(a) {
       color: rgba(0, 0, 0, 0.22) !important;
     }
-    ${restoreRules}
   `;
 }
 
 /**
- * Pair the just-added upstream `<style id="readium-decoration-N-style">` with
- * the head of the pending-groups queue, recording the group's upstream id so
- * spotlight can target its `::highlight()` range.
- */
-function pairWithPendingGroup(wnd: Window, styleEl: HTMLStyleElement): void {
-  const state = getIframeState(wnd);
-  const pending = state.pendingNewGroups.shift();
-  if (!pending) return;
-  const internalId = styleEl.id.replace(/-style$/, "");
-  state.groupInternalId.set(pending.group, internalId);
-
-  // Spotlight rules may need to expand now that we know this group's internal id.
-  if (state.spotlightGroups.size > 0) {
-    applySpotlightToIframe(wnd);
-  }
-}
-
-/**
- * Inject our group-pairing observer into a freshly-loaded EPUB iframe.
+ * Re-apply any active spotlight to a freshly-loaded EPUB iframe.
  * Idempotent: flagged on the iframe documentElement so repeated `frameLoaded`
  * calls are no-ops.
- *
- * What this adds on top of upstream's Decorator:
- *   1. **Group pairing (Web Highlight API path)**: a head MutationObserver
- *      watches for upstream's `<style id="readium-decoration-N-style">`
- *      additions so spotlight can find each group's `::highlight()` range.
- *   2. **Spotlight stylesheet stub**: empty `<style>` slot ready to be filled
- *      by {@link setSpotlightGroupOnIframes}.
  */
 export function injectDecorationOverrides(wnd: Window): void {
   const doc = wnd.document;
   if (doc.documentElement.dataset[OVERRIDES_DATASET_FLAG] === "true") return;
   doc.documentElement.dataset[OVERRIDES_DATASET_FLAG] = "true";
-
-  // ── Group pairing observer (Web Highlight API path) ─────────────────────
-  const isReadiumGroupStyle = (el: Element): el is HTMLStyleElement =>
-    el.tagName === "STYLE" &&
-    typeof (el as HTMLStyleElement).id === "string" &&
-    /^readium-decoration-\d+-style$/.test((el as HTMLStyleElement).id);
-
-  // Pair any pre-existing styles (in case Decorator mounted before us).
-  doc.head.querySelectorAll("style[data-readium]").forEach((el) => {
-    if (isReadiumGroupStyle(el)) pairWithPendingGroup(wnd, el);
-  });
-
-  const headObserver = new MutationObserver((mutations) => {
-    for (const m of mutations) {
-      // Avoid Array.from(NodeList) — in Flutter web, dart2js patches Array.from
-      // to use its own iterator protocol, which fails for raw DOM Node objects.
-      for (let i = 0; i < m.addedNodes.length; i++) {
-        const node = m.addedNodes[i];
-        if (node.nodeType !== 1) continue;
-        const el = node as Element;
-        if (isReadiumGroupStyle(el)) pairWithPendingGroup(wnd, el);
-      }
-    }
-  });
-  headObserver.observe(doc.head, { childList: true });
 
   // Apply current spotlight groups (if any) to the freshly-loaded iframe.
   if (_spotlightGroups.size > 0) {
