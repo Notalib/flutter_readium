@@ -17,8 +17,8 @@ runs:
       with:
         node-version: lts/*
         cache: npm
-        cache-dependency-path: flutter_readium/assets/_helper_scripts/package-lock.json
+        cache-dependency-path: flutter_readium/package-lock.json
     - name: Build webview helper assets
       shell: bash
-      run: npm ci --ignore-scripts && npm run build
-      working-directory: flutter_readium/assets/_helper_scripts
+      run: npm ci --ignore-scripts && npm run build:helpers
+      working-directory: flutter_readium

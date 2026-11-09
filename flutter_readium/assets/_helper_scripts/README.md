@@ -6,8 +6,12 @@ Make sure to have NodeJs already installed.
 
 ### Install all dependencies
 
+This package is an npm workspace member of `flutter_readium/` (the workspace
+root, which owns the single `package-lock.json` and hoisted `node_modules`).
+Install from the workspace root, never here:
+
 ```bash
-npm install
+cd ../.. && npm install
 ```
 
 ### Start developing and serve your app

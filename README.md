@@ -257,7 +257,7 @@ The physical device bezel is included by default. The script keeps the H.264 mas
 
 ### Dependency size analysis
 
-- helper scripts: `cd flutter_readium/assets/_helper_scripts && npm run build:stats` (outputs `flutter_readium/assets/helpers/stats.html` and `flutter_readium/assets/helpers/stats.json`)
+- helper scripts: `cd flutter_readium && npm run build:helpers:stats` (outputs `flutter_readium/assets/helpers/stats.html` and `flutter_readium/assets/helpers/stats.json`)
 - web bundle: `cd flutter_readium && npm run build:stats` (outputs `flutter_readium/build/rollup-stats.html` and `flutter_readium/build/rollup-stats.json`)
 
 ## Contributing

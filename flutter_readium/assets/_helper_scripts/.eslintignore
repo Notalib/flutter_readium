@@ -1,6 +1,0 @@
-node_modules
-dist
-webpack*
-custom.d.ts
-styleMock.js
-**/*.js

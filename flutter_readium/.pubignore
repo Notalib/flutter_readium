@@ -37,6 +37,7 @@ PLAN.md
 package.json
 package-lock.json
 rollup.config.mjs
+rollup.shared.mjs
 
 # Changelog fragments, compiled into CHANGELOG.md at release time
 changelog.d/
