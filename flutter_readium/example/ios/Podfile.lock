@@ -12,10 +12,10 @@ PODS:
   - Flutter (1.0.0)
   - flutter_readium (0.0.1):
     - Flutter
-    - ReadiumNavigator (~> 3.11.0)
-    - ReadiumOPDS (~> 3.11.0)
-    - ReadiumShared (~> 3.11.0)
-    - ReadiumStreamer (~> 3.11.0)
+    - ReadiumNavigator (~> 3.11.1)
+    - ReadiumOPDS (~> 3.11.1)
+    - ReadiumShared (~> 3.11.1)
+    - ReadiumStreamer (~> 3.11.1)
   - integration_test (0.0.1):
     - Flutter
   - Minizip (1.0.0)
@@ -24,27 +24,27 @@ PODS:
   - pointer_interceptor_ios (0.0.1):
     - Flutter
   - ReadiumFuzi (4.0.1)
-  - ReadiumInternal (3.11.0)
-  - ReadiumNavigator (3.11.0):
+  - ReadiumInternal (3.11.1)
+  - ReadiumNavigator (3.11.1):
     - DifferenceKit (~> 1.0)
-    - ReadiumInternal (~> 3.11.0)
-    - ReadiumShared (~> 3.11.0)
+    - ReadiumInternal (~> 3.11.1)
+    - ReadiumShared (~> 3.11.1)
     - SwiftSoup (~> 2.11.0)
-  - ReadiumOPDS (3.11.0):
+  - ReadiumOPDS (3.11.1):
     - ReadiumFuzi (~> 4.0.0)
-    - ReadiumInternal (~> 3.11.0)
-    - ReadiumShared (~> 3.11.0)
-  - ReadiumShared (3.11.0):
+    - ReadiumInternal (~> 3.11.1)
+    - ReadiumShared (~> 3.11.1)
+  - ReadiumShared (3.11.1):
     - Minizip (~> 1.0.0)
     - ReadiumFuzi (~> 4.0.0)
-    - ReadiumInternal (~> 3.11.0)
+    - ReadiumInternal (~> 3.11.1)
     - ReadiumZIPFoundation (~> 3.0.1)
     - SwiftSoup (~> 2.11.0)
-  - ReadiumStreamer (3.11.0):
+  - ReadiumStreamer (3.11.1):
     - CryptoSwift (~> 1.10.0)
     - ReadiumFuzi (~> 4.0.0)
-    - ReadiumInternal (~> 3.11.0)
-    - ReadiumShared (~> 3.11.0)
+    - ReadiumInternal (~> 3.11.1)
+    - ReadiumShared (~> 3.11.1)
   - ReadiumZIPFoundation (3.0.1)
   - SwiftSoup (2.11.3)
   - wakelock_plus (0.0.1):
@@ -57,11 +57,11 @@ DEPENDENCIES:
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - pointer_interceptor_ios (from `.symlinks/plugins/pointer_interceptor_ios/ios`)
-  - ReadiumInternal (~> 3.11.0)
-  - ReadiumNavigator (~> 3.11.0)
-  - ReadiumOPDS (~> 3.11.0)
-  - ReadiumShared (~> 3.11.0)
-  - ReadiumStreamer (~> 3.11.0)
+  - ReadiumInternal (~> 3.11.1)
+  - ReadiumNavigator (~> 3.11.1)
+  - ReadiumOPDS (~> 3.11.1)
+  - ReadiumShared (~> 3.11.1)
+  - ReadiumStreamer (~> 3.11.1)
   - wakelock_plus (from `.symlinks/plugins/wakelock_plus/ios`)
 
 SPEC REPOS:
@@ -100,21 +100,21 @@ SPEC CHECKSUMS:
   DifferenceKit: ab185c4d7f9cef8af3fcf593e5b387fb81e999ca
   file_picker_darwin: 4c2b9a50ea44cb3b071381ea0cf48591bdd80251
   Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
-  flutter_readium: a4b23fa14c9f8a0c3c903119b3244810b2d1e837
+  flutter_readium: 90226c862568776701423be25c427acbf38016ea
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   Minizip: 188cb3e39a1195c283ae03bf673d182596fefd0b
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
   pointer_interceptor_ios: da06a662d5bfd329602b45b2ab41bc0fb5fdb0f0
   ReadiumFuzi: c1362cfcb9bb166a25e0f50a2137ba2cfec44ce6
-  ReadiumInternal: 98d4abbdc4061946b4aa7b1edd4b8a0596b8dab4
-  ReadiumNavigator: 35ff2a44cd012f04bab7221bdf3b684003e0b549
-  ReadiumOPDS: ed24434a6f13f4c1197602c3d5666c33c26980cd
-  ReadiumShared: 3c7ab177aeb917cd4bc3543db908a1ca0db7ea4b
-  ReadiumStreamer: 2bd80a6825ab623dc06a578eb629c54714fa3d67
+  ReadiumInternal: 194f7018355a7e22f1b1c39a72fc2aed563ac2ce
+  ReadiumNavigator: c8ace3ccc8f64664d0f54f81d9c1041d018b8bc3
+  ReadiumOPDS: 4aca0652c94b3f74aeb4b8d939d11bb2e3b2ca4d
+  ReadiumShared: 0a4710cb9050624ccea80c5a69a8b2827aa65095
+  ReadiumStreamer: 916362874530a21dddc40361e927f0f91ca42b5d
   ReadiumZIPFoundation: 4009f635ebc718cc113a388ecb33c773f00639ca
   SwiftSoup: 959c9ac70d7053fbf476341bfac90ab228523f2a
   wakelock_plus: e29112ab3ef0b318e58cfa5c32326458be66b556
 
-PODFILE CHECKSUM: c4906ba94e31390c41a115760de24db9cfc2379e
+PODFILE CHECKSUM: aa7396f95c158e8c473e131d903e41161cf79c59
 
 COCOAPODS: 1.16.2
