@@ -233,14 +233,14 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.7.0"
+    version: "0.9.1"
   flutter_readium_platform_interface:
     dependency: "direct overridden"
     description:
       path: "../../flutter_readium_platform_interface"
       relative: true
     source: path
-    version: "0.7.0"
+    version: "0.9.1"
   flutter_test:
     dependency: "direct dev"
     description: flutter
