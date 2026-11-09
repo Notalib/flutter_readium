@@ -187,8 +187,8 @@ class _ReadiumReader {
   private readonly _bridge = new ReadiumBridge();
   private readonly _pubManager = new PublicationManager();
   private readonly _decorations = new DecorationController(this._bridge);
-  private readonly _selectionToolbar = new SelectionToolbar((event) =>
-    this._bridge.emitSelectionAction(event)
+  private readonly _selectionToolbar = new SelectionToolbar((actionEvent) =>
+    this._bridge.emitSelectionAction(actionEvent)
   );
 
   /** Wires navigator text selections to the Dart event and the selection-actions toolbar. */

@@ -47,10 +47,10 @@ const EDGE = 4;
 /** Above the selection, or below it when there is no room; kept inside the container horizontally. */
 export function placeToolbar(input: ToolbarPlacementInput): { top: number; left: number } {
   const above = input.anchorTop - input.toolbarHeight - GAP;
-  const top = above >= EDGE ? above : input.anchorBottom + GAP;
+  const toolbarTop = above >= EDGE ? above : input.anchorBottom + GAP;
   const maxLeft = Math.max(EDGE, input.containerWidth - input.toolbarWidth - EDGE);
   const left = Math.min(Math.max(input.anchorCenterX - input.toolbarWidth / 2, EDGE), maxLeft);
-  return { top, left };
+  return { top: toolbarTop, left };
 }
 
 export class SelectionToolbar {
@@ -87,27 +87,27 @@ export class SelectionToolbar {
     this._target = target;
 
     const doc = container.ownerDocument;
-    const toolbar = doc.createElement("div");
-    toolbar.className = TOOLBAR_CLASS;
-    toolbar.setAttribute("role", "toolbar");
+    const toolbarEl = doc.createElement("div");
+    toolbarEl.className = TOOLBAR_CLASS;
+    toolbarEl.setAttribute("role", "toolbar");
     // Keep the selection: a press on a button must not collapse it or move focus.
-    toolbar.addEventListener("mousedown", (e) => e.preventDefault());
-    toolbar.addEventListener("pointerdown", (e) => e.preventDefault());
+    toolbarEl.addEventListener("mousedown", (e) => e.preventDefault());
+    toolbarEl.addEventListener("pointerdown", (e) => e.preventDefault());
 
     for (const action of this._actions) {
       const button = doc.createElement("button");
       button.type = "button";
       button.textContent = action.title;
       button.addEventListener("click", () => this._activate(action));
-      toolbar.appendChild(button);
+      toolbarEl.appendChild(button);
     }
 
     // Hidden while measuring so it never flashes at the wrong spot.
-    toolbar.style.visibility = "hidden";
-    container.appendChild(toolbar);
-    this._element = toolbar;
-    this._position(toolbar, container, target);
-    toolbar.style.visibility = "visible";
+    toolbarEl.style.visibility = "hidden";
+    container.appendChild(toolbarEl);
+    this._element = toolbarEl;
+    this._position(toolbarEl, container, target);
+    toolbarEl.style.visibility = "visible";
 
     this._listenToFrame(target.frame.window);
   }
@@ -148,7 +148,7 @@ export class SelectionToolbar {
   }
 
   private _position(
-    toolbar: HTMLElement,
+    toolbarEl: HTMLElement,
     container: HTMLElement,
     { frame, rect }: SelectionToolbarTarget
   ): void {
@@ -166,16 +166,16 @@ export class SelectionToolbar {
         ? iframeRect.top - containerRect.top + bottom * scaleY
         : firstLineTop + rect.height * scaleY;
 
-    const { top, left } = placeToolbar({
+    const { top: toolbarTop, left } = placeToolbar({
       anchorTop: firstLineTop,
       anchorBottom,
       anchorCenterX: iframeRect.left - containerRect.left + (rect.x + rect.width / 2) * scaleX,
-      toolbarWidth: toolbar.offsetWidth,
-      toolbarHeight: toolbar.offsetHeight,
+      toolbarWidth: toolbarEl.offsetWidth,
+      toolbarHeight: toolbarEl.offsetHeight,
       containerWidth: containerRect.width,
     });
-    toolbar.style.top = `${top}px`;
-    toolbar.style.left = `${left}px`;
+    toolbarEl.style.top = `${toolbarTop}px`;
+    toolbarEl.style.left = `${left}px`;
   }
 
   private _selectionBottom(wnd: Window): number | undefined {

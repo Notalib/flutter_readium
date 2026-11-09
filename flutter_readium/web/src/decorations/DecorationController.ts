@@ -154,13 +154,13 @@ export class DecorationController {
     if (this._observedGroups.has(subgroup)) return;
 
     nav.registerDecorationObserver(subgroup, {
-      onDecorationActivated: (event) => {
+      onDecorationActivated: (activation) => {
         this._bridge.emitDecorationInteraction({
-          decorationId: event.decoration.id,
+          decorationId: activation.decoration.id,
           group: parentGroup,
           type: "tap",
           // serialize() keeps otherLocations Map entries that a plain stringify drops.
-          locator: event.decoration.locator.serialize(),
+          locator: activation.decoration.locator.serialize(),
         });
         return true;
       },

@@ -197,7 +197,7 @@ export function injectDecorationOverrides(wnd: Window): void {
   doc.head.querySelectorAll("style[id]").forEach((el) => {
     if (GROUP_STYLE_ID.test(el.id)) state.seenStyleIds.add(el.id);
   });
-  wnd.addEventListener("message", (event: MessageEvent) => pairNewGroupStyles(wnd, event.data));
+  wnd.addEventListener("message", (msg: MessageEvent) => pairNewGroupStyles(wnd, msg.data));
 
   // Apply current spotlight groups (if any) to the freshly-loaded iframe.
   if (_spotlightGroups.size > 0) {
