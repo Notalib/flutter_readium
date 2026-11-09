@@ -1,2 +1,4 @@
 **iOS: background playback no longer stops at automatic chapter changes.**
 With the screen locked, the pause inside the navigator's track change made the shared Readium `AudioSession` end the `AVAudioSession`, and nothing reactivated it, so iOS suspended audio at the boundary. Audio navigators now run through a session wrapper that keeps the session active while the app is inactive and the pause is automatic (chapter change, stall, recovery); a pause the user asks for and closing the publication still release it.
+
+**iOS: a stalled stream now recovers instead of staying paused.** The player runs without automatic stall waiting, so a buffer underrun used to leave it paused for good. The navigator now observes `AVPlayerItemPlaybackStalled`; if playback has not moved on after a short grace period it runs the existing network recovery (rebuild at the current offset, `AudioStreamNetworkError` if the connection does not return).

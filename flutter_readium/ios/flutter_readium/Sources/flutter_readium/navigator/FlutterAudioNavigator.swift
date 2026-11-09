@@ -1,3 +1,4 @@
+import AVFoundation
 import Combine
 import Flutter
 import Foundation
@@ -52,6 +53,16 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       timebase: preferences.controlPanelTimebase
     )
     self._initialLocator = resolveLocator(initialLocator)
+
+    // Upstream runs AVPlayer with automaticallyWaitsToMinimizeStalling = false and does not
+    // observe stalls, so a buffer underrun leaves the player paused for good (see
+    // handlePlaybackStalled). The notification is posted on the item, not the player; one
+    // audio player exists at a time, so object: nil is precise enough.
+    _playbackStalledObserver = NotificationCenter.default.addObserver(
+      forName: .AVPlayerItemPlaybackStalled, object: nil, queue: .main
+    ) { [weak self] _ in
+      Task { @MainActor [weak self] in self?.handlePlaybackStalled() }
+    }
   }
 
   public func initNavigator() async throws -> Void {
@@ -114,6 +125,12 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     _resourceLoadingWatchdogTask?.cancel()
     _resourceLoadingWatchdogTask = nil
     _resourceLoadingWatchdog.reset()
+    _stallCheckTask?.cancel()
+    _stallCheckTask = nil
+    if let observer = _playbackStalledObserver {
+      NotificationCenter.default.removeObserver(observer)
+      _playbackStalledObserver = nil
+    }
     if (self._audioNavigator != nil) {
       self._audioNavigator?.pause()
       self._audioNavigator?.delegate = nil
@@ -552,6 +569,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   /// User/app playback intent. iOS exposes only `.paused/.playing/.loading`, so
   /// this mirrors Android's `playWhenReady` for resource-loading decisions.
   internal var _playbackIntent = false
+  private var _playbackStalledObserver: NSObjectProtocol?
+  private var _stallCheckTask: Task<Void, Never>?
   /// One-shot readiness check for the current resource-loading attempt.
   internal var _resourceLoadingWatchdog = AudioResourceLoadingWatchdog()
   internal var _resourceLoadingWatchdogTask: Task<Void, Never>?
@@ -635,6 +654,42 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
         href: href.string,
         httpStatus: (error as? ReadError)?.httpStatus,
         description: "Recovery failed after \(self._recoveryPolicy.maxAttempts) attempts: \(href)")
+    }
+  }
+
+  /// `AVPlayerItemPlaybackStalled` while playback is intended. In non-waiting mode the
+  /// player drops to `.paused` on an underrun and never resumes by itself, which with the
+  /// screen locked reads as "the book just stopped". Give it a short grace period first: a
+  /// seek into unbuffered audio also posts a stall and normally recovers on its own. If the
+  /// offset still has not moved, run the same recovery as a retryable read error, which
+  /// rebuilds the player at the current offset and reports a terminal network error if the
+  /// connection does not come back. User pauses clear the intent flag before pausing, and
+  /// a stall during an interruption is the system's doing, so both are left alone.
+  @MainActor
+  private func handlePlaybackStalled() {
+    guard _playbackIntent, !_disposed, !_hasFailed, _recoveryTask == nil, _stallCheckTask == nil,
+          !_isNavigating, !AudioSession.shared.isInterrupted
+    else {
+      return
+    }
+    Log.navigator.warn("Playback stalled at resource \(self.playback.resourceIndex), time \(self.playback.time)")
+    _stallCheckTask = Task { @MainActor [weak self] in
+      guard let self else { return }
+      defer { self._stallCheckTask = nil }
+      if await self.playbackAdvanced(withinSeconds: self._recoveryPolicy.delay(forAttempt: 2)) {
+        return
+      }
+      guard self._playbackIntent, !self._disposed, !self._hasFailed, self._recoveryTask == nil,
+            !AudioSession.shared.isInterrupted, !Task.isCancelled,
+            let href = (self.audioLocator ?? self._audioNavigator?.currentLocation)?.href
+      else {
+        return
+      }
+      self.startRecovery(
+        href: href,
+        error: ReadError.access(.other(DebugError("Playback stalled and did not resume"))),
+        terminalCode: "AudioStreamNetworkError"
+      )
     }
   }
 
