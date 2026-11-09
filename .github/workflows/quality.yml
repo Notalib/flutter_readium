@@ -64,3 +64,17 @@ jobs:
       # Readium versions, which only shows up as odd native behaviour later.
       - name: Check Readium version pins are in sync
         run: bin/readium_versions --check
+
+  channel-parity:
+    name: Channel Parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Every Dart method-channel call needs a Swift, Kotlin and web handler
+      # (or a declared UnimplementedError). Nothing else enforces that, and a
+      # miss only surfaces as a runtime "not implemented" on one platform.
+      - name: Check method-channel handlers match the Dart callers
+        run: bin/check_channel_parity
