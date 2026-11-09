@@ -50,68 +50,6 @@ jobs:
         run: flutter analyze --fatal-infos --fatal-warnings
         working-directory: ${{ matrix.package }}
 
-  pana:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      matrix:
-        package:
-          - flutter_readium_platform_interface
-          - flutter_readium
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Read Flutter version
-        id: flutter_version
-        run: echo "version=$(cat .flutter-version)" >> "$GITHUB_OUTPUT"
-
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
-        with:
-          flutter-version: ${{ steps.flutter_version.outputs.version }}
-          pub-cache: true
-
-      - name: Install dependencies (${{ matrix.package }})
-        run: flutter pub get
-        working-directory: ${{ matrix.package }}
-
-      - name: Activate pana
-        run: dart pub global activate pana
-
-      # Inline the shared config: pana copies only the package dir, where the
-      # `include: ../analysis_options.base.yaml` is dead. Without this the score
-      # here would not match the published package (see release.yml).
-      - name: Materialize self-contained analysis_options (${{ matrix.package }})
-        run: |
-          gen="$(mktemp)"
-          bin/materialize_analysis_options "${{ matrix.package }}" > "$gen"
-          mv "$gen" "${{ matrix.package }}/analysis_options.yaml"
-
-      - name: Run pana (${{ matrix.package }})
-        run: dart pub global run pana --no-warning --json . > "$RUNNER_TEMP/pana.json"
-        working-directory: ${{ matrix.package }}
-
-      # Surface the score in the run's Summary tab; raw pana output otherwise
-      # only lives in the collapsed log. Step summary needs no extra permissions
-      # and works on fork PRs.
-      - name: Report pana score (${{ matrix.package }})
-        if: always()
-        run: |
-          json="$RUNNER_TEMP/pana.json"
-          if [ ! -s "$json" ]; then
-            echo "### pana score — ${{ matrix.package }}: run failed, no report" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          granted=$(jq -r '.scores.grantedPoints' "$json")
-          max=$(jq -r '.scores.maxPoints' "$json")
-          {
-            echo "### pana score — \`${{ matrix.package }}\`: ${granted} / ${max} points"
-            echo ""
-            echo "| Section | Points |"
-            echo "| --- | --- |"
-            jq -r '.report.sections[] | "| \(.title) | \(.grantedPoints)/\(.maxPoints) |"' "$json"
-          } >> "$GITHUB_STEP_SUMMARY"
-
   readium-pins:
     runs-on: ubuntu-latest
     timeout-minutes: 5
