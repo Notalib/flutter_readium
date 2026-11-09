@@ -680,9 +680,20 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       }
       self.startRecovery(
         href: href,
-        error: ReadError.access(.other(DebugError("Playback stalled and did not resume"))),
+        error: AudioRecoveryTrigger("Playback stalled and did not resume"),
         terminalCode: "AudioStreamNetworkError"
       )
+    }
+  }
+
+  /// Why the plugin started a recovery itself (stall, resource-loading timeout). A
+  /// `LocalizedError` so the retry event's message says which, where a `ReadError` only
+  /// yields an opaque description.
+  struct AudioRecoveryTrigger: LocalizedError {
+    let errorDescription: String?
+
+    init(_ description: String) {
+      errorDescription = description
     }
   }
 
@@ -783,7 +794,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       }
       startRecovery(
         href: href,
-        error: ReadError.access(.other(DebugError("Resource loading did not advance playback within \(self._recoveryPolicy.stallTimeoutSeconds)s"))),
+        error: AudioRecoveryTrigger(
+          "Resource loading did not advance playback within \(self._recoveryPolicy.stallTimeoutSeconds)s"),
         terminalCode: "AudioStreamNetworkError"
       )
       return
