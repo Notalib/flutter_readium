@@ -1,2 +1,0 @@
-**iOS: a stalled stream now recovers instead of staying paused.**
-The player runs without automatic stall waiting, so a buffer underrun left it paused for good. The navigator now observes `AVPlayerItemPlaybackStalled` and, if playback has not moved on after a short grace period, runs the existing network recovery (rebuild at the current offset, `AudioStreamNetworkError` if the connection does not return).
