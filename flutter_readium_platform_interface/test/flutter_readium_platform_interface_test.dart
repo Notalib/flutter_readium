@@ -33,7 +33,7 @@ void main() {
           log.add(methodCall);
           switch (methodCall.method) {
             case 'openPublication':
-              return 'TODO';
+              return '';
             case 'ttsEnable':
               return true;
             case 'goForward':

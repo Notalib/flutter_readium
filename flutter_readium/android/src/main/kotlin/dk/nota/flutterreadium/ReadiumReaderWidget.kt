@@ -402,9 +402,8 @@ class ReadiumReaderWidget(
         call: MethodCall,
         result: MethodChannel.Result,
     ) {
-        // TODO: To be safe we're doing everything on the Main thread right now.
-        // Could probably optimize by using .IO and then change to Main
-        // when affecting readerView or returning a result.
+        // Everything runs on the Main thread to be safe. Work could move to .IO and
+        // switch back to Main only when touching readerView or returning a result.
         launch {
             PluginLog.d(TAG, "::onMethodCall ${call.method}")
             try {
