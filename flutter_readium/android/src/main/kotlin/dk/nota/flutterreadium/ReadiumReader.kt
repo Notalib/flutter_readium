@@ -114,6 +114,12 @@ internal fun shouldInjectMOColumnBreakCss(
     preventMOColumnBreaks: Boolean,
 ): Boolean = isMOActive && preventMOColumnBreaks
 
+/** True when [urlStr] already carries an absolute scheme (`scheme://`, RFC 3986). */
+internal fun hasAbsoluteUrlScheme(urlStr: String): Boolean = absoluteSchemeRegex.containsMatchIn(urlStr)
+
+/** Matches any URL that already carries an absolute scheme (RFC 3986 scheme + `://`). */
+private val absoluteSchemeRegex = Regex("^[a-zA-Z][a-zA-Z0-9+.\\-]*://")
+
 /**
  * Index into [tocSelectors] of the ToC entry that owns [cssSelector]: the last entry that starts
  * at or before it in document order; preludes use a file-only entry or remain unowned. An uncued ToC target starts at its
@@ -819,9 +825,6 @@ object ReadiumReader :
         return openPublication(pubUrl)
     }
 
-    /** Matches any URL that already carries an absolute scheme (RFC 3986 scheme + `://`). */
-    private val absoluteSchemeRegex = Regex("^[a-zA-Z][a-zA-Z0-9+.\\-]*://")
-
     /**
      * Helper function for resolving a URL and make sure a file path is turned into a URL.
      */
@@ -830,7 +833,7 @@ object ReadiumReader :
         // Already an absolute URL with a scheme Readium can resolve itself (http(s), file,
         // or an Android SAF content:// from a file picker — AssetRetriever resolves those via
         // its contentResolver). Anything else is assumed to be a plain local file path.
-        if (!absoluteSchemeRegex.matches(pubUrlStr)) {
+        if (!hasAbsoluteUrlScheme(pubUrlStr)) {
             pubUrlStr = "file://$pubUrlStr"
         }
         // Create AbsoluteUrl, return PublicationError.InvalidPublicationUrl if null
