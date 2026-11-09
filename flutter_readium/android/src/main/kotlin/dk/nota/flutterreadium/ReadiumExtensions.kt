@@ -10,6 +10,7 @@ import dk.nota.flutterreadium.models.FlutterMediaOverlayItem
 import dk.nota.flutterreadium.models.GuidedNavigationDocument
 import dk.nota.flutterreadium.models.guidedNavigationMediaType
 import dk.nota.flutterreadium.models.toMediaOverlays
+import io.flutter.FlutterInjector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -156,7 +157,7 @@ fun decorationStyleFromMap(decoMap: Map<*, *>?): Decoration.Style? {
     }
 }
 
-private const val FLUTTER_ASSETS_BASE = "https://readium_assets/flutter_assets"
+private const val READIUM_ASSETS_BASE = "https://readium_assets"
 
 private const val INJECT_START_MARKER = "<!-- flutter_readium:start -->"
 private const val INJECT_END_MARKER = "<!-- flutter_readium:end -->"
@@ -166,13 +167,19 @@ data class InjectionAsset(
     val assetPath: String,
     val packageName: String?,
 ) {
-    val assetUrl: String
-        get() =
-            if (packageName != null) {
-                "$FLUTTER_ASSETS_BASE/packages/$packageName/$assetPath"
+    /** Path relative to the APK assets folder, as listed in the navigator's `servedAssets`. */
+    val servedPath: String
+        get() {
+            val loader = FlutterInjector.instance().flutterLoader()
+            return if (packageName != null) {
+                loader.getLookupKeyForAsset(assetPath, packageName)
             } else {
-                "$FLUTTER_ASSETS_BASE/$assetPath"
+                loader.getLookupKeyForAsset(assetPath)
             }
+        }
+
+    val assetUrl: String
+        get() = "$READIUM_ASSETS_BASE/$servedPath"
 }
 
 private val BUILT_IN_INJECTIONS =
