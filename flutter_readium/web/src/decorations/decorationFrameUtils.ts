@@ -6,10 +6,8 @@ import { Decoration } from "@readium/navigator-html-injectables";
 
 /**
  * Group-name suffix used to mark decorations whose Dart style is "underline".
- * Underline-style decorations are sent to a separate upstream group so the
- * in-iframe override stylesheet can target them with `[data-group$="__underline"]`
- * (DOM-fallback path) or with a sibling `<style>` augmentation
- * (CSS Custom Highlight API path).
+ * Underline-style decorations are sent to their own upstream group, separate
+ * from highlight and spotlight ones, so each can be cleared and replaced independently.
  */
 export const UNDERLINE_GROUP_SUFFIX = "__underline";
 
@@ -21,8 +19,6 @@ export const UNDERLINE_GROUP_SUFFIX = "__underline";
  */
 export const SPOTLIGHT_GROUP_SUFFIX = "__spotlight";
 
-const AUGMENT_STYLE_ID_PREFIX = "flutter-readium-augment-";
-const OVERRIDES_STYLE_ID = "flutter-readium-decoration-overrides";
 const OVERRIDES_DATASET_FLAG = "flutterReadiumOverrides";
 const IFRAME_STATE_KEY = "__flutterReadiumDecorationState";
 const SPOTLIGHT_CLASS = "flutter-readium-spotlight";
@@ -30,8 +26,6 @@ const SPOTLIGHT_STYLE_ID = "flutter-readium-spotlight-style";
 
 interface PendingGroup {
   group: string;
-  isUnderline: boolean;
-  tint: string;
 }
 
 interface IframeDecorationState {
@@ -104,17 +98,12 @@ export function navIframeWindows(
  * Called before sending the first `add` to a group; deduplicated against
  * already-paired groups so re-applies on existing groups don't push stale entries.
  */
-export function registerPendingDecorationGroup(
-  iframes: Window[],
-  group: string,
-  isUnderline: boolean,
-  tint: string
-): void {
+export function registerPendingDecorationGroup(iframes: Window[], group: string): void {
   for (const wnd of iframes) {
     const state = getIframeState(wnd);
     if (state.groupInternalId.has(group)) continue;
     if (state.pendingNewGroups.some((p) => p.group === group)) continue;
-    state.pendingNewGroups.push({ group, isUnderline, tint });
+    state.pendingNewGroups.push({ group });
   }
 }
 
@@ -213,16 +202,8 @@ function applySpotlightToIframe(wnd: Window): void {
 
 /**
  * Pair the just-added upstream `<style id="readium-decoration-N-style">` with
- * the head of the pending-groups queue and (if it's an underline group) emit
- * a sibling `<style>` whose rules win by cascade.
- *
- * The augmented stylesheet overrides the same `::highlight()` pseudo-element.
- * Upstream Readium calls `bi(tint)` to set a contrasting `color` (black or white)
- * on every decoration. For underline groups, that `color` can override the
- * utterance decoration's text colour when both highlights cover the same word
- * (range decorations are registered later and therefore have higher cascade
- * priority). `color: inherit` neutralises that override so the document's
- * natural text colour shows through instead.
+ * the head of the pending-groups queue, recording the group's upstream id so
+ * spotlight can target its `::highlight()` range.
  */
 function pairWithPendingGroup(wnd: Window, styleEl: HTMLStyleElement): void {
   const state = getIframeState(wnd);
@@ -231,20 +212,6 @@ function pairWithPendingGroup(wnd: Window, styleEl: HTMLStyleElement): void {
   const internalId = styleEl.id.replace(/-style$/, "");
   state.groupInternalId.set(pending.group, internalId);
 
-  if (pending.isUnderline) {
-    const augment = wnd.document.createElement("style");
-    augment.dataset.readium = "true";
-    augment.id = AUGMENT_STYLE_ID_PREFIX + internalId;
-    augment.textContent = `
-      ::highlight(${internalId}) {
-        color: inherit;
-        background-color: transparent;
-        text-decoration: underline 0.15em solid ${pending.tint};
-      }
-    `;
-    styleEl.parentNode?.insertBefore(augment, styleEl.nextSibling);
-  }
-
   // Spotlight rules may need to expand now that we know this group's internal id.
   if (state.spotlightGroups.size > 0) {
     applySpotlightToIframe(wnd);
@@ -252,67 +219,21 @@ function pairWithPendingGroup(wnd: Window, styleEl: HTMLStyleElement): void {
 }
 
 /**
- * Inject our decoration override layer + group-pairing observer into a
- * freshly-loaded EPUB iframe. Idempotent: flagged on the iframe documentElement
- * so repeated `frameLoaded` calls are no-ops.
+ * Inject our group-pairing observer into a freshly-loaded EPUB iframe.
+ * Idempotent: flagged on the iframe documentElement so repeated `frameLoaded`
+ * calls are no-ops.
  *
- * What this layer adds on top of upstream's Decorator:
- *   1. **Underline via DOM-fallback path**: CSS rule on
- *      `[data-group$="__underline"] .readium-highlight` swaps the filled box
- *      for a border-bottom in the tint colour. A MutationObserver mirrors
- *      each upstream-injected box's inline `background-color` to a CSS custom
- *      property the rule reads for the underline colour.
- *   2. **Underline via Web Highlight API path**: a head MutationObserver
+ * What this adds on top of upstream's Decorator:
+ *   1. **Group pairing (Web Highlight API path)**: a head MutationObserver
  *      watches for upstream's `<style id="readium-decoration-N-style">`
- *      additions and inserts a sibling style whose `text-decoration: underline`
- *      rule wins by cascade order.
- *   3. **Spotlight stylesheet stub**: empty `<style>` slot ready to be filled
+ *      additions so spotlight can find each group's `::highlight()` range.
+ *   2. **Spotlight stylesheet stub**: empty `<style>` slot ready to be filled
  *      by {@link setSpotlightGroupOnIframes}.
  */
 export function injectDecorationOverrides(wnd: Window): void {
   const doc = wnd.document;
   if (doc.documentElement.dataset[OVERRIDES_DATASET_FLAG] === "true") return;
   doc.documentElement.dataset[OVERRIDES_DATASET_FLAG] = "true";
-
-  const overrides = doc.createElement("style");
-  overrides.dataset.readium = "true";
-  overrides.id = OVERRIDES_STYLE_ID;
-  overrides.textContent = `
-    [data-group$="${UNDERLINE_GROUP_SUFFIX}"] .readium-highlight {
-      background-color: transparent !important;
-      border-bottom: 0.15em solid var(--flutter-readium-underline-tint, currentColor) !important;
-      box-sizing: border-box !important;
-    }
-  `;
-  doc.head.appendChild(overrides);
-
-  // ── Underline tint mirror (DOM-fallback path) ───────────────────────────
-  const mirrorTint = (box: HTMLElement) => {
-    const tint = box.style.backgroundColor;
-    if (tint) {
-      box.style.setProperty("--flutter-readium-underline-tint", tint);
-    }
-  };
-  const isUnderlineBox = (el: HTMLElement): boolean =>
-    el.classList?.contains("readium-highlight") === true &&
-    el.closest(`[data-group$="${UNDERLINE_GROUP_SUFFIX}"]`) !== null;
-
-  const bodyObserver = new MutationObserver((mutations) => {
-    for (const m of mutations) {
-      // Avoid Array.from(NodeList) — in Flutter web, dart2js patches Array.from
-      // to use its own iterator protocol, which fails for raw DOM Node objects.
-      for (let i = 0; i < m.addedNodes.length; i++) {
-        const node = m.addedNodes[i];
-        if (node.nodeType !== 1) continue;
-        const el = node as HTMLElement;
-        if (isUnderlineBox(el)) mirrorTint(el);
-        el.querySelectorAll?.(
-          `[data-group$="${UNDERLINE_GROUP_SUFFIX}"] .readium-highlight`
-        ).forEach((b) => mirrorTint(b as HTMLElement));
-      }
-    }
-  });
-  bodyObserver.observe(doc.body, { childList: true, subtree: true });
 
   // ── Group pairing observer (Web Highlight API path) ─────────────────────
   const isReadiumGroupStyle = (el: Element): el is HTMLStyleElement =>

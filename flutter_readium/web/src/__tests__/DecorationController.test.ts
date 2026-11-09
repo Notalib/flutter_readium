@@ -4,7 +4,7 @@ import { DecorationController } from "../decorations/DecorationController";
 const mockSendDecorate = jest.fn();
 const mockNavIframeWindows = jest.fn((_nav: unknown): Window[] => []);
 const mockRegisterPendingDecorationGroup = jest.fn(
-  (_iframes: Window[], _group: string, _isUnderline: boolean, _tint: string): void => {}
+  (_iframes: Window[], _group: string): void => {}
 );
 const mockSetSpotlightGroupOnIframes = jest.fn(
   (_iframes: Window[], _group: string, _active: boolean): void => {}
@@ -21,12 +21,8 @@ jest.mock("../decorations/decorationFrameUtils", () => ({
     decoration: unknown
   ) => mockSendDecorate(nav, group, action, decoration),
   navIframeWindows: (nav: unknown) => mockNavIframeWindows(nav),
-  registerPendingDecorationGroup: (
-    iframes: Window[],
-    group: string,
-    isUnderline: boolean,
-    tint: string
-  ) => mockRegisterPendingDecorationGroup(iframes, group, isUnderline, tint),
+  registerPendingDecorationGroup: (iframes: Window[], group: string) =>
+    mockRegisterPendingDecorationGroup(iframes, group),
   setSpotlightGroupOnIframes: (iframes: Window[], group: string, active: boolean) =>
     mockSetSpotlightGroupOnIframes(iframes, group, active),
   clearSpotlightState: () => mockClearSpotlightState(),
@@ -75,5 +71,38 @@ describe("DecorationController", () => {
         }),
       })
     );
+  });
+
+  it("sends underline decorations to the underline subgroup with the toolkit's underline style", () => {
+    const controller = new DecorationController();
+    const nav = {} as any;
+    const locator = new Locator({
+      href: "chapter-1.xhtml",
+      type: "application/xhtml+xml",
+      locations: new LocatorLocations({ fragments: ["p1"] }),
+    });
+
+    controller.applyDecorations(
+      nav,
+      "tts_range",
+      JSON.stringify([
+        {
+          id: "dec-2",
+          locator: locator.serialize(),
+          style: { style: "underline", tint: "#ff000000" },
+        },
+      ])
+    );
+
+    expect(mockSendDecorate).toHaveBeenCalledWith(
+      nav,
+      "tts_range__underline",
+      "add",
+      expect.objectContaining({
+        id: "dec-2",
+        style: expect.objectContaining({ type: "underline", enforceContrast: false }),
+      })
+    );
+    expect(mockRegisterPendingDecorationGroup).toHaveBeenCalledWith([], "tts_range__underline");
   });
 });

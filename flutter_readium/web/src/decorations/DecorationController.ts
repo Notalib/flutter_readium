@@ -6,7 +6,7 @@
  */
 
 import { EpubNavigator, WebPubNavigator } from "@readium/navigator";
-import { Decoration, DecorationLayout, DecorationWidth } from "@readium/navigator-html-injectables";
+import { Decoration, DecorationStyleType, DecorationWidth } from "@readium/navigator-html-injectables";
 import { Locator } from "@readium/shared";
 import {
   UNDERLINE_GROUP_SUFFIX,
@@ -66,20 +66,14 @@ export class DecorationController {
 
     const iframes = navIframeWindows(nav);
 
-    // Look ahead to collect the first tint per subgroup for FIFO pairing.
-    const firstTintByGroup = new Map<string, { isUnderline: boolean; tint: string }>();
-    for (const raw of decorationsRaw) {
-      const grp = this._subgroupFor(group, raw.style.style);
-      if (!firstTintByGroup.has(grp)) {
-        firstTintByGroup.set(grp, { isUnderline: raw.style.style === "underline", tint: raw.style.tint });
-      }
-    }
-    for (const [grp, meta] of firstTintByGroup) {
-      registerPendingDecorationGroup(iframes, grp, meta.isUnderline, meta.tint);
+    // Register each subgroup once so its upstream <style> can be paired with it
+    // for spotlight (see registerPendingDecorationGroup).
+    const subgroups = new Set(decorationsRaw.map((raw) => this._subgroupFor(group, raw.style.style)));
+    for (const grp of subgroups) {
+      registerPendingDecorationGroup(iframes, grp);
     }
 
     for (const raw of decorationsRaw) {
-      const usesBoundsLayout = raw.style.style === "underline";
       const targetGroup = this._subgroupFor(group, raw.style.style);
 
       const decoration: Decoration = {
@@ -88,8 +82,8 @@ export class DecorationController {
         style: {
           tint: raw.style.tint,
           width: DecorationWidth.Wrap,
-          // Underline decorations use bounds layout to avoid clipping the underline at the edges of the text.
-          ...(usesBoundsLayout ? { layout: DecorationLayout.Bounds } : {}),
+          // Use the toolkit's own underline; a plain highlight would render as a filled box.
+          ...(raw.style.style === "underline" ? { type: DecorationStyleType.Underline } : {}),
           // Keep plugin-selected decoration tints faithful on web instead of
           // letting Readium adjust them to satisfy its contrast heuristic.
           enforceContrast: false,
