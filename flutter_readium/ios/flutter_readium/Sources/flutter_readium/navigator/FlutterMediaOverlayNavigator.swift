@@ -245,9 +245,10 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
         // After dispose the extension slot is meaningless; don't write through a
         // dead navigator (a future caller without the _disposed re-entry guards
         // would otherwise race a post-teardown windowBusy reset).
-        guard let self, !self._disposed else { return }
-        self.windowBusy = false
-        self.extensionInFlight = nil
+        if let self, !self._disposed {
+          self.windowBusy = false
+          self.extensionInFlight = nil
+        }
       }
       await self?.extendWindow()
     }
