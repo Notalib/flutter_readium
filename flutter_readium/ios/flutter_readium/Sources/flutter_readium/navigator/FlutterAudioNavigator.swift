@@ -77,7 +77,11 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       config: AudioNavigator.Configuration(
         preferences: AudioPreferences(fromFlutterPrefs: _preferences),
         playbackRefreshInterval: _preferences.updateIntervalSecs,
-      )
+      ),
+      // The shared AudioSession ends the AVAudioSession when a paused navigator
+      // reports from the background — which the pause inside every automatic
+      // chapter change triggers with the screen locked, killing playback.
+      audioSession: BackgroundPlaybackAudioSession.shared
     )
     navigator.delegate = self
     return navigator

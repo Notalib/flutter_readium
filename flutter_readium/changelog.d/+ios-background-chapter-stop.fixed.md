@@ -1,0 +1,2 @@
+**iOS: background playback no longer stops at automatic chapter changes.**
+With the screen locked, the pause inside the navigator's track change made the shared Readium `AudioSession` end the `AVAudioSession`, and nothing reactivated it, so iOS suspended audio at the boundary. Audio navigators now run through a session wrapper that keeps the session active while backgrounded and paused; closing the publication still releases it.
