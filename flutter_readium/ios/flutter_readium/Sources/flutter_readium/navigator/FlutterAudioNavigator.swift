@@ -80,8 +80,12 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       ),
       // The shared AudioSession ends the AVAudioSession when a paused navigator
       // reports from the background — which the pause inside every automatic
-      // chapter change triggers with the screen locked, killing playback.
-      audioSession: BackgroundPlaybackAudioSession.shared
+      // chapter change triggers with the screen locked, killing playback. The
+      // wrapper drops that report only while playback is still intended, so a
+      // user pause keeps releasing the session.
+      audioSession: BackgroundPlaybackAudioSession(isPlaybackIntended: { [weak self] in
+        self?._playbackIntent ?? false
+      })
     )
     navigator.delegate = self
     return navigator
