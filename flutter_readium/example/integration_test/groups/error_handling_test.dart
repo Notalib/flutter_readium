@@ -7,8 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../readium_integration_harness.dart';
 import '../test_suite_setup.dart';
 import '../test_fixtures.dart';
-import '../unreachable_audiobook_fixture.dart'
-    if (dart.library.js_interop) '../unreachable_audiobook_fixture_web.dart';
+import '../unreachable_audiobook_fixture.dart' if (dart.library.js_interop) '../unreachable_audiobook_fixture_web.dart';
 
 String _twoTrackAudiobookManifest(StallingAudioServer server) => jsonEncode({
   '@context': 'https://readium.org/webpub-manifest/context.jsonld',
@@ -138,8 +137,7 @@ void main() {
 
         bool isRetry(ReadiumError error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry;
         // The watchdog's retry names resource loading, the stall handler's names the stall.
-        bool isWatchdogRetry(ReadiumError error) =>
-            isRetry(error) && error.message.contains('Resource loading');
+        bool isWatchdogRetry(ReadiumError error) => isRetry(error) && error.message.contains('Resource loading');
 
         if (defaultTargetPlatform == TargetPlatform.iOS) {
           // AVPlayer runs without automatic stall waiting, so once the offset stops moving
@@ -158,8 +156,7 @@ void main() {
         }
 
         await expectConditionHolds(
-          () =>
-              !errors.any(defaultTargetPlatform == TargetPlatform.iOS ? isWatchdogRetry : isRetry),
+          () => !errors.any(defaultTargetPlatform == TargetPlatform.iOS ? isWatchdogRetry : isRetry),
           duration: stallObservation,
           reason: 'A later mid-resource stall must not restart resource-loading recovery',
         );
