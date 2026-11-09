@@ -149,10 +149,17 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
       await ensureWindowForSeek(textHref: fromLocator.href.string)
       anchored = await anchorUncuedTextLocator(fromLocator)
     }
-    if fromLocator != nil && anchored == nil { return }
+    if fromLocator != nil && anchored == nil {
+      settlePendingEdgeTakeover(seekSucceeded: false)
+      return
+    }
     let audioFromLocator = mapTextLocatorToMediaOverlayAudioLocator(anchored)
-    if fromLocator != nil && audioFromLocator == nil { return }
+    if fromLocator != nil && audioFromLocator == nil {
+      settlePendingEdgeTakeover(seekSucceeded: false)
+      return
+    }
     await super.play(fromLocator: audioFromLocator ?? initialLocator)
+    if fromLocator != nil { settlePendingEdgeTakeover(seekSucceeded: true) }
   }
   
   public override func seek(toLocator: Locator) async -> Bool {
@@ -162,6 +169,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     guard let navigator = _audioNavigator,
           let audioLocator = mapTextLocatorToMediaOverlayAudioLocator(toLocator) else {
       Log.navigator.warn("seekToLocator - Could not map to an Audio Locator for: \(toLocator)")
+      settlePendingEdgeTakeover(seekSucceeded: false)
       return false
     }
     let wasPlaying = navigator.state == .playing || navigator.state == .loading
@@ -171,6 +179,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     if (wasPlaying) {
       navigator.play()
     }
+    settlePendingEdgeTakeover(seekSucceeded: navigated)
     return navigated
   }
   
@@ -286,6 +295,27 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
       windowBusy = false
       if !grew || attempt == 2 { return }
     }
+  }
+
+  /// Settle a deferred end-of-window edge that a seek superseded or stranded.
+  /// The flag is set when the last loaded track ended while the seek's window
+  /// work held the extension slot; a successful seek relocated the playhead, so
+  /// resuming at the first new track is obsolete — clear it. A failed seek left
+  /// the player on the ended track: run the deferred takeover now, or report the
+  /// honest end when nothing loadable remains, instead of letting the stale flag
+  /// fire mid-playback on a later extension.
+  private func settlePendingEdgeTakeover(seekSucceeded: Bool) {
+    guard pendingEdgeTakeover, !_disposed else { return }
+    if seekSucceeded {
+      pendingEdgeTakeover = false
+      return
+    }
+    guard let store, store.nextLoadableSegment(from: store.loadedTailIndex() + 1) != nil else {
+      pendingEdgeTakeover = false
+      submitPublicationEnded(info: playback)
+      return
+    }
+    queueLookahead()
   }
 
   /// Background lookahead: fill the window ahead of the playhead, rebuild when
