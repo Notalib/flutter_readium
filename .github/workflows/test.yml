@@ -99,9 +99,9 @@ jobs:
         run: flutter pub get
         working-directory: flutter_readium
 
-      # The web plugin uses dart:js_interop, which the Dart VM test run above cannot load.
+      # The web plugin uses dart:js_interop, which the Dart job's VM test run cannot load.
       - name: Run web plugin tests (Chrome)
-        run: flutter test --platform chrome test/flutter_readium_web_test.dart test/js_publication_channel_test.dart
+        run: flutter test --platform chrome test/web
         working-directory: flutter_readium
 
   android-unit-test:

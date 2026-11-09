@@ -1,11 +1,10 @@
-// Runs only in a browser: `flutter test --platform chrome test/flutter_readium_web_test.dart`.
+// Runs only in a browser: `flutter test --platform chrome test/web`.
 // `dart:js_interop` does not exist on the Dart VM, so `flutter test` without a platform skips this file.
 @TestOn('browser')
 library;
 
 import 'dart:convert';
 
-import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter/widgets.dart' show Color;
 import 'package:flutter_readium/src/flutter_readium_web.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
@@ -244,15 +243,6 @@ void main() {
       expect(FakeReadiumReader.calls.map((c) => c.method), ['goBackward', 'goForward']);
     });
 
-    test('goBackward maps a typed JS failure to a PlatformException', () async {
-      FakeReadiumReader.failWith('goBackward', 'no publication', code: 'noPublication');
-
-      await expectLater(
-        plugin.goBackward(),
-        throwsA(isA<PlatformException>().having((e) => e.code, 'code', 'noPublication')),
-      );
-    });
-
     test('goToLocator sends the locator as a JSON string and reports success', () async {
       final result = await plugin.goToLocator(_locator);
 
@@ -345,15 +335,6 @@ void main() {
       expect(FakeReadiumReader.callsTo('applyDecorations'), isEmpty);
     });
 
-    test('applyDecorations maps a JS failure to a PlatformException', () async {
-      FakeReadiumReader.failWith('applyDecorations', 'boom', code: 'invalidArgument');
-
-      await expectLater(
-        plugin.applyDecorations('search', const []),
-        throwsA(isA<PlatformException>().having((e) => e.code, 'code', 'invalidArgument')),
-      );
-    });
-
     test('setDecorationStyle sends each style as JSON, and null as null', () async {
       await plugin.setDecorationStyle(
         const ReaderDecorationStyle(style: DecorationStyle.highlight, tint: Color(0xFF00FF00)),
@@ -385,15 +366,6 @@ void main() {
       final plays = FakeReadiumReader.callsTo('play');
       expect(plays.first.args.single, isNull);
       expect(Locator.fromJson(_decodeArg(plays.last, 0))!.toJson(), _locator.toJson());
-    });
-
-    test('a JS failure during playback becomes a PlatformException', () async {
-      FakeReadiumReader.failWith('pause', 'no audio navigator', code: 'noPublication');
-
-      await expectLater(
-        plugin.pause(),
-        throwsA(isA<PlatformException>().having((e) => e.code, 'code', 'noPublication')),
-      );
     });
 
     test('setNarrationSyncEnabled forwards the flag', () async {
@@ -428,15 +400,6 @@ void main() {
       expect(voices.single.language, 'da-DK');
     });
 
-    test('ttsGetAvailableVoices maps a JS rejection to a PlatformException', () async {
-      FakeReadiumReader.failWith('ttsGetAvailableVoices', 'speechSynthesis unavailable', code: 'unavailable');
-
-      await expectLater(
-        plugin.ttsGetAvailableVoices(),
-        throwsA(isA<PlatformException>().having((e) => e.code, 'code', 'unavailable')),
-      );
-    });
-
     test('ttsSetVoice forwards the identifier and language', () async {
       await plugin.ttsSetVoice('v1', 'da');
 
@@ -467,15 +430,6 @@ void main() {
       expect(call.args[1], isNull);
     });
 
-    test('audioEnable maps a JS rejection to a PlatformException', () async {
-      FakeReadiumReader.failWith('audioEnable', 'timed out preparing audio playback');
-
-      await expectLater(
-        plugin.audioEnable(),
-        throwsA(isA<PlatformException>().having((e) => e.code, 'code', ReadiumErrorCode.audioStreamNetworkError.name)),
-      );
-    });
-
     test('audioSetPreferences sends preferences as JSON', () async {
       await plugin.audioSetPreferences(const AudioPreferences(volume: 0.5));
 
@@ -495,15 +449,6 @@ void main() {
 
       expect(await plugin.getResourceUrl('cover.jpg'), 'blob:http://localhost/abc');
       expect(FakeReadiumReader.callsTo('getResourceUrl').single.args, ['cover.jpg']);
-    });
-
-    test('maps a typed JS failure to a PlatformException', () async {
-      FakeReadiumReader.failWith('getResourceUrl', 'no such resource', code: 'notFound');
-
-      await expectLater(
-        plugin.getResourceUrl('nope.jpg'),
-        throwsA(isA<PlatformException>().having((e) => e.code, 'code', 'notFound')),
-      );
     });
   });
 

@@ -17,10 +17,11 @@
 #
 # How handlers are found:
 #   iOS / Android  the `switch call.method` / `when (method)` blocks of the files below.
-#   web            there is no string switch. A method is covered if
-#                  flutter_readium_web.dart overrides it or JsPublicationChannel
-#                  has a member of that name, because web serves some view-channel
-#                  methods from the main implementation (VIEW_WEB_ALIASES).
+#   web            there is no string switch. A main-channel method is covered if
+#                  flutter_readium_web.dart overrides it. Web has no view channel, so
+#                  a view-channel method is covered by an override or a
+#                  JsPublicationChannel member of the same or an aliased name
+#                  (view_web_aliases).
 #
 # A method counts as intentionally unsupported on web when the web override, or
 # the platform-interface default it inherits, throws UnimplementedError, and it is
@@ -100,7 +101,7 @@ allowed_reason() {
       echo "dead code: Dart's dispose() goes over the view channel; nothing sends 'dispose' on the main channel"
       ;;
     orphan:ios:main:togglePlayback)
-      echo "dead code: the Dart API was removed in 72a09815 (same methods for TTS and audiobook)"
+      echo "dead code: its Dart API was removed (TTS and audiobook share the play/pause methods)"
       ;;
   esac
 }
@@ -146,9 +147,12 @@ dart_call_sites() {
   tr '\n' ' ' <"$1" | grep -oE "(^|[^A-Za-z_])invoke(List|Map)?Method *[<(]" | wc -l | tr -d ' '
 }
 
-# Enum member names, in declaration order.
+# Enum member names, in declaration order. Comments, member arguments, an enhanced-enum body
+# after `;`, and one-line enums are tolerated.
 dart_enum_members() {
-  sed -n "/^enum $2 {/,/^}/p" "$1" | sed -nE 's/^[[:space:]]+([A-Za-z0-9_]+),?[[:space:]]*$/\1/p'
+  sed -n "/^enum $2 *{/,/^}/p" "$1" | sed -E 's://.*$::' | tr '\n' ' ' |
+    sed -E "s/^.*enum $2 *\{//; s/\}.*\$//; s/;.*\$//" | tr ',' '\n' |
+    sed -nE 's/^[[:space:]]*([A-Za-z][A-Za-z0-9_]*).*/\1/p'
 }
 
 # Case labels of every `switch call.method` / `when (method)` block. $2 is the label indent
@@ -161,7 +165,7 @@ native_handlers() {
     inblk && indent($0) == base && /^ *\}/ { inblk = 0; next }
     inblk && indent($0) == base + rel && /^ *(case )?"[A-Za-z0-9_]+"( *, *"[A-Za-z0-9_]+")* *(->|:)/ {
       line = $0
-      sub(/(->|:) *\{? *$/, "", line)
+      sub(/(->|:).*$/, "", line)
       while (match(line, /"[A-Za-z0-9_]+"/)) {
         print substr(line, RSTART + 1, RLENGTH - 2)
         line = substr(line, RSTART + RLENGTH)
@@ -249,7 +253,6 @@ native_handlers "$ANDROID_MAIN" 4 >"$tmp/android.main"
 native_handlers "$ANDROID_VIEW" 4 >"$tmp/android.view"
 web_overrides >"$tmp/web.overrides"
 web_js_members >"$tmp/web.js"
-sort -u "$tmp/web.overrides" "$tmp/web.js" >"$tmp/web.all"
 
 for f in dart.main dart.view ios.main ios.epub ios.pdf android.main android.view web.overrides web.js; do
   [ -s "$tmp/$f" ] || die "extracted no names for $f; the source syntax has probably changed."
@@ -271,7 +274,9 @@ web_status() {
     if in_set "$tmp/web.overrides" "$symbol" && web_override_throws "$symbol"; then
       [ -n "$(web_unsupported_reason "$symbol")" ] || status=MISSING
       [ "$status" = ok ] && status=unimpl
-    elif in_set "$tmp/web.all" "$symbol"; then
+    elif in_set "$tmp/web.overrides" "$symbol" || { [ "$channel" = view ] && in_set "$tmp/web.js" "$symbol"; }; then
+      # A JsPublicationChannel member alone does not serve a main-channel method: without the
+      # override the plugin inherits the platform-interface default.
       :
     elif iface_throws "$symbol" && [ -n "$(web_unsupported_reason "$symbol")" ]; then
       [ "$status" = ok ] && status=unimpl

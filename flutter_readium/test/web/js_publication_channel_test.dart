@@ -1,4 +1,4 @@
-// Runs only in a browser: `flutter test --platform chrome test/js_publication_channel_test.dart`.
+// Runs only in a browser: `flutter test --platform chrome test/web`.
 // `dart:js_interop` does not exist on the Dart VM, so `flutter test` without a platform skips this file.
 @TestOn('browser')
 library;
