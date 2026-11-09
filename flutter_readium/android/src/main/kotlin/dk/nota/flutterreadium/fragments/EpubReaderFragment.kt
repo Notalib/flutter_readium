@@ -81,7 +81,7 @@ class EpubReaderFragment :
          * Called when an external link is activated.
          */
         fun onExternalLinkActivated(url: AbsoluteUrl)
-
+        
         /**
          * Called when an internal link is about to be followed. `from` is the position before the jump.
          */
@@ -793,17 +793,23 @@ class EpubReaderFragment :
         model.preferences = preferences
         val navigatorFactory = model.navigatorFactory!!
 
-        // App assets from setCssInjections/setJavaScriptInjections are linked from every resource,
-        // so they must be served too. Missing files are skipped: serving them crashes Readium's WebViewServer.
+        // App-supplied assets (font faces, setCssInjections/setJavaScriptInjections) must be served
+        // to the WebView. Missing files are skipped: serving them crashes Readium's WebViewServer.
         val assets = requireContext().assets
+        val existing: (List<String>) -> List<String> = { paths ->
+            paths.filter { path ->
+                runCatching { assets.open(path).close() }
+                    .onFailure { PluginLog.w(TAG, "::attachNavigator() - asset not found: $path") }
+                    .isSuccess
+            }
+        }
+        val fontAssets = existing(model.fontFamilyDeclarations.flatMap { family -> family.faces.map { face -> face.asset } })
         val injectedAssets =
-            (ReadiumReader.cssInjections + ReadiumReader.javaScriptInjections)
-                .map { it.servedPath }
-                .filter { path ->
-                    runCatching { assets.open(path).close() }
-                        .onFailure { PluginLog.w(TAG, "::attachNavigator() - injected asset not found: $path") }
-                        .isSuccess
-                }
+            existing(
+                (ReadiumReader.cssInjections + ReadiumReader.javaScriptInjections)
+                    .map { it.servedPath }
+                    .distinct(),
+            )
 
         val navigatorConfig =
             EpubNavigatorFragment
@@ -815,10 +821,7 @@ class EpubReaderFragment :
                     // To reference assets from other flutter packages use 'flutter_assets/packages/<package>/assets/.*'
                     // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
                     servedAssets =
-                        listOf("flutter_assets/packages/flutter_readium/assets/.*") +
-                            model.fontFamilyDeclarations.flatMap { family ->
-                                family.faces.map { face -> face.asset }
-                            } + injectedAssets,
+                        listOf("flutter_assets/packages/flutter_readium/assets/.*") + fontAssets + injectedAssets,
                     // Use experimentalPositioning in decoration templates. It places highlights behind text, instead of on top.
                     decorationTemplates =
                         HtmlDecorationTemplates

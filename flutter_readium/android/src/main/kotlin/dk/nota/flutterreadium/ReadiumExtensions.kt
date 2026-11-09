@@ -10,6 +10,7 @@ import dk.nota.flutterreadium.models.FlutterMediaOverlayItem
 import dk.nota.flutterreadium.models.GuidedNavigationDocument
 import dk.nota.flutterreadium.models.guidedNavigationMediaType
 import dk.nota.flutterreadium.models.toMediaOverlays
+import io.flutter.FlutterInjector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -168,12 +169,14 @@ data class InjectionAsset(
 ) {
     /** Path relative to the APK assets folder, as listed in the navigator's `servedAssets`. */
     val servedPath: String
-        get() =
-            if (packageName != null) {
-                "flutter_assets/packages/$packageName/$assetPath"
+        get() {
+            val loader = FlutterInjector.instance().flutterLoader()
+            return if (packageName != null) {
+                loader.getLookupKeyForAsset(assetPath, packageName)
             } else {
-                "flutter_assets/$assetPath"
+                loader.getLookupKeyForAsset(assetPath)
             }
+        }
 
     val assetUrl: String
         get() = "$READIUM_ASSETS_BASE/$servedPath"
