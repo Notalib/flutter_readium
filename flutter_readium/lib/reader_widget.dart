@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart' as mq show Orientation;
-import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' as mq show Orientation;
+import 'package:flutter/widgets.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'flutter_readium.dart';
@@ -525,7 +525,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     container: true,
     label: label,
     onTap: () => toNextPage ? _channel?.goForward() : _channel?.goBackward(),
-    child: Container(color: Colors.transparent),
+    child: Container(color: const Color(0x00000000)),
   );
 
   Widget _buildSemanticsToggleFullScreen({required final String label}) => Semantics(
@@ -534,6 +534,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     container: true,
     label: label,
     onTap: _toggleControls,
-    child: Container(color: Colors.transparent),
+    child: Container(color: const Color(0x00000000)),
   );
 }

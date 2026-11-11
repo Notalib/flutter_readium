@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:js_interop' as js_interop;
 
 import 'package:collection/collection.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 import 'package:web/web.dart' as web;
 
