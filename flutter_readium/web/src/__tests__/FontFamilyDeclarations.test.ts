@@ -10,12 +10,12 @@ describe("font family declarations", () => {
     fallbacks: ["sans-serif"],
     faces: [
       {
-        asset: "assets/fonts/Atkinson/Atkinson-Regular.ttf",
+        asset: "assets/assets/fonts/Atkinson/Atkinson-Regular.ttf",
         style: "normal" as const,
         weight: 400,
       },
       {
-        asset: "assets/fonts/Atkinson/Atkinson-BoldItalic.ttf",
+        asset: "assets/assets/fonts/Atkinson/Atkinson-BoldItalic.0123abcd.ttf",
         style: "italic" as const,
         weight: 700,
       },
@@ -27,10 +27,10 @@ describe("font family declarations", () => {
       .toEqual([declaration]);
   });
 
-  it("generates Flutter asset URLs and one font-family descriptor per face", () => {
+  it("resolves the asset manager's URLs against the base, one font-family descriptor per face", () => {
     expect(fontFaceCss([declaration], "https://reader.example/app/")).toBe(
       '@font-face { font-family: "Atkinson Hyperlegible"; src: url("https://reader.example/app/assets/assets/fonts/Atkinson/Atkinson-Regular.ttf"); font-style: normal; font-weight: 400; }\n' +
-      '@font-face { font-family: "Atkinson Hyperlegible"; src: url("https://reader.example/app/assets/assets/fonts/Atkinson/Atkinson-BoldItalic.ttf"); font-style: italic; font-weight: 700; }'
+      '@font-face { font-family: "Atkinson Hyperlegible"; src: url("https://reader.example/app/assets/assets/fonts/Atkinson/Atkinson-BoldItalic.0123abcd.ttf"); font-style: italic; font-weight: 700; }'
     );
   });
 

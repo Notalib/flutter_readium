@@ -8,7 +8,7 @@ import * as fonts from "../fonts/FontFamilyDeclarations";
 const declarations = [{
   name: "Atkinson",
   fallbacks: [],
-  faces: [{ asset: "fonts/Atkinson-Regular.ttf", style: "normal" as const, weight: 400 }],
+  faces: [{ asset: "assets/fonts/Atkinson-Regular.ttf", style: "normal" as const, weight: 400 }],
 }];
 
 // Some bugs only exist after minification, so the module also runs through

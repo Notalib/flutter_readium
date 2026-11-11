@@ -1,4 +1,5 @@
 export interface FontFaceDeclaration {
+  /** Font URL, already resolved by Flutter's asset manager on the Dart side. */
   asset: string;
   style: "normal" | "italic";
   weight: number;
@@ -58,7 +59,7 @@ export function fontFaceCss(
 ): string {
   return declarations
     .flatMap((family) => family.faces.map((face) => {
-      const assetUrl = new URL(face.asset, flutterAssetsUrl(baseUrl)).href;
+      const assetUrl = new URL(face.asset, baseUrl).href;
       return `@font-face { font-family: ${cssString(family.name)}; src: url(${cssString(assetUrl)}); font-style: ${face.style}; font-weight: ${face.weight}; }`;
     }))
     .join("\n");
