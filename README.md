@@ -171,23 +171,9 @@ flutterReadium.mediaOverlayFetchConcurrency=16
 
 ### iOS
 
-Add the Readium pods to your `ios/Podfile`.
+Use Swift Package Manager, Flutter's default since 3.44. No setup is needed: Flutter resolves the Readium packages through the plugin's `Package.swift`.
 
-To avoid documentation drift, copy the exact Readium pod lines from:
-
-- `flutter_readium/example/ios/Podfile` (source-of-truth for app integration)
-- and keep them aligned with `flutter_readium/ios/flutter_readium.podspec` (plugin-side pin)
-
-Example shape:
-
-```ruby
-target 'Runner' do
-  use_frameworks!
-  use_modular_headers!
-  # Readium pod lines: copy from flutter_readium/example/ios/Podfile
-  # ...
-end
-```
+If your app still uses CocoaPods, add the Readium pods to your `ios/Podfile`. See the [installation guide](docs/getting-started/installation.md#cocoapods) for the lines to add. The CocoaPods trunk becomes read-only in December 2026, so plan to move to Swift Package Manager.
 
 ### Web
 

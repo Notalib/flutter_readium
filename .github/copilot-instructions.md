@@ -37,7 +37,7 @@ Run all scripts from the repo root unless noted.
 
 | Command | Purpose |
 |---------|---------|
-| `bin/install` | Bootstrap: `pub get`, CocoaPods install, build web JS. Run after clone or dependency changes. |
+| `bin/install` | Bootstrap: `pub get`, build web JS, fetch test fixtures. Run after clone or dependency changes. |
 | `bin/format` | Check Dart formatting across all three packages. Fails on any reformatting needed. |
 | `bin/analyze` | `dart analyze --fatal-infos --fatal-warnings` across all packages. |
 | `bin/update_web_example` | Build TS → JS and copy into `example/web/`. Run after editing TypeScript. |

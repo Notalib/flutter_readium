@@ -11,9 +11,9 @@ Federated Flutter plugin wrapping the [Readium](https://readium.org) toolkits (E
 
 ## Upstream toolkits
 
-Native sides are thin wrappers — for native behavior the source of truth is upstream. Inspect via `gh api`/`WebFetch`; **never decompile JARs/.framework/build artifacts.** Versions are pinned in the build files (run `bin/readium_versions` to print them), not duplicated here. iOS declares its pin in three files; `bin/readium_versions --check` verifies they agree.
+Native sides are thin wrappers — for native behavior the source of truth is upstream. Inspect via `gh api`/`WebFetch`; **never decompile JARs/.framework/build artifacts.** Versions are pinned in the build files (run `bin/readium_versions` to print them), not duplicated here. iOS declares its pin in two files; `bin/readium_versions --check` verifies they agree.
 
-- swift-toolkit — https://github.com/readium/swift-toolkit/ (version in podspec + example `Podfile`)
+- swift-toolkit — https://github.com/readium/swift-toolkit/ (version in podspec + `Package.swift`)
 - kotlin-toolkit — https://github.com/readium/kotlin-toolkit/ (`ext.readium_version` in `android/build.gradle`)
 - ts-toolkit — npm `@readium/{shared,navigator,navigator-html-injectables}` (`package.json`)
 - TTS voice data — https://github.com/readium/speech (refresh: `bin/update_readium_voice_data`)
@@ -49,14 +49,14 @@ When upgrading a toolkit, move all three platforms together where API surface ov
 
 - Dart SDK: `>=3.8.0 <4.0.0`, Flutter version pinned in `.flutter-version`, synced to pubspecs via `bin/update_flutter_version`.
 - Android: `minSdkVersion 24`, `compileSdk 37`, Kotlin 2.3.21, AGP 8.13.2, Java 18 source/target.
-- iOS: requires `use_frameworks!` and `use_modular_headers!` in consuming `Podfile` (see top-level `README.md`).
+- iOS: the example app builds with Swift Package Manager. Consumers still on CocoaPods need `use_frameworks!` and `use_modular_headers!` in their `Podfile` (see `docs/getting-started/installation.md`).
 - Web: webpack 5, TypeScript 5.7+.
 - **Flutter version updates**: always update `.flutter-version`, `.fvmrc`, and both pubspec.yaml files (`flutter_readium/pubspec.yaml`, `flutter_readium_platform_interface/pubspec.yaml`) together via `bin/update_flutter_version <version>`. Never change one without the others — divergence causes build failures.
 
 ## Gotchas
 
 - Singleton API (`FlutterReadium()` in `lib/flutter_readium.dart`) — no per-instance state; respect the global publication lifecycle.
-- `example/`'s `Podfile.lock` + `pubspec.lock` are committed — be intentional about lockfile diffs.
+- `example/`'s `pubspec.lock` and `ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved` are committed — be intentional about lockfile diffs.
 - **Test fixtures are generated, not committed** — `example/assets/pubs/` (native) and `example/web/test-fixtures/` (web) are gitignored, built from the `readium-test-resources` repo by `bin/fetch_test_resources` (run by `bin/install`; CI uses the `fetch-test-resources` action). Missing/stale fixtures? Re-run `bin/fetch_test_resources`. Never hand-edit them; to add/change one, edit the source repo + the matching `trim` line in `bin/build_test_fixtures`. Detail: `CONTRIBUTING.md#test-fixtures`.
 - **Decoration fills must be `!important`** — Readium CSS forces all backgrounds transparent under a custom theme. Editing any fill-based decoration (highlight/ruler)? Read `docs/troubleshooting.md#decorations-render-invisibly-fills-must-be-important` first.
 - **Honest limitations over brittle workarounds**: document a platform constraint rather than reimplementing system UI (copy/share/localised strings/DRM). Surface trade-offs and ask before committing to an approach with obvious downsides.

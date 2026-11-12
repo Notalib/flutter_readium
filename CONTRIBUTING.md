@@ -11,7 +11,6 @@ Thank you for considering a contribution! This guide covers everything you need 
 | Flutter SDK | 3.32.0 | Stable channel recommended |
 | Dart SDK | 3.8.0 | Bundled with Flutter |
 | Xcode | 15+ | iOS target |
-| CocoaPods | 1.15+ | `gem install cocoapods` |
 | Android Studio / JDK | Java 18 | `compileSdk 37` |
 | Node.js | 18+ | Web TypeScript build only |
 | uv | any | Optional. Runs towncrier for `bin/changelog`; `brew install uv` |
@@ -24,17 +23,18 @@ Thank you for considering a contribution! This guide covers everything you need 
 git clone https://github.com/notalib/flutter_readium.git
 cd flutter_readium
 
-# Install all pub dependencies, run pod install, and build the web JS bundle
+# Install all pub dependencies, build the web bundles and fetch test fixtures
 bin/install
 ```
 
 Setup script `bin/install` does the following in order:
 
-1. `flutter pub get` in both `flutter_readium/` and `flutter_readium_platform_interface/`
-2. `pod update && pod install` for the iOS example app
-3. Builds the `assets/_helper_scripts` TypeScript bundle
-4. Builds the web JS bundle and copies it into `example/web/`
-5. Fetches test fixtures via `bin/fetch_test_resources` (see [Test fixtures](#test-fixtures))
+1. `flutter pub get` in every package
+2. Builds the `assets/_helper_scripts` TypeScript bundle
+3. Builds the web JS bundle and copies it into `example/web/`
+4. Fetches test fixtures via `bin/fetch_test_resources` (see [Test fixtures](#test-fixtures))
+
+The iOS example uses Swift Package Manager, so there is no `pod install` step. Xcode resolves the Swift packages on the first build.
 
 If you only change Dart code you can skip the full install and just run `flutter pub get` in the affected package.
 
