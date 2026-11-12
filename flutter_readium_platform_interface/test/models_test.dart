@@ -480,6 +480,24 @@ void main() {
     });
   });
 
+  group('ReadiumAudioRoute', () {
+    test('round-trips through toJson / fromJson', () {
+      const route = ReadiumAudioRoute(type: ReadiumAudioRouteType.airPlay, name: 'Living Room');
+
+      final restored = ReadiumAudioRoute.fromJson(route.toJson());
+
+      expect(restored, route);
+      expect(restored.hashCode, route.hashCode);
+      expect(route.toJson(), {'type': 'airPlay', 'name': 'Living Room'});
+    });
+
+    test('unknown type falls back to other', () {
+      final route = ReadiumAudioRoute.fromJson({'type': 'hologram', 'name': 'X'});
+
+      expect(route.type, ReadiumAudioRouteType.other);
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // ReadiumReaderStatus enum
   // ---------------------------------------------------------------------------

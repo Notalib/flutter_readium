@@ -41,6 +41,9 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   EventChannel externalPlaybackCommandChannel = const EventChannel('dk.nota.flutter_readium/external-playback-command');
 
   @visibleForTesting
+  EventChannel audioRouteChannel = const EventChannel('dk.nota.flutter_readium/audio-route');
+
+  @visibleForTesting
   EventChannel errorEventChannel = const EventChannel('dk.nota.flutter_readium/error');
 
   /// The event channel used to receive text Locator changes from the native platform.
@@ -53,6 +56,11 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   Stream<Locator>? _onTextLocatorChanged;
   Stream<ReadiumTimebasedState>? _onTimebasedPlayerStateChanged;
   Stream<ReadiumExternalPlaybackCommand>? _onExternalPlaybackCommand;
+  ReadiumAudioRoute? _latestAudioRoute;
+  late final Stream<ReadiumAudioRoute> _sharedAudioRoute = audioRouteChannel
+      .receiveBroadcastStream()
+      .map((dynamic event) => _latestAudioRoute = ReadiumAudioRoute.fromJson(Map<String, dynamic>.from(event as Map)))
+      .asBroadcastStream();
   Stream<ReadiumReaderStatus>? _onReaderStatusChanged;
   Stream<ReadiumError>? _onErrorEvent;
   Stream<bool>? _onNarrationSyncChanged;
@@ -102,6 +110,20 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     }).asBroadcastStream();
     return _onExternalPlaybackCommand!;
   }
+
+  /// Fires whenever the audio output route changes.
+  ///
+  /// The native stream is listened to once and shared, so each new subscriber first receives
+  /// the latest known route before the live updates.
+  ///
+  /// Returns the same instance on every call, so widgets reading it in `build` don't resubscribe.
+  @override
+  late final Stream<ReadiumAudioRoute> onAudioRouteChanged = Stream.multi((controller) {
+    final latest = _latestAudioRoute;
+    if (latest != null) controller.add(latest);
+    final sub = _sharedAudioRoute.listen(controller.add, onError: controller.addError, onDone: controller.close);
+    controller.onCancel = sub.cancel;
+  }, isBroadcast: true);
 
   /// Fires whenever the reader status changes.
   ///

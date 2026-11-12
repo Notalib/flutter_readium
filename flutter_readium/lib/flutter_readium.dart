@@ -10,6 +10,7 @@ import 'package:flutter_readium_platform_interface/flutter_readium_platform_inte
 import 'network_image_codec_switch.dart';
 
 export 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
+export 'audio_route_picker.dart';
 export 'reader_widget_switch.dart';
 
 /// Converts platform/native failures into [ReadiumException] so callers never
@@ -119,6 +120,11 @@ class FlutterReadium {
   /// Stream emitting playback commands received from headphones, lock screen,
   /// Control Center, or Android media-session controls.
   Stream<ReadiumExternalPlaybackCommand> get onExternalPlaybackCommand => _platform.onExternalPlaybackCommand;
+
+  /// Stream emitting the current audio output route, such as the speaker or an AirPlay device.
+  ///
+  /// iOS only: emits the current route on subscribe, then on every change. Never emits on Android and web.
+  Stream<ReadiumAudioRoute> get onAudioRouteChanged => _platform.onAudioRouteChanged;
 
   /// Stream emitting any errors that occur within the reader, such as failed navigation or playback errors.
   Stream<ReadiumError> get onErrorEvent => _platform.onErrorEvent;

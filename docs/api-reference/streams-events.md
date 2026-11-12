@@ -1,6 +1,6 @@
 # Streams & Events
 
-`FlutterReadium` exposes four `Stream`s for real-time state updates.
+`FlutterReadium` exposes `Stream`s for real-time state updates.
 
 ## onTextLocatorChanged
 
@@ -61,6 +61,21 @@ the requested position relative to the configured `controlPanelTimebase`.
 
 Android and iOS produce these events. The Web implementation exposes the stream
 for API compatibility but does not currently emit events.
+
+## onAudioRouteChanged
+
+Emits a `ReadiumAudioRoute` with the current audio output, such as the built-in speaker, Bluetooth headphones, or an AirPlay device.
+
+```dart
+reader.onAudioRouteChanged.listen((route) {
+  final type = route.type; // ReadiumAudioRouteType
+  final name = route.name; // e.g. "Living Room"
+});
+```
+
+The stream emits the current route when you subscribe and again on every system route-change notification, so a page opened later still gets a value. A notification can repeat the same route; add `.distinct()` if that matters. The possible types are `builtIn`, `wired`, `bluetooth`, `airPlay`, `carPlay`, and `other`.
+
+Only iOS produces these events. Android and Web expose the stream for API compatibility but never emit. To let users switch output, show [`ReadiumAudioRoutePicker`](./flutter-readium.md#audio-route-picker).
 
 ## onReaderStatusChanged
 

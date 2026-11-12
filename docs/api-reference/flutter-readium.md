@@ -100,4 +100,15 @@ final results = await FlutterReadium().searchInPublication('query');
 | `onTextLocatorChanged` | `Locator` | Visual reader position changes. See [locator.md](./locator.md) |
 | `onTimebasedPlayerStateChanged` | `ReadiumTimebasedState` | Audio/TTS playback state. See [timebased_state.dart](../../flutter_readium_platform_interface/lib/src/timebased_state.dart) |
 | `onExternalPlaybackCommand` | `ReadiumExternalPlaybackCommand` | System media-control commands such as headphones / Control Center play and pause. See [external_playback_command.dart](../../flutter_readium_platform_interface/lib/src/external_playback_command.dart) |
+| `onAudioRouteChanged` | `ReadiumAudioRoute` | Current audio output (speaker, Bluetooth, AirPlay, ...). iOS only. See [streams-events.md](./streams-events.md#onaudioroutechanged) |
 | `onErrorEvent` | `ReadiumError` | Non-fatal errors. See [readium_exceptions.dart](../../flutter_readium_platform_interface/lib/src/exceptions/readium_exceptions.dart) |
+
+## Audio route picker
+
+`ReadiumAudioRoutePicker` is a button that opens the system audio output picker, which is how users send playback to AirPlay.
+
+```dart
+const ReadiumAudioRoutePicker(size: 32)
+```
+
+`size` sets the width and height, `color` the icon colour (default: the colour an `IconButton` would use in the same place), and `activeColor` the colour while an external route is active (default: the theme's primary colour). Only iOS renders the system picker, as an `AVRoutePickerView`. On every other platform the widget renders nothing.

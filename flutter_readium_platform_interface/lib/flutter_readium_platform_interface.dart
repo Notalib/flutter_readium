@@ -266,6 +266,13 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
     );
   }
 
+  /// Stream emitting the current audio output route, such as the speaker or an AirPlay device.
+  ///
+  /// iOS only. Never emits on Android and web.
+  Stream<ReadiumAudioRoute> get onAudioRouteChanged {
+    throw UnimplementedError('onAudioRouteChanged stream has not been implemented.');
+  }
+
   /// State stream for error events occurring in the reader or playback.
   Stream<ReadiumError> get onErrorEvent {
     throw UnimplementedError('onErrorEvent stream has not been implemented.');
