@@ -1,6 +1,6 @@
 import {
-  flutterAssetsUrl,
   fontFaceCss,
+  fontFaceUrls,
   parseFontFamilyDeclarations,
 } from "../fonts/FontFamilyDeclarations";
 
@@ -34,14 +34,27 @@ describe("font family declarations", () => {
     );
   });
 
-  it("generates font URLs under the asset directory allowed in the frame CSP", () => {
+  const cssUrls = (css: string) => [...css.matchAll(/url\("([^"]+)"\)/g)].map((m) => m[1]);
+
+  it("allows exactly the font URLs the @font-face rules load", () => {
     const baseUrl = "https://reader.example/app/";
-    // A CSP source ending in "/" matches by path prefix.
-    const allowed = flutterAssetsUrl(baseUrl);
-    expect(allowed).toBe("https://reader.example/app/assets/");
-    const urls = [...fontFaceCss([declaration], baseUrl).matchAll(/url\("([^"]+)"\)/g)].map((m) => m[1]);
-    expect(urls).toHaveLength(2);
-    for (const url of urls) expect(url.startsWith(allowed)).toBe(true);
+    expect(fontFaceUrls([declaration], baseUrl)).toEqual(cssUrls(fontFaceCss([declaration], baseUrl)));
+  });
+
+  it("allows fonts served from a cross-origin asset base", () => {
+    const cdnDeclaration = {
+      ...declaration,
+      faces: [{ ...declaration.faces[0], asset: "https://cdn.example/app/assets/assets/fonts/Atkinson/Atkinson-Regular.ttf" }],
+    };
+    const baseUrl = "https://reader.example/app/";
+    expect(fontFaceUrls([cdnDeclaration], baseUrl)).toEqual([
+      "https://cdn.example/app/assets/assets/fonts/Atkinson/Atkinson-Regular.ttf",
+    ]);
+    expect(cssUrls(fontFaceCss([cdnDeclaration], baseUrl))).toEqual(fontFaceUrls([cdnDeclaration], baseUrl));
+  });
+
+  it("allows nothing when no fonts are declared", () => {
+    expect(fontFaceUrls([], "https://reader.example/app/")).toEqual([]);
   });
 
   it("rejects a family without faces", () => {
