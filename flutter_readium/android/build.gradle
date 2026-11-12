@@ -43,12 +43,6 @@ android {
     targetCompatibility JavaVersion.VERSION_18
   }
 
-  kotlin {
-    compilerOptions {
-      jvmTarget = JvmTarget.JVM_18
-    }
-  }
-
   compileSdkVersion 37
 
   sourceSets {
@@ -80,6 +74,12 @@ android {
   buildFeatures {
     viewBinding = true
     buildConfig = true
+  }
+}
+
+kotlin {
+  compilerOptions {
+    jvmTarget = JvmTarget.JVM_18
   }
 }
 
