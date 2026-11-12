@@ -1,14 +1,15 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+
 import 'flutter_readium.dart';
 import 'src/index.dart';
 
 class ReadiumReaderWidget extends StatefulWidget {
   const ReadiumReaderWidget({
     required this.publication,
-    this.loadingWidget = const Center(child: CircularProgressIndicator()),
+    this.loadingWidget,
     this.initialLocator,
     this.shouldShowControls,
     this.onExternalLinkActivated,
@@ -29,7 +30,7 @@ class ReadiumReaderWidget extends StatefulWidget {
   });
 
   final Publication publication;
-  final Widget loadingWidget;
+  final Widget? loadingWidget;
   final Locator? initialLocator;
   final ValueNotifier<bool>? shouldShowControls;
   final Function(String)? onExternalLinkActivated;

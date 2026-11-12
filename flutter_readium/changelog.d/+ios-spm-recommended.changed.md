@@ -1,0 +1,2 @@
+**iOS: Swift Package Manager is now the recommended install path.**
+Apps on Flutter's default Swift Package Manager setup need no `Podfile` changes, and the example app now builds this way. CocoaPods still works through the podspec, but its trunk becomes read-only in December 2026. See the [installation guide](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/installation.md#cocoapods) for the CocoaPods lines.

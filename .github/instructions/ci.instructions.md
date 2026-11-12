@@ -23,17 +23,12 @@ Skip individual jobs, not the workflow. Include every CI job in `CI result`'s
 All workflows that build iOS or Android must include the relevant caches:
 
 - **Android**: Cache `~/.gradle/caches` and `~/.gradle/wrapper`, keyed on the relevant `build.gradle` files. Include a `restore-keys` prefix fallback. Restore with `actions/cache/restore` and save with `actions/cache/save` only on `refs/heads/main`: a PR can only read its own caches and `main`'s, so a PR that saves just stores another 1.15 GB copy.
-- **iOS (CocoaPods)**: Cache `flutter_readium/example/ios/Pods` and `~/.cocoapods`, keyed on `Podfile.lock`. `~/.cocoapods` is required — it holds the trunk spec repo used to resolve Flutter ecosystem pods (e.g. webview_flutter). Without it, a cold `pod install` fails even though Readium pods use explicit `podspec:` URLs.
-- **iOS (Xcode derived data)**: Cache `~/Library/Developer/Xcode/DerivedData`, keyed on `Podfile.lock`.
+- **iOS (Xcode derived data)**: Cache `~/Library/Developer/Xcode/DerivedData`, keyed on the example's `Package.resolved`. It also holds the resolved Swift packages (`SourcePackages/`). The example uses Swift Package Manager, so there is no CocoaPods cache.
 - **Android emulator AVD**: Do not cache it. See "Android emulator boot" below.
 
 Do not cache the Flutter SDK (`subosito/flutter-action` `cache: true`). Measured: it saved 30–45 s per Linux job and 5–10 s per macOS job, for 3.75 GB of the repo's 10 GB cache limit. A Flutter bump doubles that for up to 7 days while the old entries age out. `pub-cache: true` is small and stays.
 
 Cache keys must end with a trailing dash before the hash segment (e.g. `gradle-${{ runner.os }}-`) to prevent accidental prefix collisions between keys that share a common prefix.
-
-## CocoaPods `--repo-update`
-
-Only pass `--repo-update` when the CocoaPods cache is cold (cache miss). On a cache hit the spec repo is already in `~/.cocoapods` and the flag just wastes ~30s. Use the `cache-hit` output from the pods cache step.
 
 ## Permissions
 

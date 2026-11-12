@@ -116,12 +116,20 @@ For TTS and audiobook background playback, add to `AndroidManifest.xml`:
 
 ## 3. iOS setup
 
-### Podfile
+### Swift Package Manager (recommended)
 
-Add the Readium pods to your `ios/Podfile` inside the `target 'Runner'` block.
+Swift Package Manager is Flutter's default since 3.44. No setup is needed: Flutter resolves the
+Readium packages through the plugin's `Package.swift` when you build the app.
 
-Add the following sources near the top of the Podfile, then copy the exact Readium pod lines from
-`flutter_readium/example/ios/Podfile` into your app's target. Keep them aligned with the plugin pin in
+If you turned it off earlier, turn it back on with `flutter config --enable-swift-package-manager`.
+
+### CocoaPods
+
+Use this only if your app still builds with CocoaPods. The CocoaPods trunk becomes read-only in
+December 2026, so plan to move to Swift Package Manager.
+
+Add the Readium pods to your `ios/Podfile`. The sources go near the top of the file and the pods go
+inside the `target 'Runner'` block. Keep the versions aligned with the plugin pin in
 `flutter_readium/ios/flutter_readium.podspec` when upgrading:
 
 ```ruby

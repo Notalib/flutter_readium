@@ -42,7 +42,7 @@ treat missing headers as an empty map when adding CORS. That prevents missing as
 crashing the app; it does not supply those assets. This plugin uses official Readium 3.4.0
 without a navigator substitution.
 
-## iOS: pod install fails
+## iOS (CocoaPods): pod install fails
 
 ```bash
 cd ios

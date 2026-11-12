@@ -3,13 +3,14 @@ import 'dart:ui' as ui;
 
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 
 import 'network_image_codec_switch.dart';
 
 export 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
+
 export 'reader_widget_switch.dart';
 
 /// Converts platform/native failures into [ReadiumException] so callers never
