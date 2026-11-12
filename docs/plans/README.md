@@ -27,6 +27,10 @@ This directory holds implementation plans, parity audits, and retained reference
 - **[todo/native-reader-interaction-navigation-plan.md](todo/native-reader-interaction-navigation-plan.md)** —
 	disentangle manual reader interaction from page-navigation/manual-mode signaling. *(Cross-platform parity / M)*
 
+## Triage
+
+- **[todo-triage-2026-11.md](todo-triage-2026-11.md)** — classification of every TODO/FIXME marker, with proposed GitHub issues.
+
 ## Upstream plans (`upstream/`)
 
 - **[upstream/upstream-audio-error-surfacing-plan.md](upstream/upstream-audio-error-surfacing-plan.md)** —
