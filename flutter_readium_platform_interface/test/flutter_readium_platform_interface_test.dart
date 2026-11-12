@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
@@ -21,6 +22,9 @@ void main() {
       action: ExternalPlaybackCommandAction.seekTo,
       position: Duration(seconds: 42),
     );
+
+    const testAudioRoute = ReadiumAudioRoute(type: ReadiumAudioRouteType.airPlay, name: 'Living Room');
+    var audioRouteListenCount = 0;
 
     setUp(() async {
       methodChannelReadium = MethodChannelFlutterReadium();
@@ -86,6 +90,22 @@ void main() {
           return null;
         },
       );
+
+      audioRouteListenCount = 0;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+        MethodChannel(methodChannelReadium.audioRouteChannel.name),
+        (methodCall) async {
+          if (methodCall.method == 'listen') {
+            audioRouteListenCount++;
+            await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.handlePlatformMessage(
+              methodChannelReadium.audioRouteChannel.name,
+              methodChannelReadium.audioRouteChannel.codec.encodeSuccessEnvelope(testAudioRoute.toJson()),
+              (_) {},
+            );
+          }
+          return null;
+        },
+      );
     });
 
     test(
@@ -121,6 +141,23 @@ void main() {
         expect(result.position, testExternalPlaybackCommand.position);
       },
     );
+
+    test('onAudioRouteChanged emits the route sent from the platform', () async {
+      expect(await methodChannelReadium.onAudioRouteChanged.first, testAudioRoute);
+    });
+
+    test('onAudioRouteChanged replays the latest route to a later subscriber', () async {
+      final first = Completer<ReadiumAudioRoute>();
+      final sub = methodChannelReadium.onAudioRouteChanged.listen(first.complete);
+      addTearDown(sub.cancel);
+      await first.future;
+
+      // The mock only pushes on native listen, so a second event can only come from the replay.
+      final replayed = await methodChannelReadium.onAudioRouteChanged.first;
+
+      expect(replayed, testAudioRoute);
+      expect(audioRouteListenCount, 1);
+    });
 
     test('onExternalPlaybackCommand keeps its subscription across publication closes', () async {
       final stream = methodChannelReadium.onExternalPlaybackCommand;

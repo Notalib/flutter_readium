@@ -9,6 +9,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentManager
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
+import dk.nota.flutterreadium.events.AudioRouteEventChannel
 import dk.nota.flutterreadium.events.NarrationSyncEventChannel
 import dk.nota.flutterreadium.events.ReadiumError
 import dk.nota.flutterreadium.events.ReadiumErrorEventChannel
@@ -180,6 +181,8 @@ object ReadiumReader :
 
     private var narrationSyncEventChannel: NarrationSyncEventChannel? = null
 
+    private var audioRouteEventChannel: AudioRouteEventChannel? = null
+
     /**
      * Runtime narration-sync flag. `true` means the visual reader follows the audio cue
      * automatically; `false` means the user has entered manual mode (visual stays, audio plays).
@@ -342,6 +345,9 @@ object ReadiumReader :
 
         narrationSyncEventChannel?.dispose()
         narrationSyncEventChannel = NarrationSyncEventChannel(messenger)
+
+        audioRouteEventChannel?.dispose()
+        audioRouteEventChannel = AudioRouteEventChannel(messenger)
 
         // store weak ref only
         (activity as? SavedStateRegistryOwner)?.savedStateRegistry?.let {
@@ -545,6 +551,9 @@ object ReadiumReader :
 
         narrationSyncEventChannel?.dispose()
         narrationSyncEventChannel = null
+
+        audioRouteEventChannel?.dispose()
+        audioRouteEventChannel = null
 
         coroutineContext.cancelChildren()
     }
