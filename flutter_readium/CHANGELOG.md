@@ -5,6 +5,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 <!-- towncrier release notes start -->
 
+## [0.9.1] - 2026-11-09
+
+### Fixed
+
+- **Spotlight dimmed text was invisible on dark themes.**
+  The surrounding text was dimmed with a fixed black at 22% opacity, which disappears on a dark background. The dim now uses the theme text colour at 50% opacity.
+- **Android: opening a publication from an `https://` URL failed with an invalid-URL error.**
+  The absolute-scheme check used `Regex.matches`, which requires the whole string to match the `scheme://` prefix pattern, so every real URL failed it and got a bogus `file://` prepended. The check is now a prefix match.
+- **iOS: background playback survives automatic chapter changes on slow connections.**
+  With the app in the background, the brief pause inside an automatic track change made the shared Readium `AudioSession` release the `AVAudioSession`. Playback usually carried on regardless, but when the next track was slow to start iOS could suspend the app in the gap and the book stopped. Audio navigators now run through a session wrapper that keeps the session active while a pause is automatic (chapter change, stall, recovery); a pause the user asks for and closing the publication still release it.
+- **iOS: a stalled stream now recovers instead of staying paused.**
+  The player runs without automatic stall waiting, so a buffer underrun left it paused for good. The navigator now observes `AVPlayerItemPlaybackStalled` and, if playback has not moved on after a short grace period, runs the existing network recovery (rebuild at the current offset, `AudioStreamNetworkError` if the connection does not return).
+- **Android: app assets passed to `setCssInjections`/`setJavaScriptInjections` never loaded in EPUBs.**
+  The `<link>`/`<script>` tags were injected, but the navigator only served the plugin's own assets and font faces, so the WebView received a "not found" page instead. Injected app assets are now served as well. An injected asset or font face missing from the app bundle is now skipped with a warning instead of crashing the app.
+- **Web: embedding the reader in a larger page disabled the page's scrolling.**
+  The plugin's bundled stylesheet set `overflow: hidden` on `html` and `body` and restyled the host page's `body`, tables and fonts. It now only styles the reader's own elements. Full-page Flutter apps are unaffected, as Flutter sets these itself.
+- **Web: the reader ignored the height of the element it was embedded in.**
+  Its wrapper was forced to the viewport height minus 96px, so a reader in a shorter or taller column overflowed or left a gap. It now takes the size Flutter gives it. A full-screen reader is about 40px taller than before.
+
 ## [0.9.0] - 2026-11-04
 
 ### Added

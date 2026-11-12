@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 <!-- towncrier release notes start -->
 
+## [0.9.1] - 2026-11-09
+
+No significant changes.
+
 ## [0.9.0] - 2026-11-04
 
 ### Added

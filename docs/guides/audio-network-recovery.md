@@ -89,7 +89,10 @@ await FlutterReadium().setAudioRecoveryPolicy(
   on all three platforms it separately bounds the post-rebuild window in which playback
   must be observed to advance before the attempt is abandoned.
 - The resource-loading watchdog disarms permanently after playback advances by more than 100 ms.
-  Later mid-resource stalls are left to the native player and explicit error recovery.
+  Later mid-resource stalls are left to the native player on Android and web. On iOS, where
+  `AVPlayer` does not resume from a stall by itself, the plugin starts the same recovery loop
+  when playback has not moved on after a short grace period; this does not depend on
+  `recoverOnResourceLoadingTimeout`.
   Set `recoverOnResourceLoadingTimeout` to `true` when a suspected loading timeout should also
   rebuild the navigator. Explicit player errors recover regardless of this setting.
 - Raise `stallTimeoutSeconds` if legitimate startup or chapter-boundary loading trips the watchdog;

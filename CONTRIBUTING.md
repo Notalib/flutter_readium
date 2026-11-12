@@ -112,7 +112,7 @@ cd flutter_readium_platform_interface && flutter test
 cd flutter_readium && flutter test
 ```
 
-CI is orchestrated by [.github/workflows/ci.yml](.github/workflows/ci.yml). Its reusable [.github/workflows/test.yml](.github/workflows/test.yml) runs Dart, web, Android, and iOS unit tests in separate jobs, selecting native/web suites using platform change detection. Dart unit tests run whenever any platform is selected. All selected unit tests, builds, and integration tests contribute to the `CI result` check. You can also manually dispatch the Tests workflow to run all unit-test suites.
+CI is orchestrated by [.github/workflows/ci.yml](.github/workflows/ci.yml). Its reusable [.github/workflows/test.yml](.github/workflows/test.yml) runs Dart, web, Android, and iOS unit tests in separate jobs, selecting native/web suites using platform change detection. Dart unit tests run whenever any platform is selected. All selected unit tests, builds, and integration tests contribute to the `CI result` check. You can also manually dispatch the Unit Tests workflow to run all unit-test suites.
 
 ### Integration tests
 
