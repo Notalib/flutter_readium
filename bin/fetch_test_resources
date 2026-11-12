@@ -6,12 +6,33 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 # .github/actions/fetch-test-resources (checkout there is done via
 # actions/checkout instead of an SSH clone).
 #
+# Skips the clone + build when the fixtures were already built from the current
+# upstream commit with the current build script. Delete the stamp file (or
+# either fixture directory) to force a rebuild.
+#
 # Usage: bin/fetch_test_resources
+
+_repo_url="git@github.com:Notalib/readium-test-resources.git"
+_pubs_dir="$REPO_ROOT/flutter_readium/example/assets/pubs"
+# The stamp lives in the web fixtures directory because assets/pubs/ is bundled
+# into the example app wholesale.
+_stamp_file="$REPO_ROOT/flutter_readium/example/web/test-fixtures/.stamp"
+
+_remote_sha="$(git ls-remote "$_repo_url" HEAD | cut -f1)"
+_stamp="$_remote_sha $(git hash-object "$REPO_ROOT/bin/build_test_fixtures")"
+
+if [ -n "$_remote_sha" ] && [ -d "$_pubs_dir" ] && [ "$(cat "$_stamp_file" 2>/dev/null)" = "$_stamp" ]; then
+  echo "Test fixtures are up to date (readium-test-resources @ ${_remote_sha:0:7}) — skipping."
+  exit 0
+fi
 
 _tmp_res="$(mktemp -d)"
 trap 'rm -rf "$_tmp_res"' EXIT
 
 echo "Fetching test publications from readium-test-resources…"
-git clone --depth=1 git@github.com:Notalib/readium-test-resources.git "$_tmp_res"
+git clone --depth=1 "$_repo_url" "$_tmp_res"
 
 "$REPO_ROOT/bin/build_test_fixtures" "$_tmp_res"
+
+# Stamp the commit that was actually built, which may be newer than the ls-remote result.
+echo "$(git -C "$_tmp_res" rev-parse HEAD) $(git hash-object "$REPO_ROOT/bin/build_test_fixtures")" > "$_stamp_file"
