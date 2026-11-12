@@ -1,0 +1,396 @@
+#!/bin/bash
+#
+# Checks that every method the Dart side invokes over a platform channel has a
+# handler on iOS, Android and web. See "Method-channel contract" in AGENTS.md.
+#
+# Usage: bin/check_channel_parity [--verbose]
+#
+#   (no args)   Print the gaps, the allowed exceptions and a summary.
+#   --verbose   Also print the full method-by-platform matrix.
+#
+# Exits 1 if a method has no handler on a platform, if a native handler has no
+# Dart caller, or if the extraction no longer understands the sources.
+#
+# Two channels are checked:
+#   main  dk.nota.flutter_readium/main, invoked from method_channel_flutter_readium.dart
+#   view  the per-view reader channel, invoked from reader_channel.dart
+#
+# How handlers are found:
+#   iOS / Android  the `switch call.method` / `when (method)` blocks of the files below.
+#   web            there is no string switch. A main-channel method is covered if
+#                  flutter_readium_web.dart overrides it. Web has no view channel, so
+#                  a view-channel method is covered by an override or a
+#                  JsPublicationChannel member of the same or an aliased name
+#                  (view_web_aliases).
+#
+# A method counts as intentionally unsupported on web when the web override, or
+# the platform-interface default it inherits, throws UnimplementedError, and it is
+# listed in web_unsupported_reason(). The list stops a deleted override from
+# passing as "unsupported" just because the base class throws.
+# Everything else that is allowed to differ is listed in allowed_reason() with
+# the reason; those entries are printed on every run so they stay visible.
+#
+# Needs only bash, grep, sed, awk and tr, so the CI job needs no Flutter SDK.
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+usage() {
+  sed -n '3,/^[^#]/{/^[^#]/d;s/^# \{0,1\}//;p;}' "${BASH_SOURCE[0]}"
+}
+
+verbose=0
+case "${1:-}" in
+  --verbose) verbose=1 ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  "") ;;
+  *)
+    echo "Unknown argument: $1" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
+
+PI_DIR="$REPO_ROOT/flutter_readium_platform_interface/lib"
+APP_DIR="$REPO_ROOT/flutter_readium"
+IOS_DIR="$APP_DIR/ios/flutter_readium/Sources/flutter_readium"
+ANDROID_DIR="$APP_DIR/android/src/main/kotlin/dk/nota/flutterreadium"
+
+DART_MAIN="$PI_DIR/method_channel_flutter_readium.dart"
+DART_VIEW="$APP_DIR/lib/reader_channel.dart"
+PLATFORM_IFACE="$PI_DIR/flutter_readium_platform_interface.dart"
+IOS_MAIN="$IOS_DIR/FlutterReadiumPlugin.swift"
+IOS_EPUB="$IOS_DIR/reader/EPUBReaderView+MethodChannel.swift"
+IOS_PDF="$IOS_DIR/reader/PDFReaderView.swift"
+ANDROID_MAIN="$ANDROID_DIR/PublicationChannel.kt"
+ANDROID_VIEW="$ANDROID_DIR/ReadiumReaderWidget.kt"
+WEB_PLUGIN="$APP_DIR/lib/src/flutter_readium_web.dart"
+WEB_JS="$APP_DIR/lib/src/js_publication_channel.dart"
+
+# The view channel's Dart method names come from the enum below, so reader_channel.dart
+# has exactly one call site with a non-literal name: the _invokeMethod helper.
+VIEW_ENUM="_ReaderChannelMethodInvoke"
+VIEW_DYNAMIC_SITES=1
+
+# View-channel method -> main-API symbol(s) that serve it on web. Unlisted names map to themselves.
+view_web_aliases() {
+  case "$1" in
+    go) echo "goToLocator" ;;
+    setPreferences) echo "setEPUBPreferences setPDFPreferences" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+# Differences that are allowed to stay. Prints the reason, or nothing if the pair is not allowed.
+# Keys: "web:<channel>:<method>" (no web handler) and "orphan:<platform>:<channel>:<method>"
+# (native handler with no Dart caller).
+allowed_reason() {
+  case "$1" in
+    web:view:configureSelectionActions)
+      echo "web has no view channel; ReadiumReaderWidget accepts selectionActions but never forwards them to JS (feature gap)"
+      ;;
+    web:view:notifyUserNavigation)
+      echo "web has no view channel; the native pointer tracker it feeds does not exist on web"
+      ;;
+    web:view:dispose)
+      echo "web has no view channel; widget disposal needs no native teardown call"
+      ;;
+    orphan:ios:main:dispose)
+      echo "dead code: Dart's dispose() goes over the view channel; nothing sends 'dispose' on the main channel"
+      ;;
+    orphan:ios:main:togglePlayback)
+      echo "dead code: its Dart API was removed (TTS and audiobook share the play/pause methods)"
+      ;;
+  esac
+}
+
+# Methods web deliberately leaves to the platform interface's UnimplementedError.
+web_unsupported_reason() {
+  case "$1" in
+    searchInPublication) echo "not implemented yet, see docs/plans/todo/web-search.md" ;;
+    setCssInjections | setJavaScriptInjections) echo "not implemented on web; the platform interface default throws" ;;
+  esac
+}
+
+fail=0
+tmp="$(mktemp -d "${TMPDIR:-/tmp}/check_channel_parity.XXXXXX")"
+trap 'rm -rf "$tmp"' EXIT
+
+die() {
+  echo "ERROR: $*" >&2
+  fail=1
+}
+
+for f in "$DART_MAIN" "$DART_VIEW" "$PLATFORM_IFACE" "$IOS_MAIN" "$IOS_EPUB" "$IOS_PDF" \
+  "$ANDROID_MAIN" "$ANDROID_VIEW" "$WEB_PLUGIN" "$WEB_JS"; do
+  [ -f "$f" ] || {
+    echo "ERROR: missing source file ${f#"$REPO_ROOT"/}; update bin/check_channel_parity" >&2
+    exit 1
+  }
+done
+
+# --- Extraction ---------------------------------------------------------------
+
+# Method names passed as a string literal to invokeMethod / invokeListMethod / invokeMapMethod,
+# generic forms included, one per call site. Newlines are collapsed first so calls that wrap
+# after the opening parenthesis still match.
+dart_literal_calls() {
+  tr '\n' ' ' <"$1" |
+    grep -oE "(^|[^A-Za-z_])invoke(List|Map)?Method(<[^(]*>)? *\( *'[A-Za-z0-9_]+'" |
+    sed -E "s/.*'([A-Za-z0-9_]+)'\$/\1/" || true
+}
+
+# Number of invoke*Method call sites, whatever their argument.
+dart_call_sites() {
+  tr '\n' ' ' <"$1" | grep -oE "(^|[^A-Za-z_])invoke(List|Map)?Method *[<(]" | wc -l | tr -d ' '
+}
+
+# Enum member names, in declaration order. Comments, member arguments, an enhanced-enum body
+# after `;`, and one-line enums are tolerated.
+dart_enum_members() {
+  sed -n "/^enum $2 *{/,/^}/p" "$1" | sed -E 's://.*$::' | tr '\n' ' ' |
+    sed -E "s/^.*enum $2 *\{//; s/\}.*\$//; s/;.*\$//" | tr ',' '\n' |
+    sed -nE 's/^[[:space:]]*([A-Za-z][A-Za-z0-9_]*).*/\1/p'
+}
+
+# Case labels of every `switch call.method` / `when (method)` block. $2 is the label indent
+# relative to the switch: 0 for Swift `case`, 4 for Kotlin `when` entries. Nested blocks sit
+# deeper and are skipped.
+native_handlers() {
+  awk -v rel="$2" '
+    function indent(s) { match(s, /^ */); return RLENGTH }
+    !inblk && /^ *(switch call\.method|when \((call\.)?method\)) *\{/ { inblk = 1; base = indent($0); next }
+    inblk && indent($0) == base && /^ *\}/ { inblk = 0; next }
+    inblk && indent($0) == base + rel && /^ *(case )?"[A-Za-z0-9_]+"( *, *"[A-Za-z0-9_]+")* *(->|:)/ {
+      line = $0
+      sub(/(->|:).*$/, "", line)
+      while (match(line, /"[A-Za-z0-9_]+"/)) {
+        print substr(line, RSTART + 1, RLENGTH - 2)
+        line = substr(line, RSTART + RLENGTH)
+      }
+    }
+  ' "$1" | sort -u
+}
+
+# Names of the methods flutter_readium_web.dart overrides from the platform interface.
+web_overrides() {
+  awk '
+    /^  @override/ { ov = 1; next }
+    ov { ov = 0; if (match($0, /[A-Za-z0-9_]+\(/)) print substr($0, RSTART, RLENGTH - 1) }
+  ' "$WEB_PLUGIN" | sort -u
+}
+
+# Public members of JsPublicationChannel.
+web_js_members() {
+  sed -n '/^class JsPublicationChannel/,/^}/p' "$WEB_JS" |
+    sed -nE 's/^  (static )?[A-Za-z0-9_<>?, ]+ ([A-Za-z][A-Za-z0-9_]*)\(.*/\2/p' | sort -u
+}
+
+# True if the web override of $1 has a body that throws UnimplementedError.
+web_override_throws() {
+  awk -v n="$1" '
+    /^  @override/ { if (inm) exit; next }
+    !inm && $0 ~ "[ ]" n "\\(" { inm = 1 }
+    inm && /UnimplementedError/ { found = 1 }
+    END { exit found ? 0 : 1 }
+  ' "$WEB_PLUGIN"
+}
+
+# True if the platform-interface default of $1 throws UnimplementedError.
+iface_throws() {
+  awk -v n="$1" '
+    !started && $0 !~ /^[[:space:]]*\/\// && $0 ~ "(>|void|bool) " n "\\(" { started = 1 }
+    started { buf = buf $0; if ($0 ~ /;[[:space:]]*$/) exit }
+    END { exit (buf ~ /UnimplementedError/) ? 0 : 1 }
+  ' "$PLATFORM_IFACE"
+}
+
+in_set() { grep -qxF -- "$2" "$1"; }
+
+# --- Guard: the extraction must still understand the sources ----------------------
+
+# A new handler file would otherwise be silently ignored.
+check_handler_files() {
+  local label="$1" found="$2" expected="$3"
+  found="$(printf '%s\n' "$found" | sed "s|^$REPO_ROOT/||" | sort)"
+  expected="$(printf '%s\n' "$expected" | sed "s|^$REPO_ROOT/||" | sort)"
+  if [ "$found" != "$expected" ]; then
+    die "$label method-switch files changed; update bin/check_channel_parity."
+    printf '  expected:\n%s\n  found:\n%s\n' "$(sed 's/^/    /' <<<"$expected")" "$(sed 's/^/    /' <<<"$found")" >&2
+  fi
+}
+check_handler_files "iOS" "$(grep -rlE '^ *switch call\.method *\{' "$IOS_DIR" || true)" \
+  "$IOS_MAIN
+$IOS_EPUB
+$IOS_PDF"
+check_handler_files "Android" "$(grep -rlE '^ *when \((call\.)?method\) *\{' "$ANDROID_DIR" || true)" \
+  "$ANDROID_MAIN
+$ANDROID_VIEW"
+
+dart_literal_calls "$DART_MAIN" | sort -u >"$tmp/dart.main"
+{
+  dart_literal_calls "$DART_VIEW"
+  dart_enum_members "$DART_VIEW" "$VIEW_ENUM"
+} | sort -u >"$tmp/dart.view"
+
+main_sites="$(dart_call_sites "$DART_MAIN")"
+main_literals="$(dart_literal_calls "$DART_MAIN" | wc -l | tr -d ' ')"
+if [ "$main_sites" != "$main_literals" ]; then
+  die "$DART_MAIN has $main_sites invoke*Method call sites but only $main_literals with a literal name; extraction is incomplete."
+fi
+view_sites="$(dart_call_sites "$DART_VIEW")"
+view_literals="$(dart_literal_calls "$DART_VIEW" | wc -l | tr -d ' ')"
+if [ "$((view_sites - view_literals))" != "$VIEW_DYNAMIC_SITES" ]; then
+  die "$DART_VIEW has $((view_sites - view_literals)) non-literal call sites, expected $VIEW_DYNAMIC_SITES; update bin/check_channel_parity."
+fi
+
+native_handlers "$IOS_MAIN" 0 >"$tmp/ios.main"
+native_handlers "$IOS_EPUB" 0 >"$tmp/ios.epub"
+native_handlers "$IOS_PDF" 0 >"$tmp/ios.pdf"
+native_handlers "$ANDROID_MAIN" 4 >"$tmp/android.main"
+native_handlers "$ANDROID_VIEW" 4 >"$tmp/android.view"
+web_overrides >"$tmp/web.overrides"
+web_js_members >"$tmp/web.js"
+
+for f in dart.main dart.view ios.main ios.epub ios.pdf android.main android.view web.overrides web.js; do
+  [ -s "$tmp/$f" ] || die "extracted no names for $f; the source syntax has probably changed."
+done
+[ "$fail" -eq 0 ] || exit 1
+
+# --- Matrix -------------------------------------------------------------------
+
+# Status of method $2 on a native platform whose handled names are in file $1.
+native_status() {
+  if in_set "$1" "$2"; then echo ok; else echo MISSING; fi
+}
+
+# Status of method $2 on web. $1 is "main" or "view".
+web_status() {
+  local channel="$1" method="$2" symbols symbol status=ok
+  if [ "$channel" = view ]; then symbols="$(view_web_aliases "$method")"; else symbols="$method"; fi
+  for symbol in $symbols; do
+    if in_set "$tmp/web.overrides" "$symbol" && web_override_throws "$symbol"; then
+      [ -n "$(web_unsupported_reason "$symbol")" ] || status=MISSING
+      [ "$status" = ok ] && status=unimpl
+    elif in_set "$tmp/web.overrides" "$symbol" || { [ "$channel" = view ] && in_set "$tmp/web.js" "$symbol"; }; then
+      # A JsPublicationChannel member alone does not serve a main-channel method: without the
+      # override the plugin inherits the platform-interface default.
+      :
+    elif iface_throws "$symbol" && [ -n "$(web_unsupported_reason "$symbol")" ]; then
+      [ "$status" = ok ] && status=unimpl
+    elif [ -n "$(allowed_reason "web:$channel:$method")" ]; then
+      [ "$status" = ok ] && status=allowed
+    else
+      status=MISSING
+    fi
+  done
+  echo "$status"
+}
+
+: >"$tmp/gaps"
+: >"$tmp/exceptions"
+: >"$tmp/matrix.main"
+: >"$tmp/matrix.view"
+
+# Writes one matrix row ("method status status ...") and records gaps and exceptions.
+# $1 channel, $2 method, then "<platform>=<status>" pairs.
+record_row() {
+  local channel="$1" method="$2" row="$2" pair platform status
+  shift 2
+  for pair in "$@"; do
+    platform="${pair%%=*}"
+    status="${pair#*=}"
+    row="$row $status"
+    case "$status" in
+      MISSING) echo "$channel $method $platform" >>"$tmp/gaps" ;;
+      unimpl) echo "$platform $channel $method: throws UnimplementedError, $(web_unsupported_reason "$method")" >>"$tmp/exceptions" ;;
+      allowed) echo "$platform $channel $method: $(allowed_reason "$platform:$channel:$method")" >>"$tmp/exceptions" ;;
+    esac
+  done
+  echo "$row" >>"$tmp/matrix.$channel"
+}
+
+while IFS= read -r method; do
+  record_row main "$method" \
+    "ios=$(native_status "$tmp/ios.main" "$method")" \
+    "android=$(native_status "$tmp/android.main" "$method")" \
+    "web=$(web_status main "$method")"
+done <"$tmp/dart.main"
+
+while IFS= read -r method; do
+  record_row view "$method" \
+    "ios-epub=$(native_status "$tmp/ios.epub" "$method")" \
+    "ios-pdf=$(native_status "$tmp/ios.pdf" "$method")" \
+    "android=$(native_status "$tmp/android.view" "$method")" \
+    "web=$(web_status view "$method")"
+done <"$tmp/dart.view"
+
+# Native handlers nobody calls from Dart.
+: >"$tmp/orphans"
+orphans() { # <platform> <channel> <native-file-set> <dart-file-set>
+  local platform="$1" channel="$2" method
+  while IFS= read -r method; do
+    if ! in_set "$4" "$method"; then
+      if [ -n "$(allowed_reason "orphan:$platform:$channel:$method")" ]; then
+        echo "$platform $channel $method: $(allowed_reason "orphan:$platform:$channel:$method")" >>"$tmp/exceptions"
+      else
+        echo "$platform $channel $method" >>"$tmp/orphans"
+      fi
+    fi
+  done <"$3"
+}
+orphans ios main "$tmp/ios.main" "$tmp/dart.main"
+orphans ios-epub view "$tmp/ios.epub" "$tmp/dart.view"
+orphans ios-pdf view "$tmp/ios.pdf" "$tmp/dart.view"
+orphans android main "$tmp/android.main" "$tmp/dart.main"
+orphans android view "$tmp/android.view" "$tmp/dart.view"
+
+# --- Report -------------------------------------------------------------------
+
+print_matrix() { # <title> <file> <column names...>
+  local title="$1" file="$2"
+  shift 2
+  echo "$title"
+  # shellcheck disable=SC2016
+  awk -v cols="$*" 'BEGIN { n = split(cols, c, " "); printf "  %-26s", "method"; for (i = 1; i <= n; i++) printf " %-9s", c[i]; printf "\n" }
+    { printf "  %-26s", $1; for (i = 2; i <= NF; i++) printf " %-9s", $i; printf "\n" }' "$file"
+  echo
+}
+
+if [ "$verbose" -eq 1 ]; then
+  print_matrix "Main channel (dk.nota.flutter_readium/main): $(wc -l <"$tmp/dart.main" | tr -d ' ') Dart methods" \
+    "$tmp/matrix.main" ios android web
+  print_matrix "View channel (reader_channel.dart): $(wc -l <"$tmp/dart.view" | tr -d ' ') Dart methods" \
+    "$tmp/matrix.view" ios-epub ios-pdf android web
+fi
+
+if [ -s "$tmp/exceptions" ]; then
+  echo "Allowed exceptions (kept in allowed_reason() or declared via UnimplementedError):"
+  sort "$tmp/exceptions" | sed 's/^/  /'
+  echo
+fi
+
+if [ -s "$tmp/gaps" ]; then
+  echo "Missing handlers:"
+  printf '  %-6s %-26s %s\n' channel method platform
+  sort "$tmp/gaps" | awk '{ printf "  %-6s %-26s %s\n", $1, $2, $3 }'
+  echo
+  fail=1
+fi
+
+if [ -s "$tmp/orphans" ]; then
+  echo "Native handlers with no Dart caller (remove them, or add the Dart call, or allow them in allowed_reason()):"
+  sort "$tmp/orphans" | sed 's/^/  /'
+  echo
+  fail=1
+fi
+
+echo "Checked $(wc -l <"$tmp/dart.main" | tr -d ' ') main-channel and $(wc -l <"$tmp/dart.view" | tr -d ' ') view-channel methods."
+if [ "$fail" -eq 0 ]; then
+  echo "Channel parity OK."
+else
+  echo "Channel parity FAILED. See the Method-channel contract in AGENTS.md." >&2
+fi
+exit "$fail"

@@ -23,6 +23,7 @@ When upgrading a toolkit, move all three platforms together where API surface ov
 ## Workflow
 
 - `bin/doctor` — verify toolchain. `bin/install` — full bootstrap after clone / dependency change.
+- `bin/check_channel_parity` — verify every Dart method-channel call has an iOS, Android and web handler (`--verbose` prints the matrix). Run it after adding or renaming a channel method; CI runs it too.
 - `bin/update_flutter_version <version>` — the only way to change the Flutter SDK version. It moves the dev pin (`.flutter-version`, `.fvmrc`, example pubspec) together; changing one by hand causes build failures. The published floor in the two library pubspecs is deliberately separate — raise it only with `--min-sdk`, as a deliberate breaking change, never as a side effect of bumping the SDK we build with.
 - **Before declaring changes done, run only the gates relevant to the files changed:** Dart changes (`*.dart`, pubspecs, or analysis configuration) require `bin/format` + `bin/analyze`. For native or web changes, read and run the applicable platform gates in `flutter_readium/ios/AGENTS.md`, `flutter_readium/android/AGENTS.md`, or `flutter_readium/web/AGENTS.md`. Cross-platform changes require the union of the applicable gates; documentation-only changes require no code gate.
 - **Before declaring any `bin/` script changes done:** run `bash -n <script>` for each edited script and fix any syntax errors.

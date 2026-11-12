@@ -86,6 +86,24 @@ jobs:
         run: npm test
         working-directory: flutter_readium
 
+      - name: Read Flutter version
+        id: flutter_version
+        run: echo "version=$(cat .flutter-version)" >> "$GITHUB_OUTPUT"
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ steps.flutter_version.outputs.version }}
+          pub-cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: flutter_readium
+
+      # The web plugin uses dart:js_interop, which the Dart job's VM test run cannot load.
+      - name: Run web plugin tests (Chrome)
+        run: flutter test --platform chrome test/web
+        working-directory: flutter_readium
+
   android-unit-test:
     name: Android
     if: github.event_name == 'workflow_dispatch' || inputs.android
