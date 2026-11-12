@@ -181,11 +181,14 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
                               if (playerState.narrationSyncEnabled != false) {
                                 return const SizedBox.shrink();
                               }
-                              return FilledButton.icon(
-                                key: const ValueKey('resync_narration_button'),
-                                onPressed: () => FlutterReadium().setNarrationSyncEnabled(true),
-                                icon: const Icon(Icons.sync),
-                                label: const Text('Re-sync'),
+                              // On web the reader iframe would otherwise swallow taps on overlaid widgets.
+                              return PointerInterceptor(
+                                child: FilledButton.icon(
+                                  key: const ValueKey('resync_narration_button'),
+                                  onPressed: () => FlutterReadium().setNarrationSyncEnabled(true),
+                                  icon: const Icon(Icons.sync),
+                                  label: const Text('Re-sync'),
+                                ),
                               );
                             },
                           ),
@@ -300,13 +303,17 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
       visible: _shouldShowControls,
       hiddenOffset: const Offset(0, 1),
       duration: _slideDuration,
-      child: Container(
-        color: _playerControlsColor,
-        child: SafeArea(
-          top: false,
-          left: false,
-          right: false,
-          child: PlayerControls(publication: publication),
+      // Inside the slide so the interceptor moves off-screen with the controls and
+      // does not block reader taps while they are hidden.
+      child: PointerInterceptor(
+        child: Container(
+          color: _playerControlsColor,
+          child: SafeArea(
+            top: false,
+            left: false,
+            right: false,
+            child: PlayerControls(publication: publication),
+          ),
         ),
       ),
     );
