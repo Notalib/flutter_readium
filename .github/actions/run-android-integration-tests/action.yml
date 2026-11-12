@@ -39,3 +39,5 @@ runs:
           # Bounded so a hang fails this step, not the job.
           # pipefail + tee so a failing test stays a failure and its record survives.
           bash -o pipefail -c 'timeout 30m flutter test integration_test/plugin_integration_test.dart --timeout=300s --dart-define=READIUM_TEST_SKIP_LOGS=true 2>&1 | tee "$GITHUB_WORKSPACE/android-test-api${{ inputs.api-level }}.log"' || (APP_PID=$(adb shell pidof -s com.example.flutter_readium_example | tr -d "\r"); adb logcat -d -v threadtime ${APP_PID:+--pid="$APP_PID"} > "$GITHUB_WORKSPACE/android-logcat-api${{ inputs.api-level }}.txt" 2>&1; exit 1)
+          # Which renderer and platform view mode actually ran, e.g. whether HCPP fell back.
+          adb logcat -d | grep -E "Impeller rendering backend|platform view rendering strategy|HCPP" | sort -u | head -20 || true
