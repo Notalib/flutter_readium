@@ -3,7 +3,7 @@ import {
   ContextMenuEvent,
   FrameClickEvent,
 } from "@readium/navigator-html-injectables";
-import { KeyboardPeripheralEventData } from "@readium/navigator";
+import { KeyboardPeripheralEventData, VisualNavigatorViewport } from "@readium/navigator";
 import {
   EpubNavigator,
   EpubNavigatorListeners,
@@ -188,6 +188,7 @@ export class FlutterEpubNavigator {
           buildTextSelectionPayload(nav.currentLocator, _selection)
         );
       },
+      viewportChanged: function (_viewport: VisualNavigatorViewport): void { },
       timelineItemChanged: function (item: TimelineItem | undefined): void {
         log.debug("timelineItemChanged", item);
       }
