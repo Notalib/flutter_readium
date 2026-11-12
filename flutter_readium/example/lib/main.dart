@@ -10,6 +10,8 @@ import 'package:path_provider/path_provider.dart';
 
 import 'pages/index.dart';
 import 'state/index.dart';
+import 'utils/agent_extensions.dart';
+import 'utils/navigator_key.dart';
 
 Future<void> main() async {
   // Initialize Marionette only in debug mode
@@ -17,6 +19,7 @@ Future<void> main() async {
     MarionetteBinding.ensureInitialized(
       MarionetteConfiguration(logCollector: LoggingLogCollector()),
     );
+    registerAgentExtensions();
   } else {
     WidgetsFlutterBinding.ensureInitialized();
   }
@@ -77,6 +80,7 @@ class _MyAppState extends State<MyApp> with RestorationMixin {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       restorationScopeId: 'app',
       routes: {
         '/': (context) => BookshelfPage(),
@@ -84,6 +88,7 @@ class _MyAppState extends State<MyApp> with RestorationMixin {
         '/toc': (context) => TableOfContentsPage(),
         '/pagelist': (context) => PageListPage(),
         '/search': (context) => SearchPage(),
+        '/highlights': (context) => HighlightsPage(),
       },
     );
   }

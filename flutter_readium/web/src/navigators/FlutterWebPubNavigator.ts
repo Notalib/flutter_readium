@@ -24,7 +24,9 @@ import { enrichWithTotalProgression } from "./locatorEnrich";
 import {
   scrollVisibleIframes,
   handleExternalLocator,
-  buildTextSelectionPayload,
+  buildSelectionLocator,
+  findSelectionFrame,
+  SelectionHooks,
 } from "./navigatorUtils";
 
 const log = createLogger("WebPubNav");
@@ -40,7 +42,8 @@ export class FlutterWebPubNavigator {
     initialPosition: Locator | undefined,
     preferencesJsonString: string,
     setNav: (nav: WebPubNavigator) => void,
-    fontFamilyDeclarations: FontFamilyDeclaration[] = []
+    fontFamilyDeclarations: FontFamilyDeclaration[] = [],
+    selectionHooks?: SelectionHooks
   ): Promise<void> {
     log.info("Initializing WebPubNavigator");
     const preferences = initializeWebPubPreferencesFromString(preferencesJsonString);
@@ -98,6 +101,7 @@ export class FlutterWebPubNavigator {
         p.observe(window);
       },
       positionChanged: (_locator: Locator): void => {
+        selectionHooks?.onViewChanged();
         emitTextLocatorDebounced(enrichWithTotalProgression(_locator, totalPositions));
       },
       tap: function (_e: FrameClickEvent): boolean {
@@ -117,10 +121,10 @@ export class FlutterWebPubNavigator {
       contentProtection: function (_type: string, _data: any): void { },
       peripheral: function (_data: KeyboardPeripheralEventData): void { },
       contextMenu: function (_data: ContextMenuEvent): void { },
-      textSelected: function (_selection: BasicTextSelection): void {
-        window.onTextSelectedCallback?.(
-          buildTextSelectionPayload(nav.currentLocator, _selection)
-        );
+      textSelected: function (selection: BasicTextSelection): void {
+        const frame = findSelectionFrame(nav, selection.targetFrameSrc);
+        const locator = buildSelectionLocator(nav.currentLocator, selection, frame?.window);
+        selectionHooks?.onTextSelected(selection, locator, frame);
       },
       timelineItemChanged: function (item: TimelineItem | undefined): void {
         log.debug("timelineItemChanged", item);

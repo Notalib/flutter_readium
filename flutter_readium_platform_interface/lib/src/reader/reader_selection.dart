@@ -91,6 +91,10 @@ class SelectionAction implements JSONable {
 /// WebView's default `ActionMode.Callback` entirely, so system items (Copy,
 /// Share, Select All) are not shown regardless of this setting.
 /// `allowedDefaultActions` has no effect on Android.
+///
+/// **Web limitation:** the browser's selection menu cannot be customised, so
+/// `allowedDefaultActions` is ignored. Custom [SelectionAction]s appear in a
+/// floating toolbar instead.
 enum DefaultSelectionAction {
   /// Copy selected text to clipboard.
   copy,

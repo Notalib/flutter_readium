@@ -76,6 +76,7 @@ Example app is the canonical E2E smoke test. Full operational guide: `docs/agent
 
 - Launch `flutter run` **in background**, poll output for the Dart VM Service URI, then `marionette register`. Never a foreground Bash call (it hits the timeout).
 - Add `ValueKey<String>` to interactive widgets; prefer `tap --key`/`--text` over coordinate taps.
+- The reader is a native view. For reader steps and app state (selection actions, decoration taps, highlights), use the debug `example.*` extensions: see `docs/agent-testing.md#choosing-a-control`.
 - PDF/native views don't render in marionette screenshots — use `xcrun simctl io booted screenshot`, or check `marionette get-logs` for `onPageChanged`.
 - Web example runs in a browser instead — see `flutter_readium/web/AGENTS.md`.
 
