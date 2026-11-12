@@ -104,9 +104,9 @@ This forces **every** element's background to transparent. Any decoration whose 
 How each platform satisfies this:
 
 - **iOS / Android** — emit the `!important` directly in the decoration template HTML.
-- **Web** — the upstream decorator sets only a *plain* inline `background-color`, so `injectDecorationOverrides` re-asserts it as inline `!important` (inline important beats stylesheet important) via a `MutationObserver`.
+- **Web** — highlights are drawn with the CSS Custom Highlight API (`::highlight()`), which the transparent-background rule does not reach, so no override is needed. Not checked on the DOM-overlay fallback used by browsers without that API.
 
-Decorations that don't rely on a fill are immune: `spotlight` works via box-shadow (iOS/Android) or body-dimming `color` CSS (Web), and `underline` swaps the fill for a `border-bottom`.
+Decorations that don't rely on a fill are immune: `spotlight` works via box-shadow (iOS/Android) or body-dimming `color` CSS (Web), and `underline` is drawn as a text-decoration (Web: the toolkit's own `underline` style) or a `border-bottom`, not a fill.
 
 ## Integration tests pass locally but fail in CI
 
