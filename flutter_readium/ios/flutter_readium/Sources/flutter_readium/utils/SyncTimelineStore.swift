@@ -8,8 +8,8 @@
 import Foundation
 import ReadiumShared
 
-/// Sliding window over the reading order for sync-narration / guided-navigation
-/// timelines.
+/// Lazy loading for sync-narration / guided-navigation timelines: fetches only the
+/// reading-order segments ahead of the playhead.
 ///
 /// Startup loads only the segment (one alternate JSON) covering the initial
 /// position; the rest is discovered ahead of playback, one segment at a time.
@@ -196,21 +196,28 @@ final class SyncTimelineStore {
     return overlays()
   }
 
-  /// Ensure the next `lookaheadSegments` segment *slots* ahead of `roIndex` are
-  /// loaded. The budget is position-bound (which slots), not load-count-bound:
-  /// counting loaded segments anywhere ahead would let the old forward window
-  /// eat the budget after a backward jump — playback would then skip into that
-  /// window — and one flaky pass would burn the whole budget and concede an end
-  /// of book while segments are still loadable (ADR 0003 "honest end"). A
-  /// failed load stays in its slot and is retried until it loads or hits
-  /// `maxSegmentFailures`, whichever comes first.
+  /// True when the segment is loaded or has exhausted its failure cap.
+  func isSettled(_ roIndex: Int) -> Bool {
+    loaded[roIndex] != nil ||
+      (resolvedSegments[roIndex].flatMap { failures[$0.href] } ?? 0) >= Self.maxSegmentFailures
+  }
+
+  /// Loads segments past `roIndex` one at a time, advancing the cursor past slots at
+  /// the failure cap, until `lookaheadSegments` slots are settled - a healthy segment
+  /// beyond exhausted ones must still load (ADR 0003 "honest end"). A within-cap
+  /// failure is retried in place and never consumes budget.
   func fillAhead(from roIndex: Int) async {
-    let ahead = segmentIndexes().filter { $0 > roIndex }.prefix(Self.lookaheadSegments)
-    for i in ahead {
-      if disposed { return }
-      while loaded[i] == nil,
-            (failures[resolvedSegments[i]!.href] ?? 0) < Self.maxSegmentFailures {
-        await loadSegment(roIndex: i)
+    var filled = 0
+    var cursor = roIndex + 1
+    while !disposed, filled < Self.lookaheadSegments {
+      guard let next = nextLoadableSegment(from: cursor) else { return }
+      // Slots the scan skipped are already settled; they consume budget.
+      for i in segmentIndexes() where i >= cursor && i < next { filled += 1 }
+      if filled >= Self.lookaheadSegments { return }
+      await loadSegment(roIndex: next)
+      if isSettled(next) {
+        filled += 1
+        cursor = next + 1
       }
     }
   }

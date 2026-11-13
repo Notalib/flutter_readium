@@ -47,14 +47,14 @@ export class SyncTimelineStore {
   private readonly resolvedSegments = new Map<number, Link>();
   /** resolved alternate href -> parsed items (shared GN docs fetch once). */
   private readonly parsedByHref = new Map<string, SyncNarrationItem[]>();
-  /** Background lookahead task (set by prepareWindow); see settle(). */
-  private lookahead: Promise<void> | undefined;
   /** resolved alternate href -> in-flight fetch (de-dupes concurrent loads). */
   private readonly inFlight = new Map<string, Promise<SyncNarrationItem[] | null>>();
   private disposed = false;
   private readonly failures = new Map<string, number>();
   /** roIndex -> items, kept in ascending RO order by {@link items}. */
   private readonly loaded = new Map<number, SyncNarrationItem[]>();
+  /** Memoized book total; derived only from immutable manifest data. */
+  private cachedTotalDurationSecs: number | undefined;
 
   private constructor(
     private readonly publication: ReadiumPublication,
@@ -98,6 +98,13 @@ export class SyncTimelineStore {
 
   isLoaded(roIndex: number): boolean {
     return this.loaded.has(roIndex);
+  }
+
+  /** True when the segment is loaded or has exhausted its failure cap. */
+  isSettled(roIndex: number): boolean {
+    if (this.loaded.has(roIndex)) return true;
+    const link = this.resolvedSegments.get(roIndex);
+    return !link || (this.failures.get(link.href) ?? 0) >= MAX_SEGMENT_FAILURES;
   }
 
   /** First segment index >= `from` that is neither loaded nor exhausted. */
@@ -194,18 +201,15 @@ export class SyncTimelineStore {
     return this.segmentIndexes().flatMap((i) => this.loaded.get(i) ?? []);
   }
 
-  /** The merged item array with the given index loaded and the next K segments requested. */
+  /**
+   * Loads only the segment covering `roIndex`; the rest load lazily on the margin
+   * tick, the edge takeover, and seeks. No startup prewarm: a prefetched store
+   * that outran the built playlist made the honest-end guards concede "ended"
+   * while playable segments sat unloaded from the playlist.
+   */
   async prepareWindow(roIndex: number): Promise<SyncNarrationItem[]> {
     await this.loadSegment(roIndex);
-    this.lookahead = this.fillAhead(roIndex).then(() => { this.lookahead = undefined; });
     return this.items();
-  }
-
-  /** Await the in-flight background lookahead (test/recovery seam). */
-  async settle(): Promise<void> {
-    while (this.lookahead) {
-      await this.lookahead.catch(() => undefined);
-    }
   }
 
   /**
@@ -268,6 +272,13 @@ export class SyncTimelineStore {
    * grow with the timeline, an accepted tradeoff from the plan).
    */
   totalDurationSecs(): number | undefined {
+    if (this.cachedTotalDurationSecs === undefined) {
+      this.cachedTotalDurationSecs = this.computeTotalDurationSecs();
+    }
+    return this.cachedTotalDurationSecs;
+  }
+
+  private computeTotalDurationSecs(): number | undefined {
     const metadata: unknown = this.publication.manifest.serialize().metadata;
     if (
       metadata &&

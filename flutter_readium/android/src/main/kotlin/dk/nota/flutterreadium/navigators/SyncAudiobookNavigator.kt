@@ -22,7 +22,6 @@ import dk.nota.flutterreadium.withMainContext
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.launchIn
@@ -76,13 +75,6 @@ class SyncAudiobookNavigator internal constructor(
             pendingTextInitialLocator = null
         }
         super.initNavigator()
-
-        // Pre-warm the lookahead window (web `prepareWindow`): loads land in the store, the
-        // playlist widens at the next margin tick - playback start stays at one JSON fetch.
-        store?.let { timeline ->
-            prewarm =
-                launch { timeline.fillAhead(timeline.loadedTailIndex()) }
-        }
     }
 
     val decorationGroup = "sync-audio"
@@ -103,9 +95,6 @@ class SyncAudiobookNavigator internal constructor(
     private var extending = false
     private var extension: Deferred<Boolean>? = null
 
-    /** Startup lookahead job; extensions join it so a segment is never fetched twice. */
-    private var prewarm: Job? = null
-
     /** Cue count of the overlay list the current navigator was built from. */
     private val loadedCues: Int
         get() = mediaOverlays.sumOf { it?.items?.size ?: 0 }
@@ -121,13 +110,17 @@ class SyncAudiobookNavigator internal constructor(
         timeOffset: Duration,
     ) {
         val store = store ?: return
-        if (isNavigatorDisposed || extending || extension != null || prewarm?.isActive == true) return
+        if (isNavigatorDisposed || extending || extension != null) return
         // Paused ticks must not churn the window (the web mapper driver only runs during
         // playback); rebuilds while paused race paused seeks. The edge takeover covers
         // a playhead that reaches the loaded tail.
         val pb = audioNavigator?.playback?.value ?: return
         if (!pb.playWhenReady || pb.state is AudioNavigator.State.Ended) return
-        if (!store.hasLoadableBeyond(store.loadedTailIndex())) return
+        // Guard from the PLAYHEAD's segment: after a backward seek the loaded tail sits
+        // ahead, and a tail-based check would disable lookahead while fillAhead still
+        // fills from the playhead.
+        val playhead = store.roIndexForAudio(locator.href.toString()) ?: store.loadedTailIndex()
+        if (store.nextLoadableSegment(playhead + 1) == null) return
         val remaining = trackDuration?.minus(timeOffset) ?: return
         if (remaining > SyncTimelineStore.LOOKAHEAD_MARGIN_SECONDS.seconds) return
         PluginLog.d(
@@ -147,32 +140,42 @@ class SyncAudiobookNavigator internal constructor(
     }
 
     /**
-     * Fetches the next segments, then - only when new cues landed - swaps in the wider pseudo
-     * publication and rebuilds the player at the current audio locator (the same teardown +
-     * media-session reopen sequence the stream-recovery rebuild runs).
+     * Loads segments past the playhead one at a time, advancing past slots at the failure
+     * cap, until new cues land - the K-ahead budget may stop on exhausted slots while a
+     * healthy segment waits beyond them (ADR 0003 "honest end"). Then swaps in the wider
+     * pseudo publication and rebuilds the player at the current audio locator (the same
+     * teardown + media-session reopen sequence the stream-recovery rebuild runs). Cue
+     * mapping is muted only across the swap, not during the fetch.
      */
     private suspend fun runWindowExtension(): Boolean {
         val store = store ?: return false
         if (isNavigatorDisposed || extending) return false
+        var cursor =
+            store.roIndexForAudio(audioNavigator?.currentLocator?.value?.href?.toString())
+                ?: store.loadedTailIndex()
+        while (!isNavigatorDisposed && store.loadedCueCount() <= loadedCues) {
+            val next = store.nextLoadableSegment(cursor + 1) ?: break
+            store.loadSegment(next)
+            // Retry an unsettled slot in place; advance only past a settled one.
+            if (store.isSettled(next)) cursor = next
+        }
+
+        val (pseudoPublication, overlays) = store.sourcePublication.makeSyncAudiobook(store)
+        val cues = overlays?.sumOf { it?.items?.size ?: 0 } ?: 0
+        if (overlays == null || cues <= loadedCues) return false
+
+        val wasPlaying = audioNavigator?.playback?.value?.playWhenReady ?: false
+        val previousPublication = publication
+        val previousOverlays = mediaOverlays
+        publication = pseudoPublication
+        mediaOverlays = overlays
         extending = true
-        prewarm?.join()
+        // Read the resume position across the swap only: the fetch above ran unmuted,
+        // so playback never rewinds by the fetch duration.
+        val current =
+            audioNavigator?.currentLocator?.value
+                ?: state[CURRENT_TIMEBASE_LOCATOR_KEY] as? Locator
         try {
-            val current =
-                audioNavigator?.currentLocator?.value
-                    ?: state[CURRENT_TIMEBASE_LOCATOR_KEY] as? Locator
-            store.fillAhead(
-                store.roIndexForAudio(current?.href?.toString()) ?: store.loadedTailIndex(),
-            )
-
-            val (pseudoPublication, overlays) = store.sourcePublication.makeSyncAudiobook(store)
-            val cues = overlays?.sumOf { it?.items?.size ?: 0 } ?: 0
-            if (overlays == null || cues <= loadedCues) return false
-
-            val wasPlaying = audioNavigator?.playback?.value?.playWhenReady ?: false
-            val previousPublication = publication
-            val previousOverlays = mediaOverlays
-            publication = pseudoPublication
-            mediaOverlays = overlays
             val rebuilt =
                 rebuildNavigator(current) ?: run {
                     // Keep the overlay list aligned with the player the navigator actually has:
@@ -209,9 +212,7 @@ class SyncAudiobookNavigator internal constructor(
      * loadable remains, or every load failed - which reaches clients like the eager path does.
      */
     override suspend fun takeOverAtEdge(): Boolean {
-        val store = store ?: return false
-        if (isNavigatorDisposed) return false
-        if (extension == null && !store.hasLoadableBeyond(store.loadedTailIndex())) return false
+        if (store == null || isNavigatorDisposed) return false
         return extendWindow().await()
     }
 

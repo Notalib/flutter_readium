@@ -128,7 +128,7 @@ export class MediaOverlaySession implements StreamingTimeline {
 
   private constructor(
     private readonly publication: ReadiumPublication,
-    private readonly prefsJson: string,
+    private prefsJson: string,
     private readonly setNav: SetNav,
     private readonly onTextLocatorChanged: OnTextLocatorChanged | undefined,
     private readonly sourceLabel: string,
@@ -204,9 +204,14 @@ export class MediaOverlaySession implements StreamingTimeline {
     this.store?.cancelPending();
   }
 
-  /** Await the in-flight background lookahead (test seam). */
+  /** Keeps window rebuilds on the latest preferences after a runtime change. */
+  setPreferences(preferencesJson: string): void {
+    this.prefsJson = preferencesJson;
+  }
+
+  /** Await any in-flight window extension (test seam). Startup no longer prefetched. */
   settle(): Promise<void> {
-    return this.store?.settle() ?? Promise.resolve();
+    return this.awaitIdle();
   }
 
   // -------------------------------------------------------------------------
@@ -247,14 +252,24 @@ export class MediaOverlaySession implements StreamingTimeline {
       if (this.items.length > before && this.nav) return true;
     }
     const store = this.store;
-    const roIndex =
+    // Load segments past the playhead one at a time, advancing past slots at the
+    // failure cap, until one grows the live window. The K-ahead lookahead budget
+    // can stop on exhausted slots; a healthy segment beyond them must still
+    // extend the window before an honest end is conceded (ADR 0003 "honest end").
+    let playhead =
       store.roIndexForAudio(this.nav?.currentLocator.href) ?? store.loadedTailIndex();
-    if (store.nextLoadableSegment(roIndex + 1) === undefined) {
-      return false; // nothing left to load: honest end
+    let next = store.nextLoadableSegment(playhead + 1);
+    while (next !== undefined) {
+      await store.loadSegment(next);
+      await this.extend();
+      if (this.items.length > before) break;
+      if (this.disposed || !this.nav) return false;
+      // Advance only past a settled slot; a within-cap failure stays put and is
+      // retried next pass (mirrors fillAhead), so one flaky read can't skip it.
+      if (store.isSettled(next)) playhead = next;
+      next = store.nextLoadableSegment(playhead + 1);
     }
-    await store.fillAhead(roIndex);
-    await this.extend();
-    return !this.disposed && !!this.nav && this.items.length > before;
+    return this.items.length > before && !this.disposed && !!this.nav;
   }
 
   // -------------------------------------------------------------------------
@@ -325,14 +340,16 @@ export class MediaOverlaySession implements StreamingTimeline {
   private maybeExtendFrom(nav: AudioNavigator): void {
     const store = this.store;
     if (!store || this.disposed || this.rebuild || this.lookaheadQueued || !nav.isPlaying) return;
-    const tail = store.loadedTailIndex();
-    if (store.nextLoadableSegment(tail + 1) === undefined) return;
+    // Guard and budget both from the PLAYHEAD's segment: after a backward seek the
+    // loaded tail sits ahead, and a tail-based check would disable lookahead here
+    // while fillAhead (below) still fills from the playhead.
+    const roIndex =
+      store.roIndexForAudio(nav.currentLocator.href) ?? store.loadedTailIndex();
+    if (store.nextLoadableSegment(roIndex + 1) === undefined) return;
     const duration = nav.duration;
     if (!duration || duration <= 0) return;
     if (duration - nav.currentTime > LOOKAHEAD_MARGIN_S) return;
     this.lookaheadQueued = true;
-    const roIndex =
-      store.roIndexForAudio(nav.currentLocator.href) ?? tail;
     void (async () => {
       try {
         await store.fillAhead(roIndex);
@@ -380,10 +397,30 @@ export class MediaOverlaySession implements StreamingTimeline {
   private async _resolveAndEnrich(items: SyncNarrationItem[]): Promise<BuiltNavigatorParts> {
     const audioReadingOrder = _buildAudioReadingOrder(items, this.publication);
     const resolvedItems = _resolveItemHrefs(items, audioReadingOrder);
+    // UncuedTocTargets corrects tocHref/tocTitle in place, but the store hands
+    // back the uncorrected parse each rebuild and its per-resource fill cache
+    // never re-runs, so carry the corrections onto the fresh copies.
+    // Cue identity: textId repeats across documents (p1 in each), so scope by href.
+    const cueKey = (item: SyncNarrationItem) =>
+      `${item.textHref}#${item.textId}#${item.audioStart ?? ""}`;
+    const corrected = new Map<string, SyncNarrationItem>();
+    for (const item of this.items) {
+      if (item.tocHref) corrected.set(cueKey(item), item);
+    }
     // Publish into the live array first: UncuedTocTargets is constructed with
     // `this.items`, so its cue lookups see window extensions without rebuild.
+
     this.items.length = 0;
     this.items.push(...resolvedItems);
+    if (corrected.size > 0) {
+      for (const item of this.items) {
+        const saved = corrected.get(cueKey(item));
+        if (saved) {
+          item.tocHref = saved.tocHref;
+          item.tocTitle = saved.tocTitle;
+        }
+      }
+    }
     // One UncuedTocTargets per session (both sources — Guided Navigation gets
     // the same XHTML owner correction, only the anchor seek policy differs):
     // its XHTML/owner caches are resource-keyed, so re-running prepareOwners()
@@ -412,8 +449,9 @@ export class MediaOverlaySession implements StreamingTimeline {
       this.playbackWasActive = nav.isPlaying;
       if (this.rebuild && nav !== this.nav) {
         // Mid window-extension: the outgoing navigator's trailing events must
-        // not emit cues mapped from the new merged list.
-        return { stateLocator: navLocator };
+        // not emit cues mapped from the new merged list. Suppress the state
+        // event; the rebuilt navigator re-reports the position.
+        return {};
       }
       this.maybeExtendFrom(nav);
       const resolvedTime = getTime(navLocator.locations) ?? nav.currentTime;
@@ -439,7 +477,7 @@ export class MediaOverlaySession implements StreamingTimeline {
           publicTextLocator: shouldEmitPublicTextLocator ? publicTextLocator : undefined,
         };
       }
-      return { stateLocator: navLocator };
+      return {};
     };
 
     // Wrap the caller's callback to enrich it with the cue duration.

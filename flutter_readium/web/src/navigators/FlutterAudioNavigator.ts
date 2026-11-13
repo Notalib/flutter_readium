@@ -247,7 +247,11 @@ export type AudioLocatorMapper = (
   nav: AudioNavigator,
   audioLocator: Locator
 ) => {
-  stateLocator: Locator;
+  /**
+   * Emitted as `currentLocator`; omitted to suppress the state event entirely
+   * (mid-rebuild ticks, audio locators with no matching cue).
+   */
+  stateLocator?: Locator;
   /**
    * High-fidelity text locator for internal sync callbacks
    * (e.g. comic panel auto-pan on Guided Navigation cues).
@@ -478,17 +482,21 @@ function _emitState(
     // keys on the audio reading order — passing the text-href stateLocator would
     // never match and yield `undefined`, leaving totalProgression null on the
     // emitted currentLocator. The raw `locator` still carries the audio href + time.
-    const enrichedStateLocator = withTotalProgression(
-      stateLocator,
-      computeTotalProgression(locator)
-    );
-    const totalProgressDuration = makeTotalProgressDurationMs(
-      enrichedStateLocator,
-      publicationTotalDurationMs
-    );
-    window.updateTimebasedPlayerState?.(
-      buildStatePayload(state, nav, enrichedStateLocator, totalProgressDuration, publicationTotalDurationMs)
-    );
+    // A mapper may omit `stateLocator` to suppress the emission (mid-rebuild or
+    // unmapped ticks); the text-locator callbacks below stay independent.
+    if (stateLocator) {
+      const enrichedStateLocator = withTotalProgression(
+        stateLocator,
+        computeTotalProgression(locator)
+      );
+      const totalProgressDuration = makeTotalProgressDurationMs(
+        enrichedStateLocator,
+        publicationTotalDurationMs
+      );
+      window.updateTimebasedPlayerState?.(
+        buildStatePayload(state, nav, enrichedStateLocator, totalProgressDuration, publicationTotalDurationMs)
+      );
+    }
     const emittedPublicLocator = publicTextLocator ?? textLocator;
     if (emittedPublicLocator) {
       // Use serialize() so otherLocations Map entries (e.g. cssSelector) reach Dart.
@@ -947,7 +955,10 @@ export class FlutterAudioNavigator {
           publication,
           position,
           prefsJson,
-          onNav,
+          // Media Overlay: install through the session's hook too, or session.nav
+          // keeps pointing at the failed player and the next extension tears down
+          // the wrong navigator. Plain audiobooks have no session to update.
+          locatorMapper ? (n) => { setNav(n); onNav(n); } : onNav,
           locatorMapper,
           onTextLocatorChanged,
           pollIntervalOverrideMs,

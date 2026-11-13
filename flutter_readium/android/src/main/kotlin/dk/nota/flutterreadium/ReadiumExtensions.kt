@@ -590,8 +590,8 @@ suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMedia
 }
 
 /**
- * Streaming variant of [makeSyncAudiobook]: builds the pseudo audiobook from the overlays
- * [store] has loaded so far (the sliding window) instead of parsing every alternate.
+ * Lazy-loading variant of [makeSyncAudiobook]: builds the pseudo audiobook from the overlays
+ * [store] has loaded so far instead of parsing every alternate.
  * ToC ownership is re-derived per window. Returns null overlays when the window holds no
  * cues, so callers fall back to the eager full parse.
  */

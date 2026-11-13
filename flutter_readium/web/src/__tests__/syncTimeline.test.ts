@@ -11,6 +11,7 @@ import { SyncTimelineStore } from "../mediaoverlay/syncTimeline";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { FlutterAudioNavigator } from "../navigators/FlutterAudioNavigator";
 import { initializeMediaOverlayNavigator } from "../navigators/FlutterMediaOverlayNavigator";
+import { UncuedTocTargets } from "../mediaoverlay/uncuedTocTargets";
 
 const BASE = "https://example.test/book/";
 
@@ -95,20 +96,19 @@ describe("SyncTimelineStore", () => {
     expect(items.map((i) => i.position)).toEqual([0, 0, 2, 2]);
   });
 
-  it("prepareWindow loads the initial segment and looks ahead K segments", async () => {
+  it("prepareWindow loads only the initial segment", async () => {
     const { publication, fetches } = publicationWithChapters(4);
     const store = SyncTimelineStore.forPublication(publication, "syncNarration")!;
     const items = await store.prepareWindow(0);
-    // prepareWindow returns the initial segment immediately...
+    // Startup prefetch was removed: one fetch, playlist == store.
+    expect(fetches).toEqual(["chap1.json"]);
     expect(items).toHaveLength(2);
-    await store.settle();
-    // ...while the lookahead (K=3) fills the rest: all 4 segments = 8 cues.
-    expect(store.items()).toHaveLength(8);
-    // Idempotent: repeated calls from the same playhead fetch nothing more.
+    // fillAhead then fills the K-segment budget once; a repeat fetches nothing.
     fetches.length = 0;
     await store.fillAhead(0);
+    expect(fetches).toEqual(["chap2.json", "chap3.json", "chap4.json"]);
     await store.fillAhead(0);
-    expect(fetches).toHaveLength(0);
+    expect(fetches).toHaveLength(3);
   });
 
   it("ensureSegmentForText fetches only the target segment", async () => {
@@ -182,7 +182,7 @@ describe("MediaOverlaySession lazy window", () => {
       }) as never
     );
 
-    // 10 chapters; the window (K=3 ahead) can only cover 4 at startup.
+    // 10 chapters; startup loads only the covering segment (no prefetch).
     const { publication, fetches } = publicationWithChapters(10);
     const setNav = jest.fn();
     const session = await initializeMediaOverlayNavigator(
@@ -192,16 +192,15 @@ describe("MediaOverlaySession lazy window", () => {
       setNav
     );
     expect(session).toBeDefined();
-    await session!.settle();
-    expect([...fetches].sort()).toEqual([
-      "chap1.json", "chap2.json", "chap3.json", "chap4.json",
-    ]);
+    expect(fetches).toEqual(["chap1.json"]);
     expect(created).toHaveLength(1);
 
-    // Navigate to chapter 10 — deep in the lazy part of the book.
+    // Navigate to chapter 10 — deep in the lazy part of the book. The target
+    // segment is fetched, plus the lookahead budget ahead of the playhead
+    // (mirrors iOS `ensureWindowForSeek`).
     fetches.length = 0;
     await session!.ensureWindowForText("chap10.xhtml");
-    expect(fetches).toEqual(["chap10.json"]); // only the target segment fetched
+    expect(fetches).toEqual(["chap10.json", "chap2.json", "chap3.json", "chap4.json"]);
 
     // The live setNav item array (what ReadiumReader holds as _syncItems)
     // gained the chapter-10 cues in place.
@@ -211,6 +210,47 @@ describe("MediaOverlaySession lazy window", () => {
     // current audio locator.
     expect(created.length).toBe(2);
     expect(created[1][0]?.href).toBe(`${BASE}chap1.mp3`);
+  });
+
+  it("carries ToC owner corrections across a window-extension rebuild", async () => {
+    const create = jest.spyOn(FlutterAudioNavigator, "create");
+    const fakeNav = {
+      currentLocator: new Locator({ href: `${BASE}chap1.mp3`, type: "audio/mpeg" }),
+      isPlaying: false, currentTime: 0, duration: 20,
+      stop: jest.fn(), destroy: jest.fn(), play: jest.fn(),
+    };
+    create.mockImplementation(
+      (async (_p: unknown, _i: unknown, _pr: unknown, setNav: unknown) => {
+        (setNav as (n: unknown) => void)(fakeNav);
+      }) as never
+    );
+    // Correct chap1's cue owner exactly once, like the resource-keyed `filled`
+    // cache does: a later prepareOwners() is a no-op, so only the rebuild's
+    // carry-over can preserve it on the fresh copies.
+    let corrected = false;
+    const owners = jest
+      .spyOn(UncuedTocTargets.prototype, "prepareOwners")
+      .mockImplementation(async function (this: UncuedTocTargets) {
+        if (corrected) return;
+        corrected = true;
+        // Mutate the live cue list in place (what assignUncuedTocOwners does).
+        // `items` is the session-private array UncuedTocTargets holds by reference.
+        const live = this as unknown as { items: { textId: string; tocHref?: string }[] };
+        const cue = live.items.find((i) => i.textId === "p1");
+        if (cue) cue.tocHref = "chap1.xhtml#owner";
+      });
+
+    const { publication } = publicationWithChapters(4);
+    const setNav = jest.fn();
+    const session = await initializeMediaOverlayNavigator(
+      publication, new Locator({ href: "chap1.xhtml", type: "application/xhtml+xml" }), "{}", setNav
+    );
+    // Extend the live window (rebuild) — fresh uncorrected copies replace items.
+    await session!.ensureWindowForText("chap4.xhtml");
+    owners.mockRestore();
+
+    const items = setNav.mock.calls.at(-1)![1] as { textId: string; tocHref?: string }[];
+    expect(items.find((i) => i.textId === "p1")?.tocHref).toBe("chap1.xhtml#owner");
   });
 
   it("falls back to the eager parse when the store finds no segments", async () => {
@@ -236,11 +276,11 @@ describe("MediaOverlaySession lazy window", () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  it("takeOverAtEdge extends the window instead of ending while segments remain", async () => {
+  it("takeOverAtEdge loads the next segment instead of ending while one is loadable", async () => {
     const create = jest.spyOn(FlutterAudioNavigator, "create");
+    // Playhead on chap1 — the only segment startup loaded.
     const fakeNav = {
-      // Playhead at the tail of the loaded window (chap4 of 10) — the real edge.
-      currentLocator: new Locator({ href: `${BASE}chap4.mp3`, type: "audio/mpeg" }),
+      currentLocator: new Locator({ href: `${BASE}chap1.mp3`, type: "audio/mpeg" }),
       isPlaying: false, currentTime: 0, duration: 20,
       stop: jest.fn(), destroy: jest.fn(), play: jest.fn(),
     };
@@ -251,20 +291,18 @@ describe("MediaOverlaySession lazy window", () => {
         (setNav as (n: unknown) => void)(fakeNav);
       }) as never
     );
-    // 10 chapters; startup window covers only the first 4.
-    const { publication } = publicationWithChapters(10);
+    const { publication } = publicationWithChapters(2);
     const session = await initializeMediaOverlayNavigator(
       publication,
       new Locator({ href: "chap1.xhtml", type: "application/xhtml+xml" }),
       "{}",
       jest.fn()
     );
-    await session!.settle();
-    // The edge of the *playlist* is chap4; take-over must load beyond it and
-    // resume at the current audio locator.
+    // chap2 was never fetched (no startup prefetch): the edge must load it and
+    // resume at the current audio locator, not concede an end.
     expect(await session!.takeOverAtEdge()).toBe(true);
     expect(created).toHaveLength(2);
-    expect(created[1][0]?.href).toBe(`${BASE}chap4.mp3`);
+    expect(created[1][0]?.href).toBe(`${BASE}chap1.mp3`);
   });
 
   it("takeOverAtEdge concedes an honest end once the timeline is exhausted", async () => {
@@ -279,15 +317,14 @@ describe("MediaOverlaySession lazy window", () => {
         (setNav as (n: unknown) => void)(fakeNav);
       }) as never
     );
-    // 2-chapter book: startup window covers everything.
-    const { publication } = publicationWithChapters(2);
+    // 1-chapter book: nothing loadable past the playhead.
+    const { publication } = publicationWithChapters(1);
     const session = await initializeMediaOverlayNavigator(
       publication,
       new Locator({ href: "chap1.xhtml", type: "application/xhtml+xml" }),
       "{}",
       jest.fn()
     );
-    await session!.settle();
     expect(await session!.takeOverAtEdge()).toBe(false);
   });
 });

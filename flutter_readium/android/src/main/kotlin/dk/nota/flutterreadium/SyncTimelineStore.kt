@@ -135,8 +135,10 @@ internal class SyncTimelineStore private constructor(
                     (failures[link.href.toString()] ?: 0) < MAX_SEGMENT_FAILURES
             }?.key
 
-    /** True when a segment beyond [tail] could still be fetched. */
-    fun hasLoadableBeyond(tail: Int): Boolean = nextLoadableSegment(tail + 1) != null
+    /** True when the segment is loaded or has exhausted its failure cap. */
+    fun isSettled(roIndex: Int): Boolean =
+        loaded.containsKey(roIndex) ||
+            (failures[resolvedSegments[roIndex]?.href.toString()] ?: 0) >= MAX_SEGMENT_FAILURES
 
     /** Index of the segment covering [textHref], if any RO item matches. */
     fun roIndexForText(textHref: String?): Int? {

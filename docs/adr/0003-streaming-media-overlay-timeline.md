@@ -13,7 +13,7 @@ The upstream audio navigators (swift-toolkit `AVPlayer`, kotlin-toolkit `ExoPlay
 
 ## Decision
 
-Resolve the segment layout from the manifest only, and load narration JSON lazily in a cumulative forward window: the lookahead grows ahead of the playhead, and loaded segments are never evicted behind it.
+Resolve the segment layout from the manifest only, and load narration JSON lazily ahead of the playhead: the loaded set grows forward, and loaded segments are never evicted behind it.
 
 - **Start from one fetch.** At enable, load only the segment covering the start position and build the audio manifest from that window. The segment layout (hrefs, durations, order) comes from the publication manifest, not from the narration JSONs, so the window can be planned without fetching bodies.
 - **Window:** keep the next `LOOKAHEAD_SEGMENTS = 3` segment slots ahead of the playhead loaded, extending when less than `LOOKAHEAD_MARGIN_SECONDS = 60` remain on the last loaded track. The budget is position-bound: a transiently failed slot is retried without consuming budget, and only a segment that exhausts its per-segment failure cap (`MAX_SEGMENT_FAILURES = 2`) counts as settled and is treated as not loadable.
@@ -26,7 +26,7 @@ Eager whole-book loading stays on the path whenever the store is unavailable or 
 
 ## Consequences and limits
 
-- **The window is cumulative, not sliding.** Every segment ever loaded stays resident (cues and audio tracks), so earlier chapters remain mappable and book-wide progression stays computable without declared durations; memory grows toward the whole book over a long listen. In media-overlay mode `currentLocator` is contractually a *text* locator regardless, so an audio locator that maps to no loaded cue — a stale tick from a torn-down navigator — must never leak as `currentLocator`; the platforms emit a null locator there and the rebuilt navigator re-reports the position.
+- **Lazy loading never evicts.** Every segment ever loaded stays resident (cues and audio tracks), so earlier chapters remain mappable and book-wide progression stays computable without declared durations; memory grows toward the whole book over a long listen. In media-overlay mode `currentLocator` is contractually a *text* locator regardless, so an audio locator that maps to no loaded cue — a stale tick from a torn-down navigator — must never leak as `currentLocator`; the platforms emit a null locator there and the rebuilt navigator re-reports the position.
 - **Lookahead runs only while playing.** A paused tick must not trigger a rebuild: rebuilds resume at the old position and would race a paused seek. Reaching the loaded tail while paused is covered by the edge-takeover path, not by the lookahead.
 - **A rebuild is audible as a hiccup** on window extension. This is the accepted cost of single-fetch startup; it is bounded to one rebuild per newly-arrived track and only while playing.
 - The window/margin/failure constants are identical across the three platforms but are tuning values, not contract; they may diverge per platform if device evidence calls for it.

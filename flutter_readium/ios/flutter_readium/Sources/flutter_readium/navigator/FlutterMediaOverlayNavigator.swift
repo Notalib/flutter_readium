@@ -261,7 +261,10 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   /// seeks. The edge-takeover path covers a playhead that reaches the tail.
   private func maybeExtendWindow(at audioLocator: Locator) {
     guard let store, !windowBusy, !_disposed, playback.state == .playing else { return }
-    guard store.nextLoadableSegment(from: store.loadedTailIndex() + 1) != nil else { return }
+    // Guard from the PLAYHEAD's segment: after a seek-back the loaded tail sits ahead
+    // and a tail-based check would disable lookahead while fillAhead still fills from
+    // the playhead.
+    guard store.nextLoadableSegment(from: store.playheadSegmentIndex(audioHref: audioLocator.href.string) + 1) != nil else { return }
     // `playback` is the info published by the upstream time observer; reading
     // `playbackInfo` here would do a synchronous AVPlayer read on every tick.
     guard let duration = playback.duration, duration > 0 else { return }
@@ -361,12 +364,11 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     guard applyAudioWindow(extended) else { return }
     let target = takeover ? firstNewTrackLocator(loadedBefore: previous) ?? resumeAt : resumeAt
     Log.navigator.info("Extending media-overlay window to \(extended.count) overlay(s); rebuilding at \(target?.href.string ?? "(initial)")")
-    // `rebuildNavigator` resumes playback; a refresh while paused must stay paused.
-    let wasPlaying = _audioNavigator?.state == .playing || _audioNavigator?.state == .loading
-    await rebuildNavigator(at: target ?? resumeAt)
-    if !wasPlaying {
-      await pause()
-    }
+    // Rebuild from the play INTENT, not player state: at a just-ended edge the state is
+    // `.ended`/`.paused` while the user still wants playback, and a mid-tick race can
+    // read `.playing` from a pause that has not landed. A `plays: false` rebuild is
+    // positioned by go(to:) and stays paused.
+    await rebuildNavigator(at: target ?? resumeAt, plays: _playbackIntent)
   }
 
   /// True when the loaded overlays gained an audio file the old window lacked.
@@ -443,7 +445,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     /// Map audio Locator to a combined Text-based Locator, before submitting to listener.
     /// In media-overlay mode `currentLocator` is contractually a text locator; the base
     /// map falls back to the raw audio locator, which must never leak when the playhead
-    /// briefly sits on a track the slid window no longer contains (e.g. the old resume
+    /// briefly sits on a track the lazily loaded set no longer contains (e.g. the old resume
     /// position right after a paused cross-chapter jump rebuilds the navigator).
     if let locator = location,
        let mediaOverlayItem = mediaOverlayItemFromAudioLocator(locator),

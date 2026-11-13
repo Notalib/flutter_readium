@@ -658,7 +658,9 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
         try? await Task.sleep(nanoseconds: UInt64(self._recoveryPolicy.delay(forAttempt: attempt) * 1_000_000_000))
         if Task.isCancelled { return }
 
-        guard await self.rebuildNavigator(at: resumeLocator) else {
+        // Force the play: the loop proves recovery by observing advancement, and a pause
+        // during the backoff must not turn a transient stall into a terminal failure.
+        guard await self.rebuildNavigator(at: resumeLocator, plays: true) else {
           continue
         }
 
@@ -724,8 +726,18 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   /// Tears down and rebuilds the upstream navigator. Required for recovery:
   /// upstream never replaces a failed AVPlayerItem for the same resource index.
+  ///
+  /// Upstream `play()` starts at `initialLocation` and reaches `playImmediately`
+  /// asynchronously, so a play-then-pause sequence cannot resume a paused refresh:
+  /// the pause lands before playback starts and the queued start wins. A rebuild
+  /// that must stay paused therefore never calls `play()`.
   @MainActor
   internal func rebuildNavigator(at locator: Locator?) async -> Bool {
+    await rebuildNavigator(at: locator, plays: _playbackIntent)
+  }
+
+  @MainActor
+  internal func rebuildNavigator(at locator: Locator?, plays: Bool) async -> Bool {
     guard !_disposed else {
       return false
     }
@@ -737,7 +749,16 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       return false
     }
     _audioNavigator = navigator
-    navigator.play()
+    if plays {
+      navigator.play()
+      return true
+    }
+    // Paused refresh: upstream never positions a fresh navigator without play(), so
+    // currentItem/currentLocator stay nil until the next play. Land the target with a
+    // bounded go(to:) - which also re-reports the paused position to listeners.
+    if let target = locator ?? initialLocator {
+      _ = await goBounded(to: target)
+    }
     return true
   }
 

@@ -1630,6 +1630,7 @@ class _ReadiumReader {
       !preferencesJson || preferencesJson === "null" ? "{}" : preferencesJson;
     this._activeAudioPreferencesJson = preferencesJsonString;
     applyAudioPreferences(this._audioNav, preferencesJsonString);
+    this._mediaOverlaySession?.setPreferences(preferencesJsonString);
   }
 }
 

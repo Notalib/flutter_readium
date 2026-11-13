@@ -165,29 +165,31 @@ describe("MediaOverlaySession edge takeover honesty", () => {
     });
   }
 
-  it("concedes ended when the rebuild it joined failed and nothing more can load", async () => {
+  it("concedes ended when the joined rebuild failed and no successor can load", async () => {
     mockCreateAlways(`${BASE}chap1.mp3`);
-    const { publication } = publicationWithChapters(2);
+    // chap2 permanently fails: the only successor is unreachable.
+    const { publication } = publicationWithChapters(2, {
+      failOnce: (href) => href === "chap2.json",
+    });
     const session = await initializeMediaOverlayNavigator(
       publication, chapLocator(1), "{}", jest.fn()
     );
-    await session!.settle();
 
     injectFailedRebuild(session!);
-    // A 2-chapter book is fully loaded: the failed rebuild must end honestly.
+    // Startup loaded only chap1; the edge tries chap2 (exhausted) then ends
+    // honestly instead of wedging.
     expect(await session!.takeOverAtEdge()).toBe(false);
   });
 
-  it("takes over when the joined rebuild failed but more can still load", async () => {
+  it("takes over when the joined rebuild failed but a successor can load", async () => {
     mockCreateAlways(`${BASE}chap4.mp3`);
     const { publication } = publicationWithChapters(10);
     const session = await initializeMediaOverlayNavigator(
       publication, chapLocator(1), "{}", jest.fn()
     );
-    await session!.settle();
 
     injectFailedRebuild(session!);
-    // chap5.. are still loadable: the edge is a takeover, not an end.
+    // chap2.. are still loadable: the edge is a takeover, not an end.
     expect(await session!.takeOverAtEdge()).toBe(true);
   });
 });
