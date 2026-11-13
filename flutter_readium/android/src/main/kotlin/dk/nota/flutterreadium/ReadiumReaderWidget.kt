@@ -42,6 +42,38 @@ internal const val VIEW_TYPE_CHANNEL_NAME = "dk.nota.flutter_readium/ReadiumRead
 // is emitted instead. Mirrors `locatorEnrichmentTimeoutSeconds` on iOS.
 private const val LOCATOR_ENRICHMENT_TIMEOUT_MS = 5000L
 
+/**
+ * Root view of the reader. It decides whether screen readers can reach the publication content.
+ *
+ * By default the content is hidden, so a screen reader user is not trapped in a long text
+ * (NOTA-9828). The `allowScreenReaderNavigation` creation param exposes it, which a braille
+ * display needs.
+ *
+ * Flutter links this view into its accessibility tree and sets `importantForAccessibility` to AUTO
+ * whenever it does so. A plain container is not important under AUTO, and TalkBack cannot follow a
+ * link to an unimportant view, so swipe navigation would skip the content. The setter therefore
+ * stores YES in place of AUTO when exposed, and always stores NO_HIDE_DESCENDANTS when hidden.
+ * Upstream issue: https://github.com/flutter/flutter/issues/196560 (fix: flutter/flutter#196567).
+ */
+internal class ReaderLayout(
+    context: Context,
+    attrs: AttributeSet?,
+    private val exposeToAccessibility: Boolean,
+) : LinearLayout(context, attrs) {
+    init {
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_AUTO
+    }
+
+    override fun setImportantForAccessibility(mode: Int) =
+        super.setImportantForAccessibility(
+            when {
+                !exposeToAccessibility -> IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+                mode == IMPORTANT_FOR_ACCESSIBILITY_AUTO -> IMPORTANT_FOR_ACCESSIBILITY_YES
+                else -> mode
+            },
+        )
+}
+
 @ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
 class ReadiumReaderWidget(
@@ -168,7 +200,7 @@ class ReadiumReaderWidget(
 
         PluginLog.d(TAG, "publication = $publication")
 
-        layout = LinearLayout(context, attrs)
+        layout = ReaderLayout(context, attrs, exposeToAccessibility = allowScreenReaderNavigation == true)
         layout.id = generateViewId()
         layout.setBackgroundColor(Color.TRANSPARENT)
         layout.setPadding(0, 0, 0, 0)
@@ -181,13 +213,6 @@ class ReadiumReaderWidget(
         ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Loading)
 
         hasSentReady = false
-
-        // By default reader contents are hidden from screen-readers, as not to trap them within it.
-        // This can be toggled back on via the 'allowScreenReaderNavigation' creation param.
-        // See issue: https://notalib.atlassian.net/browse/NOTA-9828
-        if (allowScreenReaderNavigation != true) {
-            layout.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-        }
 
         // Remove existing fragment if any (this is to avoid crashing on restore).
         // Cast as base Fragment so we strip either reader type cleanly.
