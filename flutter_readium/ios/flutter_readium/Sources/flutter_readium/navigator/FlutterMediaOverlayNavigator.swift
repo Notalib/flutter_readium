@@ -326,15 +326,31 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     queueLookahead()
   }
 
-  /// Background lookahead: fill the window ahead of the playhead, rebuild when
-  /// new audio tracks appeared.
+  /// Background lookahead: fill the window ahead of the playhead, publish when the
+  /// live cue list grew (new track or extra cues for listed tracks).
   @MainActor
   private func extendWindow() async {
     guard let store, !_disposed else { return }
     // Budget from the PLAYHEAD's segment, not the loaded tail: after a seek-back
     // the tail sits ahead and would starve the K budget down to zero.
-    await store.fillAhead(from: store.playheadSegmentIndex(audioHref: audioLocator?.href.string))
-    if hasNewAudioTrack(loadedBefore: mediaOverlays) {
+    let playhead = store.playheadSegmentIndex(audioHref: audioLocator?.href.string)
+    await store.fillAhead(from: playhead)
+    if pendingEdgeTakeover {
+      // The lookahead budget can stop on slots exhausted by failures; at a held
+      // `.ended` the scan must continue past them - one healthy segment beyond
+      // still has to extend the window before an honest end (ADR 0003).
+      var cursor = playhead
+      while !_disposed,
+            store.overlays().flatMap(\.items).count <= mediaOverlays.flatMap(\.items).count {
+        guard let next = store.nextLoadableSegment(from: cursor + 1) else { break }
+        await store.loadSegment(roIndex: next)
+        // Retry an unsettled slot in place (bounded: each pass counts a failure);
+        // advance only past a settled one.
+        if store.isSettled(next) { cursor = next }
+      }
+    }
+    if hasNewAudioTrack(loadedBefore: mediaOverlays)
+      || store.overlays().flatMap(\.items).count > mediaOverlays.flatMap(\.items).count {
       await applyWindowExtension(resumeAt: audioLocator)
       return
     }
