@@ -53,7 +53,7 @@ private const val LOCATOR_ENRICHMENT_TIMEOUT_MS = 5000L
  * whenever it does so. A plain container is not important under AUTO, and TalkBack cannot follow a
  * link to an unimportant view, so swipe navigation would skip the content. The setter therefore
  * stores YES in place of AUTO when exposed, and always stores NO_HIDE_DESCENDANTS when hidden.
- * Upstream issue: https://github.com/flutter/flutter/issues/196560.
+ * Upstream issue: https://github.com/flutter/flutter/issues/196560 (fix: flutter/flutter#196567).
  */
 internal class ReaderLayout(
     context: Context,

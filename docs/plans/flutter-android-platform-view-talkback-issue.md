@@ -1,6 +1,6 @@
 # Flutter engine issue draft: TalkBack skips platform views with a plain root
 
-Status: filed as [flutter/flutter#196560](https://github.com/flutter/flutter/issues/196560), with a minimal repro at [ddfreiling/flutter-platform-view-a11y-repro](https://github.com/ddfreiling/flutter-platform-view-a11y-repro). The filed issue supersedes the text below where they differ. Found while adding `ReadiumReaderWidget.allowScreenReaderNavigation`; the plugin works around it with `ReaderLayout` in `ReadiumReaderWidget.kt`. Remove the workaround when the engine fix has reached the minimum supported Flutter version.
+Status: filed as [flutter/flutter#196560](https://github.com/flutter/flutter/issues/196560), with the engine fix proposed in [flutter/flutter#196567](https://github.com/flutter/flutter/pull/196567) and a minimal repro at [ddfreiling/flutter-platform-view-a11y-repro](https://github.com/ddfreiling/flutter-platform-view-a11y-repro). The filed issue supersedes the text below where they differ. Found while adding `ReadiumReaderWidget.allowScreenReaderNavigation`; the plugin works around it with `ReaderLayout` in `ReadiumReaderWidget.kt`. Remove the workaround when the engine fix has reached the minimum supported Flutter version.
 
 ## Title
 
