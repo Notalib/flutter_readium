@@ -45,27 +45,33 @@ private const val LOCATOR_ENRICHMENT_TIMEOUT_MS = 5000L
 /**
  * Root view of the reader. It decides whether screen readers can reach the publication content.
  *
- * By default the content is hidden, so a screen reader user is not trapped in a long text. The
- * `allowScreenReaderNavigation` creation param exposes it, which a braille display needs.
+ * By default the content is hidden, so a screen reader user is not trapped in a long text
+ * (NOTA-9828). The `allowScreenReaderNavigation` creation param exposes it, which a braille
+ * display needs.
  *
  * Flutter links this view into its accessibility tree and sets `importantForAccessibility` to AUTO
  * whenever it does so. A plain container is not important under AUTO, and TalkBack cannot follow a
- * link to an unimportant view, so swipe navigation would skip the content. A value set on the view
- * would be overwritten the same way. Answering in the getters survives both.
+ * link to an unimportant view, so swipe navigation would skip the content. The setter therefore
+ * stores YES in place of AUTO when exposed, and always stores NO_HIDE_DESCENDANTS when hidden.
+ * Upstream issue draft: `docs/plans/flutter-android-platform-view-talkback-issue.md`.
  */
 internal class ReaderLayout(
     context: Context,
     attrs: AttributeSet?,
     private val exposeToAccessibility: Boolean,
 ) : LinearLayout(context, attrs) {
-    override fun getImportantForAccessibility(): Int {
-        if (!exposeToAccessibility) return IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-        val mode = super.getImportantForAccessibility()
-        return if (mode == IMPORTANT_FOR_ACCESSIBILITY_AUTO) IMPORTANT_FOR_ACCESSIBILITY_YES else mode
+    init {
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_AUTO
     }
 
-    // Older Android versions read the stored mode here instead of calling the getter above.
-    override fun isImportantForAccessibility(): Boolean = importantForAccessibility == IMPORTANT_FOR_ACCESSIBILITY_YES
+    override fun setImportantForAccessibility(mode: Int) =
+        super.setImportantForAccessibility(
+            when {
+                !exposeToAccessibility -> IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+                mode == IMPORTANT_FOR_ACCESSIBILITY_AUTO -> IMPORTANT_FOR_ACCESSIBILITY_YES
+                else -> mode
+            },
+        )
 }
 
 @ExperimentalCoroutinesApi

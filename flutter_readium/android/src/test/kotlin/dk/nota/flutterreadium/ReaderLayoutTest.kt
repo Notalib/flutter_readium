@@ -16,10 +16,16 @@ internal class ReaderLayoutTest {
     private fun layout(expose: Boolean) = ReaderLayout(RuntimeEnvironment.getApplication(), null, expose)
 
     @Test
+    fun exposedLayoutIsImportantFromCreation() {
+        assertEquals(View.IMPORTANT_FOR_ACCESSIBILITY_YES, layout(expose = true).importantForAccessibility)
+    }
+
+    @Test
     fun exposedLayoutStaysImportantWhenFlutterSetsAuto() {
         val layout = layout(expose = true)
         // Flutter's AccessibilityBridge does this each time it links the platform view.
         layout.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
+        assertEquals(View.IMPORTANT_FOR_ACCESSIBILITY_YES, layout.importantForAccessibility)
         assertTrue(layout.isImportantForAccessibility)
     }
 
@@ -33,6 +39,7 @@ internal class ReaderLayoutTest {
     @Test
     fun hiddenLayoutHidesDescendantsWhateverFlutterSets() {
         val layout = layout(expose = false)
+        assertEquals(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS, layout.importantForAccessibility)
         layout.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
         assertEquals(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS, layout.importantForAccessibility)
         assertFalse(layout.isImportantForAccessibility)
