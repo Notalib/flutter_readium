@@ -19,6 +19,7 @@ import { getTime, Link, Locator, LocatorLocations, LocatorText, Resource } from 
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { createLogger } from "../utils/ReadiumPluginLogger";
 import { linkTemplateContext, resolveLink } from "../utils/linkTemplate";
+import { mapWithConcurrency, SIDECAR_FETCH_CONCURRENCY } from "../utils/concurrency";
 
 const log = createLogger("SyncNarration");
 
@@ -105,34 +106,45 @@ export function detectSyncNarration(publication: ReadiumPublication): boolean {
 export async function parseSyncNarration(
   publication: ReadiumPublication
 ): Promise<SyncNarrationItem[]> {
-  const result: SyncNarrationItem[] = [];
   const toc = flattenToc(publication);
 
+  // Resolve every alternate link without fetching, then fetch/parse in parallel:
+  // sequential awaits made startup scale linearly with the chapter count.
+  const pending: { position: number; roLink: Link; narrationLink: Link }[] = [];
   for (let i = 0; i < publication.readingOrder.items.length; i++) {
-    const link = publication.readingOrder.items[i];
-    const narrationLink = _narrationAlternate(link);
+    const roLink = publication.readingOrder.items[i];
+    const narrationLink = _narrationAlternate(roLink);
     if (!narrationLink) continue;
-    const resolved = resolveLink(
-      narrationLink,
-      linkTemplateContext(link, narrationLink),
-      publication.baseURL
-    );
-    if (!resolved.ok) continue;
-
-    try {
-      const resource: Resource = publication.get(resolved.link);
-      const json = await resource.readAsJSON();
-      const items = _parseNarrationJson(json, i, link.duration, toc);
-      result.push(...items);
-    } catch (err) {
-      log.warn("Failed to fetch/parse alternate for", link.href, err);
-    }
+    pending.push({ position: i, roLink, narrationLink });
   }
 
-  return result.map((item) => ({
-    ...item,
-    tocTitle: toc.find((link) => link.href === item.tocHref)?.title,
-  }));
+  const perSegment = await mapWithConcurrency(
+    pending,
+    SIDECAR_FETCH_CONCURRENCY,
+    async ({ position, roLink, narrationLink }) => {
+      const resolved = resolveLink(
+        narrationLink,
+        linkTemplateContext(roLink, narrationLink),
+        publication.baseURL
+      );
+      if (!resolved.ok) return [];
+      try {
+        const resource: Resource = publication.get(resolved.link);
+        const json = await resource.readAsJSON();
+        return _parseNarrationJson(json, position, roLink.duration, toc);
+      } catch (err) {
+        log.warn("Failed to fetch/parse alternate for", roLink.href, err);
+        return [];
+      }
+    }
+  );
+
+  return perSegment
+    .flat()
+    .map((item) => ({
+      ...item,
+      tocTitle: toc.find((link) => link.href === item.tocHref)?.title,
+    }));
 }
 
 // ---------------------------------------------------------------------------
@@ -503,6 +515,10 @@ export function normalizeHref(href: string): string {
 export function isJsonObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+
+/** Exported for the streaming timeline store's per-segment parse reuse. */
+export const narrationAlternate = _narrationAlternate;
+export const parseNarrationDocument = _parseNarrationJson;
 
 // ---------------------------------------------------------------------------
 // Private helpers

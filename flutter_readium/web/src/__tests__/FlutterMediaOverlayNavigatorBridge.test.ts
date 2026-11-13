@@ -81,7 +81,7 @@ it("combined bridge locator retains assigned owner and cue selector", async () =
   await initializeMediaOverlayNavigator(publication(), undefined, "{}", () => {});
   const mapper = create.mock.calls[0][4]!;
   const audio = new Locator({href: "https://example.test/pub/audio/01.mp3", type: "audio/mpeg", locations: new LocatorLocations({fragments: ["t=2"], progression: .4, totalProgression: .4})});
-  const mapped = mapper({currentTime: 2} as never, audio).stateLocator.serialize();
+  const mapped = mapper({currentTime: 2} as never, audio).stateLocator!.serialize();
   expect(mapped.locations).toMatchObject({cssSelector: "#p1", tocHref: "chap.xhtml#section", position: 2, progression: .4, totalProgression: .4});
 });
 
@@ -107,7 +107,7 @@ it.each([
     expect(onText.mock.calls[0][0].locations.otherLocations.get("tocHref")).toBe(owner);
     const mapper = create.mock.calls[0][4]!;
     const audio = new Locator({href: "https://example.test/pub/audio/01.mp3", type: "audio/mpeg", locations: new LocatorLocations({fragments: ["t=16"]})});
-    const mapped = mapper({currentTime: 16} as never, audio).stateLocator;
+    const mapped = mapper({currentTime: 16} as never, audio).stateLocator!;
     expect(mapped.locations.otherLocations?.get("cssSelector")).toBe(`#${id}`);
     expect(mapped.locations.otherLocations?.get("tocHref")).toBe(owner);
     expect(mapped.href).toBe(_label === "Sync" ? "two.xhtml" : "one.xhtml");
@@ -148,12 +148,12 @@ it("emits the first cue without waiting for its owner and enriches subsequent ev
     const audio = new Locator({href: items[0].audioHref, type: "audio/mpeg",
       locations: new LocatorLocations({fragments: ["t=2"]})});
     const before = mapper({currentTime: 2} as never, audio);
-    expect(before.stateLocator.locations.otherLocations?.get("tocHref")).toBeUndefined();
+    expect(before.stateLocator!.locations.otherLocations?.get("tocHref")).toBeUndefined();
     expect(before.textLocator?.locations.otherLocations?.get("cssSelector")).toBe("#p1");
     release();
     await pending;
     const after = mapper({currentTime: 2} as never, audio);
-    expect(after.stateLocator.locations.otherLocations?.get("tocHref")).toBe("chap.xhtml#section");
+    expect(after.stateLocator!.locations.otherLocations?.get("tocHref")).toBe("chap.xhtml#section");
     expect(after.textLocator?.locations.otherLocations?.get("tocHref")).toBe("chap.xhtml#section");
   } finally {
     release();
@@ -199,7 +199,7 @@ it("guided source with both interfaces prepares owners without enabling Sync Nar
     const mapper = create.mock.calls[0][4]!;
     const audio = new Locator({href: "https://example.test/pub/audio/01.mp3", type: "audio/mpeg", locations: new LocatorLocations({fragments: ["t=12"]})});
     // Then: playback inside `p2` reports the corrected owner `s2`.
-    expect(mapper({currentTime: 12} as never, audio).stateLocator.locations.otherLocations?.get("tocHref")).toBe("chap.xhtml#s2");
+    expect(mapper({currentTime: 12} as never, audio).stateLocator!.locations.otherLocations?.get("tocHref")).toBe("chap.xhtml#s2");
     // Then: the initial `s2` locator keeps the guided policy (start of the audio), not the first cue of `s2`.
     expect(create.mock.calls[0][1]?.locations.fragments).toEqual(["t=0"]);
     const install = create.mock.calls[0][3];

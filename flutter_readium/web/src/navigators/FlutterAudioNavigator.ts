@@ -247,7 +247,11 @@ export type AudioLocatorMapper = (
   nav: AudioNavigator,
   audioLocator: Locator
 ) => {
-  stateLocator: Locator;
+  /**
+   * Emitted as `currentLocator`; omitted to suppress the state event entirely
+   * (mid-rebuild ticks, audio locators with no matching cue).
+   */
+  stateLocator?: Locator;
   /**
    * High-fidelity text locator for internal sync callbacks
    * (e.g. comic panel auto-pan on Guided Navigation cues).
@@ -259,6 +263,23 @@ export type AudioLocatorMapper = (
    */
   publicTextLocator?: Locator;
 };
+
+/**
+ * Live timeline hooks for streaming Media Overlay sessions, where the
+ * synthetic publication only contains the loaded window of audio tracks.
+ */
+export interface StreamingTimeline {
+  /** Publication-wide total duration (ms), stable as the window extends. */
+  totalDurationMs(): number | undefined;
+  /** Book-wide `totalProgression` for an audio locator (window-relative otherwise). */
+  locatorProgression(audioLocator: Locator): number | undefined;
+  /**
+   * Consulted at the end of the last known track instead of emitting "ended".
+   * Await the pending window extension; resolve true when playback will
+   * continue (extension landed), false for an honest end (loads exhausted).
+   */
+  takeOverAtEdge(): Promise<boolean>;
+}
 
 /**
  * Narrow structural view of the parts of `AudioNavigator` that
@@ -461,17 +482,21 @@ function _emitState(
     // keys on the audio reading order — passing the text-href stateLocator would
     // never match and yield `undefined`, leaving totalProgression null on the
     // emitted currentLocator. The raw `locator` still carries the audio href + time.
-    const enrichedStateLocator = withTotalProgression(
-      stateLocator,
-      computeTotalProgression(locator)
-    );
-    const totalProgressDuration = makeTotalProgressDurationMs(
-      enrichedStateLocator,
-      publicationTotalDurationMs
-    );
-    window.updateTimebasedPlayerState?.(
-      buildStatePayload(state, nav, enrichedStateLocator, totalProgressDuration, publicationTotalDurationMs)
-    );
+    // A mapper may omit `stateLocator` to suppress the emission (mid-rebuild or
+    // unmapped ticks); the text-locator callbacks below stay independent.
+    if (stateLocator) {
+      const enrichedStateLocator = withTotalProgression(
+        stateLocator,
+        computeTotalProgression(locator)
+      );
+      const totalProgressDuration = makeTotalProgressDurationMs(
+        enrichedStateLocator,
+        publicationTotalDurationMs
+      );
+      window.updateTimebasedPlayerState?.(
+        buildStatePayload(state, nav, enrichedStateLocator, totalProgressDuration, publicationTotalDurationMs)
+      );
+    }
     const emittedPublicLocator = publicTextLocator ?? textLocator;
     if (emittedPublicLocator) {
       // Use serialize() so otherLocations Map entries (e.g. cssSelector) reach Dart.
@@ -586,7 +611,8 @@ async function rebuildAndVerifyPlayback(
   recoveryController: AudioStreamRecoveryController,
   onNavReplaced: (nav: AudioNavigator) => void,
   connectionTimeoutMs: number,
-  isDisposed: () => boolean
+  isDisposed: () => boolean,
+  streaming: StreamingTimeline | undefined
 ): Promise<boolean> {
   if (isDisposed()) return false;
   const lastPosition = getLastLocator();
@@ -620,7 +646,8 @@ async function rebuildAndVerifyPlayback(
         pollIntervalOverrideMs,
         bridge,
         false,
-        recoveryController
+        recoveryController,
+        streaming
       ),
       connectionTimeoutMs,
       `Timed out rebuilding audio playback after ${connectionTimeoutMs / 1000}s`
@@ -737,7 +764,10 @@ export class FlutterAudioNavigator {
     /** Internal: when rebuilding during recovery, reuse the session's existing
      *  controller instead of constructing a new one — a fresh controller would
      *  silently replace `_recovery` and reset its attempt budget/latch. */
-    recoveryController?: AudioStreamRecoveryController
+    recoveryController?: AudioStreamRecoveryController,
+    /** Streaming Media Overlay session hooks: stable book-wide totals and the
+     *  window-extension takeover at the end of the last known track. */
+    streaming?: StreamingTimeline
   ): Promise<void> {
     const tracks = publication.readingOrder.items.length;
     log.info(
@@ -774,8 +804,13 @@ export class FlutterAudioNavigator {
       },
     };
 
-    const computeTotalProgression = makeAudioTotalProgressionFn(publication);
-    const publicationTotalDurationMs = makePublicationTotalDurationMs(publication);
+    // Streaming sessions keep totals stable across window extensions via the store
+    // (the synthetic publication only carries the loaded window of tracks).
+    const computeTotalProgression = streaming
+      ? (locator: Locator) => streaming.locatorProgression(locator)
+      : makeAudioTotalProgressionFn(publication);
+    const publicationTotalDurationMs =
+      streaming?.totalDurationMs() ?? makePublicationTotalDurationMs(publication);
 
     // Build the publication timeline so we can extract the current ToC chapter
     // href from `timelineItemChanged` events. Only used on the plain audiobook
@@ -908,7 +943,8 @@ export class FlutterAudioNavigator {
               recovery!,
               (n) => { nav = n; },
               recoveryPolicy.connectionTimeoutSeconds * 1000,
-              isDisposed
+              isDisposed,
+              streaming
             ),
         },
         getCurrentAudioRecoveryPolicy()
@@ -919,11 +955,17 @@ export class FlutterAudioNavigator {
           publication,
           position,
           prefsJson,
-          onNav,
+          // Media Overlay: install through the session's hook too, or session.nav
+          // keeps pointing at the failed player and the next extension tears down
+          // the wrong navigator. Plain audiobooks have no session to update.
+          locatorMapper ? (n) => { setNav(n); onNav(n); } : onNav,
           locatorMapper,
           onTextLocatorChanged,
           pollIntervalOverrideMs,
-          bridge
+          bridge,
+          undefined,
+          undefined,
+          streaming
         );
       FlutterAudioNavigator._playbackIntentHandler = (requested) => {
         playbackRequested = requested;
@@ -1012,6 +1054,21 @@ export class FlutterAudioNavigator {
           // Intermediate track-ends are followed by auto-advance; emitting "ended"
           // would cause Dart-side to close the player prematurely.
           if (!nav.canGoForward) {
+            if (streaming) {
+              // Streaming window edge: the playlist only covers the loaded
+              // window, so "last track" may mean "not fetched yet". Let the
+              // lookahead extend + rebuild before deciding; honest end only
+              // when it can't.
+              void streaming.takeOverAtEdge().then((tookOver) => {
+                if (tookOver || isDisposed() || !nav) return;
+                log.info("Publication ended (last track, timeline exhausted)");
+                playbackRequested = false;
+                setResuming(nav, false);
+                resetResourceLoadingWatchdog();
+                emit("ended", locator, false);
+              });
+              return;
+            }
             log.info("Publication ended (last track)");
             playbackRequested = false;
             setResuming(nav, false);

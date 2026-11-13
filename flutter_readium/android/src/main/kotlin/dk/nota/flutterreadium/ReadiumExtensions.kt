@@ -48,7 +48,7 @@ import org.readium.r2.navigator.preferences.Color as ReadiumColor
 
 private const val TAG = "ReadiumExtensions"
 
-private fun resolvedTemplateLink(
+internal fun resolvedTemplateLink(
     link: Link,
     parameters: Map<String, String>,
 ): Link? =
@@ -317,7 +317,7 @@ private val mediaOverlayFetchConcurrency =
  * inherit the last matched entry when they share the same text file.
  * Null overlay slots are passed through unchanged.
  */
-private fun Publication.enrichOverlaysWithToc(overlays: List<FlutterMediaOverlay?>): List<FlutterMediaOverlay?> {
+internal fun Publication.enrichOverlaysWithToc(overlays: List<FlutterMediaOverlay?>): List<FlutterMediaOverlay?> {
     val toc = tableOfContents.flattenChildren().map { it.href.toString() to it }
     var lastTocMatch: Pair<String, Link>? = null
 
@@ -412,7 +412,12 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
     return resolveTocBoundaries(parsed)
 }
 
-private suspend fun Publication.resolveTocBoundaries(overlays: List<FlutterMediaOverlay?>): List<FlutterMediaOverlay?> {
+/**
+ * Re-derives ToC ownership/titles for a batch of overlays. Runs per loaded
+ * [SyncTimelineStore] window as well as on the eager full parse, so its XHTML
+ * fetches scale with the window instead of the whole book.
+ */
+internal suspend fun Publication.resolveTocBoundaries(overlays: List<FlutterMediaOverlay?>): List<FlutterMediaOverlay?> {
     val toc = tableOfContents.flattenChildren()
     val items = overlays.flatMap { it?.items.orEmpty() }
     val trees = mutableMapOf<String, XhtmlIdTree>()
@@ -570,6 +575,39 @@ suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMedia
             getMediaOverlays()
         }
     if (mediaOverlays == null) return Pair(this, null)
+
+    val manifest =
+        Manifest(
+            context = context,
+            metadata = metadata.copy(conformsTo = setOf(Publication.Profile.AUDIOBOOK)),
+            resources = resources,
+            links = links,
+            readingOrder = mediaOverlays.toAudioReadingOrder(),
+        )
+
+    val pseudoPublication = Publication.Builder(manifest, container).build()
+    return Pair(pseudoPublication, mediaOverlays)
+}
+
+/**
+ * Lazy-loading variant of [makeSyncAudiobook]: builds the pseudo audiobook from the overlays
+ * [store] has loaded so far instead of parsing every alternate.
+ * ToC ownership is re-derived per window. Returns null overlays when the window holds no
+ * cues, so callers fall back to the eager full parse.
+ */
+@OptIn(InternalReadiumApi::class)
+internal suspend fun Publication.makeSyncAudiobook(store: SyncTimelineStore): Pair<Publication, List<FlutterMediaOverlay?>?> {
+    val mediaOverlays =
+        resolveTocBoundaries(
+            // Mirrors the eager parsers: only guided-navigation cues need the sliding-window ToC
+            // title/href pass; sync narration carries its own tocHref.
+            if (store.kind == SyncTimelineKind.GuidedNavigation) {
+                enrichOverlaysWithToc(store.windowOverlays())
+            } else {
+                store.windowOverlays()
+            },
+        )
+    if (mediaOverlays.isEmpty()) return Pair(this, null)
 
     val manifest =
         Manifest(

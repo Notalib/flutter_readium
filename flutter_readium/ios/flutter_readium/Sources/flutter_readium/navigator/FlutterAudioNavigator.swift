@@ -224,7 +224,12 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     _isNavigating = false
     // The guard suppressed the delegate's reports of where we landed, and a jump made while
     // paused gets no periodic tick to re-report them, so listeners are told here instead.
-    if navigated, let landed = audioLocator {
+    // Read the navigator's currentLocation, not the `audioLocator` property: the latter is
+    // updated only by `locationDidChange` (the periodic time observer), which does not fire
+    // while paused, so it can still hold the pre-jump locator here. `go(to:)` sets
+    // currentLocation to the target synchronously before returning true.
+    if navigated, let landed = navigator.currentLocation ?? audioLocator {
+      self.audioLocator = landed
       submitAudioLocatorReachedToListener(landed)
       submitTimebasedPlayerStateToListener(info: navigator.playbackInfo, location: landed)
     }
@@ -474,14 +479,34 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   /// equal to the resource duration.
   public func navigator(_ navigator: AudioNavigator, shouldPlayNextResource info: MediaPlaybackInfo) -> Bool {
     if !canGoForward {
-      Log.navigator.info("Resource \(info.resourceIndex) finished — no next resource, publication ended")
-      _playbackIntent = false
-      resetResourceLoadingWatchdog(resourceIndex: info.resourceIndex)
-      submitEndedStateToListener(info: info)
+      if takesOverTimelineEdge(at: info) {
+        // Streaming window: more segments are loadable, so this is not the end.
+        Log.navigator.info("Resource \(info.resourceIndex) finished — deferring ended while the timeline window extends")
+        // The stall watchdog must not fire while the next segment loads.
+        resetResourceLoadingWatchdog(resourceIndex: info.resourceIndex)
+        _endedResourceIndex = info.resourceIndex
+      } else {
+        Log.navigator.info("Resource \(info.resourceIndex) finished — no next resource, publication ended")
+        submitPublicationEnded(info: info)
+      }
     } else {
       Log.navigator.debug("Resource \(info.resourceIndex) finished, advancing to next resource")
     }
     return true
+  }
+
+  /// True when a subclass takes over the end-of-timeline edge: the last known
+  /// track finished but more cue segments are still loadable, so `.ended` must
+  /// wait for the window extension. Base audiobooks never take over.
+  @MainActor internal func takesOverTimelineEdge(at info: MediaPlaybackInfo) -> Bool {
+    false
+  }
+
+  /// Terminal end of publication: clear the play intent and report `.ended`.
+  @MainActor internal func submitPublicationEnded(info: MediaPlaybackInfo) {
+    _playbackIntent = false
+    resetResourceLoadingWatchdog(resourceIndex: info.resourceIndex)
+    submitEndedStateToListener(info: info)
   }
 
   public func navigator(_ navigator: any ReadiumNavigator.Navigator, presentError error: ReadiumNavigator.NavigatorError) {
@@ -633,7 +658,9 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
         try? await Task.sleep(nanoseconds: UInt64(self._recoveryPolicy.delay(forAttempt: attempt) * 1_000_000_000))
         if Task.isCancelled { return }
 
-        guard await self.rebuildNavigator(at: resumeLocator) else {
+        // Force the play: the loop proves recovery by observing advancement, and a pause
+        // during the backoff must not turn a transient stall into a terminal failure.
+        guard await self.rebuildNavigator(at: resumeLocator, plays: true) else {
           continue
         }
 
@@ -699,8 +726,18 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   /// Tears down and rebuilds the upstream navigator. Required for recovery:
   /// upstream never replaces a failed AVPlayerItem for the same resource index.
+  ///
+  /// Upstream `play()` starts at `initialLocation` and reaches `playImmediately`
+  /// asynchronously, so a play-then-pause sequence cannot resume a paused refresh:
+  /// the pause lands before playback starts and the queued start wins. A rebuild
+  /// that must stay paused therefore never calls `play()`.
   @MainActor
-  private func rebuildNavigator(at locator: Locator?) async -> Bool {
+  internal func rebuildNavigator(at locator: Locator?) async -> Bool {
+    await rebuildNavigator(at: locator, plays: _playbackIntent)
+  }
+
+  @MainActor
+  internal func rebuildNavigator(at locator: Locator?, plays: Bool) async -> Bool {
     guard !_disposed else {
       return false
     }
@@ -712,7 +749,16 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       return false
     }
     _audioNavigator = navigator
-    navigator.play()
+    if plays {
+      navigator.play()
+      return true
+    }
+    // Paused refresh: upstream never positions a fresh navigator without play(), so
+    // currentItem/currentLocator stay nil until the next play. Land the target with a
+    // bounded go(to:) - which also re-reports the paused position to listeners.
+    if let target = locator ?? initialLocator {
+      _ = await goBounded(to: target)
+    }
     return true
   }
 

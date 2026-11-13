@@ -21,6 +21,7 @@ import {
   resolveLink,
 } from "../utils/linkTemplate";
 import { createLogger } from "../utils/ReadiumPluginLogger";
+import { mapWithConcurrency, SIDECAR_FETCH_CONCURRENCY } from "../utils/concurrency";
 import {
   SyncNarrationItem,
   enrichItemsWithToc,
@@ -46,7 +47,7 @@ interface GuidedNavigationObject {
   children: GuidedNavigationObject[];
 }
 
-interface GuidedNavigationDocument {
+export interface GuidedNavigationDocument {
   guided: GuidedNavigationObject[];
 }
 
@@ -140,8 +141,11 @@ async function _parseReadingOrderAlternates(
   publication: ReadiumPublication
 ): Promise<SyncNarrationItem[]> {
   const result: SyncNarrationItem[] = [];
-  const seenHrefs = new Set<string>();
 
+  // Resolve + de-duplicate every alternate link without fetching, then fetch/parse
+  // in parallel: sequential awaits made startup scale linearly with the chapter count.
+  const pending: { roLink: Link; gnLink: Link }[] = [];
+  const seenHrefs = new Set<string>();
   for (let i = 0; i < publication.readingOrder.items.length; i++) {
     const roLink = publication.readingOrder.items[i];
     const alternates = roLink.alternates;
@@ -156,22 +160,30 @@ async function _parseReadingOrderAlternates(
     if (!resolved.ok) continue;
     if (seenHrefs.has(resolved.link.href)) continue;
     seenHrefs.add(resolved.link.href);
+    pending.push({ roLink, gnLink: resolved.link });
+  }
 
-    let gnDocument: GuidedNavigationDocument | null = null;
-    try {
-      const resource: Resource = publication.get(resolved.link);
-      const json = await resource.readAsJSON();
-      gnDocument = _parseDocument(json);
-    } catch (err) {
-      log.warn("Strategy 2: failed to fetch/parse alternate for", roLink.href, err);
-      continue;
+  const documents = await mapWithConcurrency(
+    pending,
+    SIDECAR_FETCH_CONCURRENCY,
+    async ({ roLink, gnLink }) => {
+      try {
+        const resource: Resource = publication.get(gnLink);
+        const json = await resource.readAsJSON();
+        const gnDocument = _parseDocument(json);
+        if (!gnDocument) {
+          log.warn("Strategy 2: alternate had no usable 'guided' entries for", roLink.href);
+        }
+        return gnDocument;
+      } catch (err) {
+        log.warn("Strategy 2: failed to fetch/parse alternate for", roLink.href, err);
+        return null;
+      }
     }
+  );
 
-    if (!gnDocument) {
-      log.warn("Strategy 2: alternate had no usable 'guided' entries for", roLink.href);
-      continue;
-    }
-
+  for (const gnDocument of documents) {
+    if (!gnDocument) continue;
     for (const obj of gnDocument.guided) {
       _flattenWithReadingOrderLookup(obj, result, publication);
     }
@@ -292,6 +304,19 @@ function _publicationLevelLink(
   const links = publication.manifest.links;
   if (!links) return undefined;
   return links.findWithMediaType(GUIDED_NAVIGATION_MEDIA_TYPE);
+}
+
+/** Exported for the streaming timeline store's per-segment parse reuse. */
+export const parseGuidedNavigationDocument = _parseDocument;
+export const publicationLevelGuidedNavigationLink = _publicationLevelLink;
+export function flattenGuidedNavigationDocument(
+  parsed: GuidedNavigationDocument,
+  out: SyncNarrationItem[],
+  publication: ReadiumPublication
+): void {
+  for (const obj of parsed.guided) {
+    _flattenWithReadingOrderLookup(obj, out, publication);
+  }
 }
 
 // ---------------------------------------------------------------------------

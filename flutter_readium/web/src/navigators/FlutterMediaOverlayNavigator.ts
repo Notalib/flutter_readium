@@ -4,20 +4,28 @@
  * Mirrors FlutterMediaOverlayNavigator in the Swift/Kotlin plugin layers.
  *
  * Strategy:
- *  1. Parse the EPUB's Sync Narration JSON alternates into a flat item list.
- *  2. Build a synthetic audio reading-order (one Link per unique audio file).
+ *  1. Resolve the publication's Sync Narration / Guided Navigation alternates
+ *     into a lazy timeline (see syncTimeline.ts); only the segment covering the
+ *     initial position is fetched before playback starts. A background
+ *     lookahead extends the window and rebuilds the audio navigator in place.
+ *  2. Build a synthetic audio reading-order (one Link per unique audio file)
+ *     from the loaded segments.
  *  3. Hand the synthetic publication to AudioNavigator (same path as audiobooks).
  *  4. Intercept positionChanged to map audio time -> text locator and emit dual
  *     state/locator events matching iOS/Android behaviour.
  */
 
-import { getTime, Link, Locator, LocatorLocations, Manifest, Profile } from "@readium/shared";
+import { getTime, Link, Locator, LocatorLocations, Manifest, Profile, type Fetcher } from "@readium/shared";
 import { ReadiumWebError, ReadiumWebErrorCode, ResourceReadErrorReason } from "../errors/ReadiumWebError";
 import { AudioNavigator } from "@readium/navigator";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { createLogger } from "../utils/ReadiumPluginLogger";
 import { ReadiumBridge } from "../bridge/ReadiumBridge";
-import { AudioLocatorMapper, FlutterAudioNavigator } from "../navigators/FlutterAudioNavigator";
+import {
+  AudioLocatorMapper,
+  FlutterAudioNavigator,
+  StreamingTimeline,
+} from "../navigators/FlutterAudioNavigator";
 import {
   SyncNarrationItem,
   combinedLocatorForItem,
@@ -28,9 +36,21 @@ import {
   textLocatorToAudioLocator,
 } from "../mediaoverlay/syncNarration";
 import { parseGuidedNavigation } from "../mediaoverlay/guidedNavigation";
+import { SyncTimelineKind, SyncTimelineStore } from "../mediaoverlay/syncTimeline";
 import { UncuedTocTargets } from "../mediaoverlay/uncuedTocTargets";
 
 const log = createLogger("MediaOverlay");
+
+/** Rebuild the window when less than this many seconds remain on the last known track. */
+const LOOKAHEAD_MARGIN_S = 60;
+
+type SetNav = (nav: AudioNavigator, items: SyncNarrationItem[], uncuedTocTargets?: UncuedTocTargets) => void;
+type OnTextLocatorChanged = (locator: Locator, durationMs: number | undefined) => void;
+
+interface BuiltNavigatorParts {
+  syntheticPub: ReadiumPublication;
+  uncuedTocTargets: UncuedTocTargets | undefined;
+}
 
 /**
  * Initialises a Media Overlay session backed by Sync Narration JSON alternates.
@@ -41,24 +61,26 @@ const log = createLogger("MediaOverlay");
  * @param setNav                 Callback invoked once AudioNavigator is ready. Receives the
  *                               navigator, the parsed SyncNarrationItem list and the uncued
  *                               ToC target resolver so callers can run text→audio mapping on
- *                               subsequent navigation events.
+ *                               subsequent navigation events. The item array is live: a
+ *                               streaming session grows it in place as segments load.
  * @param onTextLocatorChanged   Optional callback fired each time the active Sync Narration
  *                               cue advances to a new text locator. Used by ReadiumReader to
  *                               apply utterance-level decorations on the visual navigator.
  *                               Receives the text locator and the cue duration in milliseconds.
  * @param bridge                 Bridge for audio streaming error events (e.g. AudioStreamAuthError).
+ * @returns the session handle (window extension / lazy seeks), or undefined when
+ *           no playable items were found.
  */
 export async function initializeMediaOverlayNavigator(
   publication: ReadiumPublication,
   initialLocator: Locator | undefined,
   prefsJson: string,
-  setNav: (nav: AudioNavigator, items: SyncNarrationItem[], uncuedTocTargets?: UncuedTocTargets) => void,
-  onTextLocatorChanged?: (locator: Locator, durationMs: number | undefined) => void,
+  setNav: SetNav,
+  onTextLocatorChanged?: OnTextLocatorChanged,
   bridge?: ReadiumBridge
-): Promise<void> {
-  const items = await parseSyncNarration(publication);
-  return _initializeFromItems(
-    publication, items, initialLocator, prefsJson, setNav, onTextLocatorChanged, "SyncNarration", bridge
+): Promise<MediaOverlaySession | undefined> {
+  return MediaOverlaySession.start(
+    publication, initialLocator, prefsJson, setNav, onTextLocatorChanged, "SyncNarration", bridge
   );
 }
 
@@ -73,170 +95,489 @@ export async function initializeGuidedNavigationNavigator(
   publication: ReadiumPublication,
   initialLocator: Locator | undefined,
   prefsJson: string,
-  setNav: (nav: AudioNavigator, items: SyncNarrationItem[], uncuedTocTargets?: UncuedTocTargets) => void,
-  onTextLocatorChanged?: (locator: Locator, durationMs: number | undefined) => void,
+  setNav: SetNav,
+  onTextLocatorChanged?: OnTextLocatorChanged,
   bridge?: ReadiumBridge
-): Promise<void> {
-  const items = await parseGuidedNavigation(publication);
-  return _initializeFromItems(
-    publication, items, initialLocator, prefsJson, setNav, onTextLocatorChanged, "GuidedNavigation", bridge
+): Promise<MediaOverlaySession | undefined> {
+  return MediaOverlaySession.start(
+    publication, initialLocator, prefsJson, setNav, onTextLocatorChanged, "GuidedNavigation", bridge
   );
 }
 
-async function _initializeFromItems(
-  publication: ReadiumPublication,
-  items: SyncNarrationItem[],
-  initialLocator: Locator | undefined,
-  prefsJson: string,
-  setNav: (nav: AudioNavigator, items: SyncNarrationItem[], uncuedTocTargets?: UncuedTocTargets) => void,
-  onTextLocatorChanged: ((locator: Locator, durationMs: number | undefined) => void) | undefined,
-  sourceLabel: string,
-  bridge: ReadiumBridge | undefined
-): Promise<void> {
-  log.info(
-    `Initializing MediaOverlayNavigator (source: ${sourceLabel})`,
-    initialLocator ? `from text locator ${initialLocator.href}` : "(no initial locator)"
-  );
+/**
+ * One Media Overlay playback session. Owns the (possibly streaming) timeline
+ * store, the live resolved cue list, and the audio navigator — window
+ * extensions rebuild the navigator in place at the current audio locator.
+ */
+export class MediaOverlaySession implements StreamingTimeline {
+  /**
+   * Live cue list handed to setNav; grown in place as segments load so every
+   * consumer of the array identity (the mapper, ReadiumReader._syncItems)
+   * immediately sees newly loaded cues.
+   */
+  private readonly items: SyncNarrationItem[] = [];
+  private nav: AudioNavigator | undefined;
+  private ownerTargets: UncuedTocTargets | undefined;
+  private rebuild: Promise<void> | undefined;
+  private lookaheadQueued = false;
+  private disposed = false;
+  /** Last playback state seen by the mapper, used to resume across rebuilds. */
+  private playbackWasActive = false;
+  private lastDetailedTextLocatorKey: string | undefined;
+  private lastPublicTextLocatorKey: string | undefined;
 
-  if (items.length === 0) {
-    log.warn(`No items found from ${sourceLabel}; aborting.`);
-    return;
-  }
-  const uniqueAudioFiles = new Set(items.map((i) => i.audioHref)).size;
-  log.info(
-    `Parsed ${items.length} items across ${uniqueAudioFiles} audio file(s)`
-  );
+  private constructor(
+    private readonly publication: ReadiumPublication,
+    private prefsJson: string,
+    private readonly setNav: SetNav,
+    private readonly onTextLocatorChanged: OnTextLocatorChanged | undefined,
+    private readonly sourceLabel: string,
+    private readonly bridge: ReadiumBridge | undefined,
+    /** Null on the eager fallback path (no alternates / initial window empty). */
+    private store: SyncTimelineStore | null
+  ) {}
 
-  const audioReadingOrder = _buildAudioReadingOrder(items, publication);
-  log.info(
-    `Built synthetic audio reading order with ${audioReadingOrder.length} entries`,
-    audioReadingOrder.length > 0
-      ? `(first=${audioReadingOrder[0].href}, last=${audioReadingOrder[audioReadingOrder.length - 1].href})`
-      : ""
-  );
-
-  // Resolve relative audioHref values in items to the absolute form used in the
-  // reading order. Narration JSON stores relative hrefs ("chap.mp3") but the
-  // reading order and every locator the AudioNavigator emits use absolute URLs
-  // ("https://.../chap.mp3"). AudioNavigator does exact href lookups, so all
-  // three consumers — the mapper, textLocatorToAudioLocator (initial seek /
-  // goToLocator), and the setNav callback — must see the same absolute hrefs.
-  const resolvedItems = _resolveItemHrefs(items, audioReadingOrder);
-  const ownerTargets = new UncuedTocTargets(publication, resolvedItems, flattenToc(publication));
-  await ownerTargets.prepareOwners();
-  // Owner correction can change an audio file's first ToC title, so titles come from the corrected items.
-  const syntheticPub = _buildAudiobookPublication(publication, _withCueTitles(audioReadingOrder, resolvedItems));
-  // Guided Navigation shares owner correction, while retaining its existing seek policy.
-  const uncuedTocTargets = sourceLabel === "SyncNarration" ? ownerTargets : undefined;
-
-  const anchoredInitialLocator = initialLocator && uncuedTocTargets
-    ? await uncuedTocTargets.anchor(initialLocator)
-    : initialLocator;
-  const audioInitialLocator = anchoredInitialLocator
-    ? textLocatorToAudioLocator(resolvedItems, anchoredInitialLocator, true, sourceLabel === "SyncNarration")
-    : undefined;
-  if (initialLocator) {
-    log.info(
-      audioInitialLocator
-        ? `Initial text locator mapped to audio ${audioInitialLocator.href} ${audioInitialLocator.locations?.fragments?.[0] ?? ""}`
-        : `Initial text locator could not be mapped to an audio item — starting at beginning`
-    );
-  }
-
-  // Keep separate dedup keys for:
-  // - detailed cue locators (includes comicRegion/panel changes), used by
-  //   internal sync callbacks (e.g. comic auto-pan), and
-  // - coarse locators (href/position), emitted to Dart via updateTextLocator.
-  let lastDetailedTextLocatorKey: string | undefined;
-  let lastPublicTextLocatorKey: string | undefined;
-
-  const mapper: AudioLocatorMapper = (_nav, audioLocator) => {
-    const resolvedTime = getTime(audioLocator.locations) ?? _nav.currentTime;
-    const item = findItemByAudioTime(resolvedItems, audioLocator.href, resolvedTime, sourceLabel === "SyncNarration");
-    if (item) {
-      if (!item.tocHref) void uncuedTocTargets?.fillOwners(item.textHref);
-      const detailedTextLocator = textLocatorForItem(item);
-      const publicTextLocator = _coarseLocatorForPublicEvent(detailedTextLocator);
-
-      const detailedKey = JSON.stringify(detailedTextLocator.serialize());
-      const shouldEmitDetailedTextLocator =
-        detailedKey !== lastDetailedTextLocatorKey;
-      if (shouldEmitDetailedTextLocator) {
-        lastDetailedTextLocatorKey = detailedKey;
-      }
-
-      const publicKey = JSON.stringify(publicTextLocator.serialize());
-      const shouldEmitPublicTextLocator =
-        publicKey !== lastPublicTextLocatorKey;
-      if (shouldEmitPublicTextLocator) {
-        lastPublicTextLocatorKey = publicKey;
-      }
-
-      return {
-        stateLocator: combinedLocatorForItem(item, audioLocator),
-        textLocator: shouldEmitDetailedTextLocator ? detailedTextLocator : undefined,
-        publicTextLocator: shouldEmitPublicTextLocator ? publicTextLocator : undefined,
-      };
+  /**
+   * Loads the initial window (or parses everything for the eager fallback) and
+   * starts playback. A store is only used when it covers at least one alternate
+   * and the initial segment yields cues; otherwise the eager full-parse path —
+   * the Step-1 parallelized parser — takes over.
+   */
+  static async start(
+    publication: ReadiumPublication,
+    initialLocator: Locator | undefined,
+    prefsJson: string,
+    setNav: SetNav,
+    onTextLocatorChanged: OnTextLocatorChanged | undefined,
+    sourceLabel: string,
+    bridge: ReadiumBridge | undefined
+  ): Promise<MediaOverlaySession | undefined> {
+    const kind: SyncTimelineKind = sourceLabel === "SyncNarration" ? "syncNarration" : "guidedNavigation";
+    let store: SyncTimelineStore | null = null;
+    try {
+      store = SyncTimelineStore.forPublication(publication, kind);
+    } catch (err) {
+      // Tests and hand-rolled publications may not expose the manifest shape
+      // the store needs; the eager parsers are more forgiving.
+      log.warn(`Timeline store unavailable (${sourceLabel}); using eager parse`, err);
     }
-    return { stateLocator: audioLocator };
-  };
 
-  // Wrap the caller's callback to enrich it with the cue duration.
-  // The AudioLocatorMapper knows which SyncNarrationItem is active, but the
-  // callback signature at the audioNavigator layer doesn't carry that info.
-  // Instead, we re-derive the item here from the text locator fragment by
-  // matching against resolvedItems — same lookup the mapper does, just keyed on
-  // the text side.
-  const wrappedCallback:
-    | ((locator: Locator, durationMs: number | undefined) => void)
-    | undefined = onTextLocatorChanged
-    ? (locator, _ignored) => {
-        const fragId = locator.locations?.fragments?.[0];
-        const item = fragId
-          ? resolvedItems.find((i) => i.textId === fragId)
-          : undefined;
-        const durationMs =
-          item?.audioStart != null && item?.audioEnd != null
-            ? (item.audioEnd - item.audioStart) * 1000
-            : undefined;
-        log.debug(
-          `[mediaOverlay] cue fragment="${fragId ?? "(none)"}" ` +
-          `item=${item ? `audioStart=${item.audioStart} audioEnd=${item.audioEnd}` : "NOT FOUND"} ` +
-          `→ durationMs=${durationMs ?? "undefined"}`
-        );
-        onTextLocatorChanged(locator, durationMs);
+    const session = new MediaOverlaySession(
+      publication, prefsJson, setNav, onTextLocatorChanged, sourceLabel, bridge, store
+    );
+
+    let items: SyncNarrationItem[] | undefined;
+    if (store) {
+      const requested = initialLocator ? store.roIndexForText(initialLocator.href) : undefined;
+      const start = session._nearestSegment(store, requested ?? 0);
+      items = await store.prepareWindow(start);
+      if (items.length === 0) {
+        log.warn(`Streaming timeline produced no items for ${sourceLabel}; falling back to eager parse`);
+        session.store = null;
       }
-    : undefined;
+    }
+    if (!session.store) {
+      items = sourceLabel === "SyncNarration"
+        ? await parseSyncNarration(publication)
+        : await parseGuidedNavigation(publication);
+    }
 
-  await FlutterAudioNavigator.create(
-    syntheticPub,
-    audioInitialLocator,
-    prefsJson,
-    (nav: AudioNavigator) => setNav(nav, resolvedItems, uncuedTocTargets),
-    mapper,
-    wrappedCallback,
-    // Media overlay cue synchronisation requires finer granularity than the
-    // Dart-side updateIntervalSecs preference (which controls the progress bar).
-    // 100ms keeps panel panning within one frame of the audio cue boundary.
-    100,
-    bridge
-  );
+    if (!items || items.length === 0) {
+      log.warn(`No items found from ${sourceLabel}; aborting.`);
+      return undefined;
+    }
+    log.info(
+      `Initializing MediaOverlayNavigator (source: ${sourceLabel})`,
+      initialLocator ? `from text locator ${initialLocator.href}` : "(no initial locator)"
+    );
+    log.info(
+      `Loaded ${items.length} items across ${new Set(items.map((i) => i.audioHref)).size} audio file(s)` +
+      (session.store ? " (streaming window)" : " (eager)")
+    );
 
-  if (wrappedCallback) {
+    await session._buildInitial(items, initialLocator);
+    return session;
+  }
+
+  dispose(): void {
+    this.disposed = true;
+    this.store?.cancelPending();
+  }
+
+  /** Keeps window rebuilds on the latest preferences after a runtime change. */
+  setPreferences(preferencesJson: string): void {
+    this.prefsJson = preferencesJson;
+  }
+
+  /** Await any in-flight window extension (test seam). Startup no longer prefetched. */
+  settle(): Promise<void> {
+    return this.awaitIdle();
+  }
+
+  // -------------------------------------------------------------------------
+  // StreamingTimeline (consulted by FlutterAudioNavigator)
+  // -------------------------------------------------------------------------
+
+  totalDurationMs(): number | undefined {
+    const book = this.store?.totalDurationSecs();
+    return book === undefined ? undefined : Math.round(book * 1000);
+  }
+
+  locatorProgression(audioLocator: Locator): number | undefined {
+    const store = this.store;
+    if (!store) return undefined;
+    const total = store.totalDurationSecs();
+    if (total === undefined || total <= 0) return undefined;
+    const roIndex = store.roIndexForAudio(audioLocator.href);
+    if (roIndex === undefined) return undefined;
+    const before = store.cumulativeBefore(roIndex);
+    if (before === undefined) return undefined;
+    const time = getTime(audioLocator.locations) ?? 0;
+    return Math.min(1, Math.max(0, (before + time) / total));
+  }
+
+  /**
+   * Last known track ended. Extend the window and rebuild when more segments
+   * exist; true means "playback continues" (the ended emission is suppressed).
+   * False → honest end (no loadable segment remains or every load failed).
+   */
+  async takeOverAtEdge(): Promise<boolean> {
+    if (this.disposed || !this.store) return false;
+    const before = this.items.length;
+    if (this.rebuild) {
+      await this.rebuild.catch(() => undefined);
+      if (this.disposed) return false;
+      // The joined rebuild took the edge over only if it grew the live window
+      // AND left a working navigator; a failed rebuild must not swallow ended.
+      if (this.items.length > before && this.nav) return true;
+    }
+    const store = this.store;
+    // Load segments past the playhead one at a time, advancing past slots at the
+    // failure cap, until one grows the live window. The K-ahead lookahead budget
+    // can stop on exhausted slots; a healthy segment beyond them must still
+    // extend the window before an honest end is conceded (ADR 0003 "honest end").
+    let playhead =
+      store.roIndexForAudio(this.nav?.currentLocator.href) ?? store.loadedTailIndex();
+    let next = store.nextLoadableSegment(playhead + 1);
+    while (next !== undefined) {
+      await store.loadSegment(next);
+      await this.extend();
+      if (this.items.length > before) break;
+      if (this.disposed || !this.nav) return false;
+      // Advance only past a settled slot; a within-cap failure stays put and is
+      // retried next pass (mirrors fillAhead), so one flaky read can't skip it.
+      if (store.isSettled(next)) playhead = next;
+      next = store.nextLoadableSegment(playhead + 1);
+    }
+    return this.items.length > before && !this.disposed && !!this.nav;
+  }
+
+  // -------------------------------------------------------------------------
+  // Window management
+  // -------------------------------------------------------------------------
+
+  /** Await all in-flight window extensions (public seam for callers seeking). */
+  async awaitIdle(): Promise<void> {
+    while (this.rebuild) {
+      await this.rebuild.catch(() => undefined);
+    }
+  }
+
+  /**
+   * Ensure cues + the audio playlist cover `textHref` (seek/goTo beyond the
+   * loaded window). Returns once the LIVE navigator can play the target track:
+   * awaiting the in-flight lookahead alone is not enough — that rebuild resumes
+   * at the OLD position, so loop until the target is fetched and any queue
+   * extension it triggered has settled.
+   */
+  async ensureWindowForText(textHref: string): Promise<void> {
+    const store = this.store;
+    if (!store || this.disposed) return;
+    // Bounded: each pass settles in-flight extensions, fetches the target
+    // segment, and extends once when the merged window outgrew the live one.
+    // A pass that lands nothing new returns, so this converges.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await this.awaitIdle();
+      if (this.disposed) return;
+      const roIndex = store.roIndexForText(textHref);
+      if (roIndex === undefined) return;
+      await store.ensureSegmentForText(textHref);
+      const playhead =
+        store.roIndexForAudio(this.nav?.currentLocator.href) ?? store.loadedTailIndex();
+      await store.fillAhead(playhead);
+      if (store.items().length <= this.items.length) return;
+      await this.extend(); // awaits the rebuild; next pass re-checks convergence
+    }
+    await this.awaitIdle();
+  }
+
+  /** Rebuild the navigator with the store's merged items, if it changed. */
+  private async extend(): Promise<void> {
+    if (this.rebuild) {
+      await this.rebuild.catch(() => undefined);
+      return;
+    }
+    const store = this.store;
+    if (!store) return;
+    const merged = store.items();
+    if (merged.length <= this.items.length) return;
+    const audioLocator = this.nav?.currentLocator;
+    const wasPlaying = this.playbackWasActive;
+    this.rebuild = (async () => {
+      try {
+        const built = await this._resolveAndEnrich(merged);
+        await this._createNavigator(built, audioLocator, wasPlaying);
+      } finally {
+        this.rebuild = undefined;
+      }
+    })();
+    await this.rebuild.catch((err) => {
+      log.warn("Window extension rebuild failed", err);
+    });
+  }
+
+  /** Queue a lookahead refresh if the playhead is close to the window edge. */
+  private maybeExtendFrom(nav: AudioNavigator): void {
+    const store = this.store;
+    if (!store || this.disposed || this.rebuild || this.lookaheadQueued || !nav.isPlaying) return;
+    // Guard and budget both from the PLAYHEAD's segment: after a backward seek the
+    // loaded tail sits ahead, and a tail-based check would disable lookahead here
+    // while fillAhead (below) still fills from the playhead.
+    const roIndex =
+      store.roIndexForAudio(nav.currentLocator.href) ?? store.loadedTailIndex();
+    if (store.nextLoadableSegment(roIndex + 1) === undefined) return;
+    const duration = nav.duration;
+    if (!duration || duration <= 0) return;
+    if (duration - nav.currentTime > LOOKAHEAD_MARGIN_S) return;
+    this.lookaheadQueued = true;
+    void (async () => {
+      try {
+        await store.fillAhead(roIndex);
+        await this.extend();
+      } catch (err) {
+        log.warn("Lookahead segment load failed", err);
+      } finally {
+        this.lookaheadQueued = false;
+      }
+    })();
+  }
+
+  // -------------------------------------------------------------------------
+  // Navigator construction
+  // -------------------------------------------------------------------------
+
+  /** Initial construction path: resolve/enrich, anchor initial locator, create nav. */
+  private async _buildInitial(
+    items: SyncNarrationItem[],
+    initialLocator: Locator | undefined
+  ): Promise<void> {
+    const built = await this._resolveAndEnrich(items);
+    const anchored = initialLocator && built.uncuedTocTargets
+      ? await built.uncuedTocTargets.anchor(initialLocator)
+      : initialLocator;
+    const audioInitialLocator = anchored
+      ? textLocatorToAudioLocator(this.items, anchored, true, this.sourceLabel === "SyncNarration")
+      : undefined;
+    if (initialLocator) {
+      log.info(
+        audioInitialLocator
+          ? `Initial text locator mapped to audio ${audioInitialLocator.href} ${audioInitialLocator.locations?.fragments?.[0] ?? ""}`
+          : "Initial text locator could not be mapped to an audio item — starting at beginning"
+      );
+    }
+    await this._createNavigator(built, audioInitialLocator, false);
+    this._emitInitialCue(audioInitialLocator);
+  }
+
+  /**
+   * Resolve relative audio hrefs + uncued-owner enrichment for a merged item
+   * list, publishing the result into the live `items` array (mutated in place
+   * so setNav consumers keep the same array identity across rebuilds).
+   */
+  private async _resolveAndEnrich(items: SyncNarrationItem[]): Promise<BuiltNavigatorParts> {
+    const audioReadingOrder = _buildAudioReadingOrder(items, this.publication);
+    const resolvedItems = _resolveItemHrefs(items, audioReadingOrder);
+    // UncuedTocTargets corrects tocHref/tocTitle in place, but the store hands
+    // back the uncorrected parse each rebuild and its per-resource fill cache
+    // never re-runs, so carry the corrections onto the fresh copies.
+    // Cue identity: textId repeats across documents (p1 in each), so scope by href.
+    const cueKey = (item: SyncNarrationItem) =>
+      `${item.textHref}#${item.textId}#${item.audioStart ?? ""}`;
+    const corrected = new Map<string, SyncNarrationItem>();
+    for (const item of this.items) {
+      if (item.tocHref) corrected.set(cueKey(item), item);
+    }
+    // Publish into the live array first: UncuedTocTargets is constructed with
+    // `this.items`, so its cue lookups see window extensions without rebuild.
+
+    this.items.length = 0;
+    this.items.push(...resolvedItems);
+    if (corrected.size > 0) {
+      for (const item of this.items) {
+        const saved = corrected.get(cueKey(item));
+        if (saved) {
+          item.tocHref = saved.tocHref;
+          item.tocTitle = saved.tocTitle;
+        }
+      }
+    }
+    // One UncuedTocTargets per session (both sources — Guided Navigation gets
+    // the same XHTML owner correction, only the anchor seek policy differs):
+    // its XHTML/owner caches are resource-keyed, so re-running prepareOwners()
+    // only pays for newly loaded resources after a window extension.
+    if (!this.ownerTargets) {
+      this.ownerTargets = new UncuedTocTargets(this.publication, this.items, flattenToc(this.publication));
+    }
+    await this.ownerTargets.prepareOwners();
+    // Owner correction can change an audio file's first ToC title, so titles come from the corrected items.
+    const syntheticPub = _buildAudiobookPublication(
+      this.publication,
+      _withCueTitles(audioReadingOrder, this.items)
+    );
+    return {
+      syntheticPub,
+      uncuedTocTargets: this.sourceLabel === "SyncNarration" ? this.ownerTargets : undefined,
+    };
+  }
+
+  private async _createNavigator(
+    built: BuiltNavigatorParts,
+    audioLocator: Locator | undefined,
+    resumePlaying: boolean
+  ): Promise<void> {
+    const mapper: AudioLocatorMapper = (nav, navLocator) => {
+      this.playbackWasActive = nav.isPlaying;
+      if (this.rebuild && nav !== this.nav) {
+        // Mid window-extension: the outgoing navigator's trailing events must
+        // not emit cues mapped from the new merged list. Suppress the state
+        // event; the rebuilt navigator re-reports the position.
+        return {};
+      }
+      this.maybeExtendFrom(nav);
+      const resolvedTime = getTime(navLocator.locations) ?? nav.currentTime;
+      const item = findItemByAudioTime(
+        this.items, navLocator.href, resolvedTime, this.sourceLabel === "SyncNarration"
+      );
+      if (item) {
+        if (!item.tocHref) void this.ownerTargets?.fillOwners(item.textHref);
+        const detailedTextLocator = textLocatorForItem(item);
+        const publicTextLocator = _coarseLocatorForPublicEvent(detailedTextLocator);
+
+        const detailedKey = JSON.stringify(detailedTextLocator.serialize());
+        const shouldEmitDetailedTextLocator = detailedKey !== this.lastDetailedTextLocatorKey;
+        if (shouldEmitDetailedTextLocator) this.lastDetailedTextLocatorKey = detailedKey;
+
+        const publicKey = JSON.stringify(publicTextLocator.serialize());
+        const shouldEmitPublicTextLocator = publicKey !== this.lastPublicTextLocatorKey;
+        if (shouldEmitPublicTextLocator) this.lastPublicTextLocatorKey = publicKey;
+
+        return {
+          stateLocator: combinedLocatorForItem(item, navLocator),
+          textLocator: shouldEmitDetailedTextLocator ? detailedTextLocator : undefined,
+          publicTextLocator: shouldEmitPublicTextLocator ? publicTextLocator : undefined,
+        };
+      }
+      return {};
+    };
+
+    // Wrap the caller's callback to enrich it with the cue duration.
+    // The AudioLocatorMapper knows which SyncNarrationItem is active, but the
+    // callback signature at the audioNavigator layer doesn't carry that info.
+    // Instead, we re-derive the item here from the text locator fragment by
+    // matching against the live item list — same lookup the mapper does, just
+    // keyed on the text side.
+    const wrappedCallback: OnTextLocatorChanged | undefined = this.onTextLocatorChanged
+      ? (locator, _ignored) => {
+          const fragId = locator.locations?.fragments?.[0];
+          const item = fragId
+            ? this.items.find((i) => i.textId === fragId)
+            : undefined;
+          const durationMs =
+            item?.audioStart != null && item?.audioEnd != null
+              ? (item.audioEnd - item.audioStart) * 1000
+              : undefined;
+          log.debug(
+            `[mediaOverlay] cue fragment="${fragId ?? "(none)"}" ` +
+            `item=${item ? `audioStart=${item.audioStart} audioEnd=${item.audioEnd}` : "NOT FOUND"} ` +
+            `→ durationMs=${durationMs ?? "undefined"}`
+          );
+          this.onTextLocatorChanged!(locator, durationMs);
+        }
+      : undefined;
+
+    // Tear the old navigator down before creating the replacement so two
+    // media elements never play concurrently (mirrors rebuildAndVerifyPlayback).
+    const previous = this.nav;
+    const wasPlaying = resumePlaying || (!!previous && this.playbackWasActive);
+    if (previous) {
+      previous.stop();
+      previous.destroy();
+      this.nav = undefined;
+    }
+
+    await FlutterAudioNavigator.create(
+      built.syntheticPub,
+      audioLocator,
+      this.prefsJson,
+      (nav: AudioNavigator) => {
+        if (this.disposed) {
+          nav.stop();
+          nav.destroy();
+          return;
+        }
+        this.nav = nav;
+        this.setNav(nav, this.items, built.uncuedTocTargets);
+      },
+      mapper,
+      wrappedCallback,
+      // Media overlay cue synchronisation requires finer granularity than the
+      // Dart-side updateIntervalSecs preference (which controls the progress bar).
+      // 100ms keeps panel panning within one frame of the audio cue boundary.
+      100,
+      this.bridge,
+      // Streaming window rebuilds are not initial opens: a hiccup here must
+      // not surface as a create-timeout error to Dart.
+      false,
+      undefined,
+      this.store ? this : undefined
+    );
+
+    const nav = this.nav;
+    if (nav && wasPlaying) {
+      FlutterAudioNavigator.setPlaybackIntent(true);
+      nav.play();
+    }
+  }
+
+  /** Fire the initial cue callback exactly as the eager path used to. */
+  private _emitInitialCue(audioInitialLocator: Locator | undefined): void {
+    if (!this.onTextLocatorChanged) return;
     const fragment = audioInitialLocator?.locations?.fragments?.[0];
     const initTime = fragment?.startsWith("t=") ? parseFloat(fragment.slice(2)) : 0;
-    const initHref = audioInitialLocator?.href ?? resolvedItems[0]?.audioHref;
+    const initHref = audioInitialLocator?.href ?? this.items[0]?.audioHref;
     const initItem = initHref
-      ? findItemByAudioTime(resolvedItems, initHref, initTime, sourceLabel === "SyncNarration") ?? resolvedItems[0]
-      : resolvedItems[0];
-    if (initItem) {
-      const initDurationMs =
-        initItem.audioStart != null && initItem.audioEnd != null
-          ? (initItem.audioEnd - initItem.audioStart) * 1000
-          : undefined;
-      wrappedCallback(textLocatorForItem(initItem), initDurationMs);
-    }
+      ? findItemByAudioTime(this.items, initHref, initTime, this.sourceLabel === "SyncNarration") ?? this.items[0]
+      : this.items[0];
+    if (!initItem) return;
+    const initDurationMs =
+      initItem.audioStart != null && initItem.audioEnd != null
+        ? (initItem.audioEnd - initItem.audioStart) * 1000
+        : undefined;
+    this.onTextLocatorChanged(textLocatorForItem(initItem), initDurationMs);
   }
+
+  // -------------------------------------------------------------------------
+  // Lookups
+  // -------------------------------------------------------------------------
+
+  private _nearestSegment(store: SyncTimelineStore, roIndex: number): number {
+    const indexes = store.segmentIndexes();
+    if (indexes.length === 0) return roIndex;
+    if (indexes.includes(roIndex)) return roIndex;
+    const atOrBefore = indexes.filter((i) => i <= roIndex);
+    return atOrBefore.length > 0 ? atOrBefore[atOrBefore.length - 1] : indexes[0];
+  }
+
 }
 
 /**
@@ -246,7 +587,7 @@ async function _initializeFromItems(
  */
 function _coarseLocatorForPublicEvent(locator: Locator): Locator {
   const tocHref = locator.locations?.otherLocations?.get("tocHref");
-  const otherLocations = tocHref != null ? new Map<string, any>([["tocHref", tocHref]]) : undefined;
+  const otherLocations = tocHref != null ? new Map<string, unknown>([["tocHref", tocHref]]) : undefined;
   return new Locator({
     href: locator.href,
     type: locator.type,
@@ -394,7 +735,9 @@ function _buildAudiobookPublication(
   const selfLink = publication.manifest.linksWithRel("self")[0];
   if (selfLink?.href) manifest.setSelfLink(selfLink.href);
 
-  return new ReadiumPublication({ manifest, fetcher: (publication as any).fetcher });
+  // The fetcher is a private field upstream never exposed a getter for.
+  const fetcher = (publication as unknown as { fetcher: Fetcher }).fetcher;
+  return new ReadiumPublication({ manifest, fetcher });
 }
 
 // ---------------------------------------------------------------------------
