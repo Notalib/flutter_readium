@@ -1013,10 +1013,6 @@ object ReadiumReader :
             throw Exception("Publication is not an EPUB, cannot enable epub navigator")
         }
 
-        // Seed the runtime sync flag from the initial preference. If the preference
-        // already disables synchronization, start in manual mode.
-        narrationSyncEnabled = initialPreferences.disableSynchronization != true
-
         // EpubNavigatorFragment reads positions with runBlocking from its constructor.
         // Populate the cache on the I/O dispatcher so the main thread never blocks.
         withIOContext {
@@ -1025,6 +1021,10 @@ object ReadiumReader :
 
         withMainContext {
             if (!claimVisualNavigator(readerWidget)) return@withMainContext
+
+            // Seed the runtime sync flag from the initial preference. If the preference
+            // already disables synchronization, start in manual mode.
+            narrationSyncEnabled = initialPreferences.disableSynchronization != true
 
             epubNavigator?.let {
                 attachEpubNavigator(fragmentManager, viewGroup)
@@ -1128,12 +1128,6 @@ object ReadiumReader :
         }
     }
 
-    fun pdfClose() {
-        currentReaderWidget = null
-        visualNavigator?.dispose()
-        visualNavigator = null
-    }
-
     suspend fun pdfUpdatePreferences(preferences: FlutterPdfPreferences) {
         val navigator =
             pdfNavigator ?: run {
@@ -1229,18 +1223,6 @@ object ReadiumReader :
         withMainContext {
             navigator.attachNavigator(fragmentManager, viewGroup)
         }
-    }
-
-    fun comicClose() {
-        currentReaderWidget = null
-        visualNavigator?.dispose()
-        visualNavigator = null
-    }
-
-    fun epubClose() {
-        currentReaderWidget = null
-        visualNavigator?.dispose()
-        visualNavigator = null
     }
 
     /**
