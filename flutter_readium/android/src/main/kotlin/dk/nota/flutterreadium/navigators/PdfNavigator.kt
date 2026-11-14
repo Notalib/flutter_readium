@@ -255,7 +255,8 @@ class PdfNavigator :
     override fun dispose() {
         super.dispose()
         launch {
-            pdfNavigator?.let { fragment ->
+            // A newer reader widget may already have removed the fragment by tag.
+            pdfNavigator?.takeIf { it.isAdded }?.let { fragment ->
                 fragment.parentFragmentManager.commitNow { remove(fragment) }
             }
             coroutineContext.cancelChildren()

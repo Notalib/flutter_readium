@@ -499,7 +499,8 @@ class ComicNavigator :
     override fun dispose() {
         super.dispose()
         launch {
-            imageNavigator?.let { fragment ->
+            // A newer reader widget may already have removed the fragment by tag.
+            imageNavigator?.takeIf { it.isAdded }?.let { fragment ->
                 fragment.parentFragmentManager.commitNow { remove(fragment) }
             }
             coroutineContext.cancelChildren()

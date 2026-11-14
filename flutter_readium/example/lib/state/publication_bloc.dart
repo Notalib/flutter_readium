@@ -14,7 +14,12 @@ final Map<String, Locator> savedLocators = {};
 abstract class PublicationEvent {}
 
 @immutable
-class ClosePublication extends PublicationEvent {}
+class ClosePublication extends PublicationEvent {
+  ClosePublication(this.publication);
+
+  /// The publication to close. The event is ignored once another publication is opening or open.
+  final Publication? publication;
+}
 
 @immutable
 class AddHighlight extends PublicationEvent {
@@ -143,6 +148,7 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
 
   PublicationBloc() : super(PublicationState()) {
     on<OpenPublication>((final event, final emit) async {
+      _cancelSubscriptions();
       emit(state.loading(event.initialLocator));
       try {
         final publication = await instance.openPublication(
@@ -200,11 +206,12 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
     });
 
     on<ClosePublication>((final event, final emit) async {
+      if (state.isLoading || !identical(state.publication, event.publication)) {
+        return;
+      }
       try {
         instance.closePublication();
-        timebasedStateSub?.cancel();
-        textLocatorSub?.cancel();
-        errorEventSub?.cancel();
+        _cancelSubscriptions();
       } on Exception catch (error) {
         _log.warning(
           'Exception while closing publication: ${error.toString()}',
@@ -212,6 +219,12 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
       }
       emit(PublicationState());
     });
+  }
+
+  void _cancelSubscriptions() {
+    timebasedStateSub?.cancel();
+    textLocatorSub?.cancel();
+    errorEventSub?.cancel();
   }
 
   @override

@@ -382,8 +382,12 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   void _cleanup() {
     _log.d('cleanup ${_channel?.name}!');
+    // A reader disposed after a newer one registered must not unregister the newer one.
     // ignore: invalid_use_of_protected_member
-    _readium.currentReaderWidget = null;
+    if (identical(_readium.currentReaderWidget, this)) {
+      // ignore: invalid_use_of_protected_member
+      _readium.currentReaderWidget = null;
+    }
   }
 
   Locator? _currentLocator;
