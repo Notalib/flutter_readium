@@ -189,6 +189,10 @@ object ReadiumReader :
 
     private var readerViewRef: WeakReference<ReadiumReaderWidget>? = null
 
+    // The reader widget whose container holds the visual navigator's fragment. Null for a
+    // navigator restored from saved state that no widget has attached yet.
+    private var visualNavigatorOwner: ReadiumReaderWidget? = null
+
     private var savedStateRef: WeakReference<SavedStateRegistry>? = null
 
     // in-memory cached state
@@ -1004,8 +1008,6 @@ object ReadiumReader :
     ) {
         val pub = currentPublication ?: throw Exception("Publication not opened cannot enable epub")
 
-        currentReaderWidget = readerWidget
-
         val isEpub = pub.conformsTo(Publication.Profile.EPUB)
         if (!isEpub) {
             throw Exception("Publication is not an EPUB, cannot enable epub navigator")
@@ -1022,6 +1024,8 @@ object ReadiumReader :
         }
 
         withMainContext {
+            if (!claimVisualNavigator(readerWidget)) return@withMainContext
+
             epubNavigator?.let {
                 attachEpubNavigator(fragmentManager, viewGroup)
                 return@withMainContext
@@ -1077,8 +1081,6 @@ object ReadiumReader :
     ) {
         val pub = currentPublication ?: throw Exception("Publication not opened cannot enable pdf")
 
-        currentReaderWidget = readerWidget
-
         val isPdf =
             pub.conformsTo(Publication.Profile.PDF) ||
                 pub.readingOrder
@@ -1090,6 +1092,8 @@ object ReadiumReader :
         }
 
         withMainContext {
+            if (!claimVisualNavigator(readerWidget)) return@withMainContext
+
             pdfNavigator?.let {
                 attachPdfNavigator(fragmentManager, viewGroup)
                 return@withMainContext
@@ -1172,8 +1176,6 @@ object ReadiumReader :
     ) {
         val pub = currentPublication ?: throw Exception("Publication not opened cannot enable comic")
 
-        currentReaderWidget = readerWidget
-
         val isComic =
             pub.conformsTo(Publication.Profile.DIVINA) ||
                 pub.readingOrder
@@ -1193,6 +1195,8 @@ object ReadiumReader :
         }
 
         withMainContext {
+            if (!claimVisualNavigator(readerWidget)) return@withMainContext
+
             comicNavigator?.let {
                 attachComicNavigator(fragmentManager, viewGroup)
                 return@withMainContext
@@ -1239,9 +1243,39 @@ object ReadiumReader :
         visualNavigator = null
     }
 
-    /** Close the active visual navigator, regardless of type (EPUB or PDF). */
-    fun visualClose() {
-        currentReaderWidget = null
+    /**
+     * Prepares the singleton visual navigator for [readerWidget]. Returns false when a newer reader
+     * widget was created since, so this one must leave the navigator alone. A navigator still
+     * attached to an older widget is disposed, because a fragment cannot move to another container.
+     */
+    private fun claimVisualNavigator(readerWidget: ReadiumReaderWidget): Boolean {
+        if (currentReaderWidget !== readerWidget) {
+            PluginLog.w(TAG, "::claimVisualNavigator. Superseded by a newer reader widget.")
+            return false
+        }
+        val owner = visualNavigatorOwner
+        if (owner != null && owner !== readerWidget) {
+            PluginLog.d(TAG, "::claimVisualNavigator. Replacing the navigator of an older reader widget.")
+            visualNavigator?.dispose()
+            visualNavigator = null
+        }
+        visualNavigatorOwner = readerWidget
+        return true
+    }
+
+    /**
+     * Close the active visual navigator if [readerWidget] owns it. A reader widget torn down after
+     * a newer one took over must not dispose the newer widget's navigator.
+     */
+    fun visualClose(readerWidget: ReadiumReaderWidget) {
+        if (currentReaderWidget === readerWidget) {
+            currentReaderWidget = null
+        }
+        if (visualNavigatorOwner !== readerWidget) {
+            PluginLog.d(TAG, "::visualClose. Navigator belongs to another reader widget.")
+            return
+        }
+        visualNavigatorOwner = null
         visualNavigator?.dispose()
         visualNavigator = null
     }
