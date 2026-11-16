@@ -47,6 +47,7 @@ ReadiumReaderWidget(
 | `goBackwardSemanticLabel` | `String?` | `null` | Accessibility label for the backward control |
 | `goForwardSemanticLabel` | `String?` | `null` | Accessibility label for the forward control |
 | `toggleShowControlsSemanticLabel` | `String?` | `null` | Accessibility label for the controls toggle |
+| `allowScreenReaderNavigation` | `bool` | `false` | `false` hides the publication content from screen readers and exposes only the three navigation regions. `true` makes the content reachable, which a braille display needs. Read when the native view is created: pass a new widget `key` to change it. Native iOS and Android only; no effect on web |
 
 ## Platform implementations
 

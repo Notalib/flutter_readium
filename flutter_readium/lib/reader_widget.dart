@@ -37,6 +37,7 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.preloadPreviousPositionCount = 2,
     this.preloadNextPositionCount = 6,
     this.disablePageTurnsWhileScrolling = false,
+    this.allowScreenReaderNavigation = false,
     super.key,
   });
 
@@ -127,6 +128,15 @@ class ReadiumReaderWidget extends StatefulWidget {
   /// to change resources, such as [FlutterReadium.goForward],
   /// [FlutterReadium.goBackward], or table-of-contents navigation.
   final bool disablePageTurnsWhileScrolling;
+
+  /// Whether screen readers can reach the publication content.
+  ///
+  /// When `false` (the default) the content is hidden from screen readers and only the three
+  /// navigation regions are exposed. When `true` the content is reachable, which a braille
+  /// display needs to show the text.
+  ///
+  /// Read when the native view is created: pass a new widget `key` to change it.
+  final bool allowScreenReaderNavigation;
 
   @override
   State<StatefulWidget> createState() => _ReadiumReaderWidgetState();
@@ -235,6 +245,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
           ),
         ),
         ExcludeSemantics(
+          excluding: !widget.allowScreenReaderNavigation,
           // Observe interactions without competing with the native reader in
           // Flutter's gesture arena.
           child: Listener(
@@ -309,6 +320,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       'preloadPreviousPositionCount': widget.preloadPreviousPositionCount,
       'preloadNextPositionCount': widget.preloadNextPositionCount,
       'disablePageTurnsWhileScrolling': widget.disablePageTurnsWhileScrolling,
+      'allowScreenReaderNavigation': widget.allowScreenReaderNavigation,
       'fontFamilyDeclarations': widget.fontFamilyDeclarations.map((font) => font.toMap()).toList(),
       if (widget.selectionActions.isNotEmpty)
         'selectionActions': widget.selectionActions.map((a) => a.toJson()).toList(),
