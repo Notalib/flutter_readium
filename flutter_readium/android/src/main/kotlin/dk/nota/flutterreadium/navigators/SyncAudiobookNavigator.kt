@@ -12,12 +12,13 @@ import dk.nota.flutterreadium.findReadingOrderLink
 import dk.nota.flutterreadium.getReadingOrderItemDuration
 import dk.nota.flutterreadium.getTextId
 import dk.nota.flutterreadium.models.FlutterMediaOverlay
+import dk.nota.flutterreadium.models.cueStepTarget
 import dk.nota.flutterreadium.progression
 import dk.nota.flutterreadium.timeWithDuration
+import dk.nota.flutterreadium.toSeconds
 import dk.nota.flutterreadium.tocHref
 import dk.nota.flutterreadium.xhtmlIdTree
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -106,13 +107,68 @@ class SyncAudiobookNavigator(
                         Pair(mediaOverlay, mediaOverlay.syncTextLocator!!)
                     }
             }.filterNotNull()
-            .distinctUntilChangedBy { (_, locator) -> locator.href.toString() + locator.locations.cssSelector }
             .onEach { (mediaOverlay, textLocator) ->
+                // Skip a cue that is already synced, e.g. by a cue step.
+                if (!markCueSynced(textLocator)) return@onEach
+
                 ReadiumReader.epubSyncToLocator(textLocator, false, mediaOverlay.duration)
 
                 decorateCurrentUtterance(textLocator)
             }.launchIn(this)
             .let { jobs.add(it) }
+    }
+
+    @Volatile
+    private var lastSyncedCueKey: String? = null
+
+    /** Records [textLocator] as the cue the view follows. False if it already was. */
+    private fun markCueSynced(textLocator: Locator): Boolean {
+        val key = textLocator.href.toString() + textLocator.locations.cssSelector
+        if (key == lastSyncedCueKey) return false
+        lastSyncedCueKey = key
+        return true
+    }
+
+    /**
+     * Steps one cue forward or back across the whole publication, keeping the play state.
+     * Returns false when nothing moved (e.g. forward on the last cue).
+     *
+     * Only the channel next/previous come through here. Media-session next/previous keep using the
+     * seek-interval [goForward]/[goBackward].
+     */
+    @OptIn(InternalReadiumApi::class)
+    suspend fun skipToCue(forward: Boolean): Boolean {
+        val navigator =
+            audioNavigator ?: run {
+                PluginLog.w(TAG, "::skipToCue. Navigator not ready.")
+                return false
+            }
+        val current = navigator.currentLocator.value
+        val duration = publication.getReadingOrderItemDuration(current.href)
+        val time = current.locations.timeWithDuration(duration)?.toSeconds ?: 0.0
+
+        val target =
+            mediaOverlays.cueStepTarget(current.href, time, forward) ?: run {
+                PluginLog.d(TAG, "::skipToCue. No cue to step to, forward=$forward")
+                return false
+            }
+        val audioLocator = target.skipToAudioLocator
+        val textLocator = target.syncTextLocator
+        if (audioLocator == null || textLocator == null) {
+            PluginLog.w(TAG, "::skipToCue. Target cue has no audio or text locator: $target")
+            return false
+        }
+
+        // `super` because this class's own goToLocator maps text locators to audio ones.
+        super.goToLocator(audioLocator)
+
+        // The cue flow does not reliably fire for a seek while paused, so sync the view here.
+        // Marking the cue first lets the flow's later emission of it be skipped. Sync even if the
+        // cue was already marked: a restart can start in manual mode, where the view has moved on.
+        markCueSynced(textLocator)
+        ReadiumReader.epubSyncToLocator(textLocator, false, target.duration)
+        decorateCurrentUtterance(textLocator)
+        return true
     }
 
     @OptIn(InternalReadiumApi::class)

@@ -169,10 +169,13 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   /// Resume playback.
   Future<void> resume() => throw UnimplementedError('resume() has not been implemented');
 
-  /// Skip to next logical item during playback. For audiobooks this is the default seek interval. For TTS this is the next paragraph.
+  /// Steps to the next playback unit: the next narration cue in a media-overlay publication, the next utterance in TTS.
+  /// A plain audiobook skips by the default seek interval (web: to the next audio file). Use [audioSeekBy] for explicit interval skips.
   Future<void> next() => throw UnimplementedError('next() has not been implemented');
 
-  /// Skip to previous logical item during playback. For audiobooks this is the default seek interval. For TTS this is the previous paragraph.
+  /// Steps to the previous playback unit: the previous narration cue in a media-overlay publication, the previous utterance in TTS.
+  /// In a media-overlay publication, more than 2 seconds into a cue restarts that cue instead.
+  /// A plain audiobook skips back by the default seek interval (web: to the previous audio file). Use [audioSeekBy] for explicit interval skips.
   Future<void> previous() => throw UnimplementedError('previous() has not been implemented');
   // COMMON PLAYBACK API - END
 
@@ -224,7 +227,7 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   );
 
   /// Seek in audio playback relative to current position by the given offset in seconds. Positive values seek forward, negative values seek backward.
-  /// This is an alternative to next/previous which seeks by a fixed interval.
+  /// Unlike next/previous on a media-overlay publication, this moves by time rather than by cue.
   Future<void> audioSeekBy(Duration offset) => throw UnimplementedError('seekInAudio() has not been implemented');
   // AUDIOBOOK API - END
 

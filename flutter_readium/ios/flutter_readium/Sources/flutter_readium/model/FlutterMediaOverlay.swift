@@ -304,3 +304,34 @@ struct FlutterMediaOverlayItem {
     return FlutterMediaOverlayItem(audio: audio, text: text, position: position, tocHref: atTocHref, readingOrderDuration: readingOrderDuration)
   }
 }
+
+/// Seconds into a cue after which "previous" restarts it instead of stepping back.
+let cueRestartThreshold: TimeInterval = 2.0
+/// A seek to a cue start can land a few ms early; without this, the next step would pick the
+/// cue just stepped to again.
+let cueSeekTolerance: TimeInterval = 0.1
+
+extension Array where Element == FlutterMediaOverlay {
+  /// Picks the cue a next/previous step lands on, over all overlays' cues flattened in order.
+  ///
+  /// The current cue is the last one in `audioHref` that started at or before `time`, so a gap
+  /// between two cues belongs to the earlier one. Before the file's first cue there is no current
+  /// cue: forward goes to that first cue, backward to the cue before it (or the first cue itself
+  /// at the start of the publication). Returns nil when there is nothing to step to.
+  func cueStepTarget(audioHref: String, time: TimeInterval, forward: Bool) -> FlutterMediaOverlayItem? {
+    let cues = flatMap(\.items).filter { $0.audioStart != nil }
+    guard !cues.isEmpty else { return nil }
+
+    let current = cues.lastIndex { $0.audioFile == audioHref && $0.audioStart! <= time + cueSeekTolerance }
+    if forward {
+      if let current { return current + 1 < cues.count ? cues[current + 1] : nil }
+      return cues.first { $0.audioFile == audioHref }
+    }
+    if let current {
+      let elapsed = time - cues[current].audioStart!
+      return elapsed > cueRestartThreshold ? cues[current] : cues[Swift.max(0, current - 1)]
+    }
+    guard let upcoming = cues.firstIndex(where: { $0.audioFile == audioHref }) else { return nil }
+    return cues[Swift.max(0, upcoming - 1)]
+  }
+}

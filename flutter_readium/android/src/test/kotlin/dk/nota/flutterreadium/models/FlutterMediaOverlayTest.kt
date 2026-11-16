@@ -536,4 +536,59 @@ internal class FlutterMediaOverlayTest {
         assertEquals("starting", overlay.findItemFromLocator(locator("track.mp3", "t=16"), allowResourceFallback = false)?.textId)
         assertNull(overlay.findItemInRange("track.mp3", 18.0))
     }
+
+    // Two resources; chap1's first cue starts at 1 s and there is a gap between p2 (ends 8) and p3 (starts 9).
+    private val stepOverlays =
+        listOf(
+            parse(
+                """{"narration":[
+                  {"text":"chap1.xhtml#p1","audio":"chap1.mp3#t=1,5"},
+                  {"text":"chap1.xhtml#p2","audio":"chap1.mp3#t=5,8"},
+                  {"text":"chap1.xhtml#p3","audio":"chap1.mp3#t=9,12"}]}""",
+            ),
+            parse("""{"narration":[{"text":"chap2.xhtml#q1","audio":"chap2.mp3#t=0,8"}]}"""),
+            null,
+        )
+
+    private fun step(
+        href: String,
+        time: Double,
+        forward: Boolean,
+    ) = stepOverlays.cueStepTarget(Url(href)!!, time, forward)?.textId
+
+    @Test
+    fun nextStepsToFollowingCue() = assertEquals("p2", step("chap1.mp3", 2.0, true))
+
+    @Test
+    fun nextCrossesIntoNextResource() = assertEquals("q1", step("chap1.mp3", 10.0, true))
+
+    @Test
+    fun seekLandingJustBeforeCueStartCountsAsThatCue() = assertEquals("p3", step("chap1.mp3", 4.95, true))
+
+    @Test
+    fun nextOnLastCueIsNoOp() = assertNull(step("chap2.mp3", 3.0, true))
+
+    @Test
+    fun nextBeforeFirstCueGoesToFirstCueOfFile() = assertEquals("p1", step("chap1.mp3", 0.5, true))
+
+    @Test
+    fun nextInGapTreatsEarlierCueAsCurrent() = assertEquals("p3", step("chap1.mp3", 8.5, true))
+
+    @Test
+    fun previousMoreThanTwoSecondsInRestartsCurrentCue() = assertEquals("p2", step("chap1.mp3", 7.5, false))
+
+    @Test
+    fun previousWithinTwoSecondsStepsBack() = assertEquals("p1", step("chap1.mp3", 6.0, false))
+
+    @Test
+    fun previousInGapAfterLongCueRestartsEarlierCue() = assertEquals("p2", step("chap1.mp3", 8.5, false))
+
+    @Test
+    fun previousCrossesIntoPreviousResource() = assertEquals("p3", step("chap2.mp3", 1.0, false))
+
+    @Test
+    fun previousOnFirstCueRestartsIt() = assertEquals("p1", step("chap1.mp3", 1.5, false))
+
+    @Test
+    fun previousBeforeFirstCueRestartsFirstCue() = assertEquals("p1", step("chap1.mp3", 0.5, false))
 }

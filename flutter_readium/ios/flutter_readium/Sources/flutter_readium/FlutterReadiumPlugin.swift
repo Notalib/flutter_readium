@@ -417,12 +417,20 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       result(nil)
     case "next":
       Task { @MainActor in
-        await self.timebasedNavigator?.seekForward()
+        if let moNavigator = self.timebasedNavigator as? FlutterMediaOverlayNavigator {
+          await self.skipToCue(on: moNavigator, forward: true)
+        } else {
+          await self.timebasedNavigator?.seekForward()
+        }
       }
       result(nil)
     case "previous":
       Task { @MainActor in
-        await self.timebasedNavigator?.seekBackward()
+        if let moNavigator = self.timebasedNavigator as? FlutterMediaOverlayNavigator {
+          await self.skipToCue(on: moNavigator, forward: false)
+        } else {
+          await self.timebasedNavigator?.seekBackward()
+        }
       }
       result(nil)
     case "goToProgression":
@@ -805,6 +813,14 @@ extension FlutterReadiumPlugin {
   @MainActor
   func updateReaderViewTimebasedDecorations(_ decorations: [Decoration]) {
     currentReaderView?.applyDecorations(decorations, forGroup: "timebased-highlight")
+  }
+
+  /// Method-channel next/previous for media overlays. Steps one cue, then re-enables narration
+  /// sync (if it was off) so the view follows the cue the user just chose.
+  @MainActor
+  func skipToCue(on navigator: FlutterMediaOverlayNavigator, forward: Bool) async {
+    guard let cue = await navigator.skipToCue(forward: forward) else { return }
+    (currentReaderView as? EPUBReaderView)?.resyncToCue(cue.locator, segmentDuration: cue.segmentDuration)
   }
 
   func clearNowPlaying() {

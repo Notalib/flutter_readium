@@ -140,6 +140,17 @@ extension EPUBReaderView {
     }
   }
 
+  /// Leaves manual mode after a cue step. The target cue is stored as the deferred sync locator
+  /// first, so the re-sync replays it directly instead of whichever cue was reached earlier.
+  /// Does nothing when sync is already on; the cue's own sync emission moves the view.
+  @MainActor
+  internal func resyncToCue(_ locator: Locator, segmentDuration: TimeInterval?) {
+    guard !narrationSyncEnabled else { return }
+    lastSyncLocator = locator
+    lastSyncSegmentDuration = segmentDuration
+    setNarrationSyncEnabled(true)
+  }
+
   /// Called when narration stops (not paused — fully stopped). Resets the
   /// runtime sync flag and deferred-locator state, then tells the comic overlay
   /// to animate back to the full-page view so the user can browse freely.

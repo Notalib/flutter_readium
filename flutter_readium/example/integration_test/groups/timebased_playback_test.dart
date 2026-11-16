@@ -417,6 +417,135 @@ void main() {
     );
 
     testWidgets(
+      'next and previous step one narrated cue and keep the paused state',
+      skip: kIsWeb,
+      (tester) async {
+        final path = harness.fixturePath(
+          FixtureKeys.overlayWebpub,
+          reason: 'Fixture ${FixtureKeys.overlayWebpub} missing from asset bundle',
+        );
+        final pub = await harness.readium.openPublication(path);
+        final textLocators = <Locator>[];
+        final textSub = harness.readium.onTextLocatorChanged.listen(textLocators.add);
+        addTearDown(textSub.cancel);
+        final states = <ReadiumTimebasedState>[];
+        final stateSub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
+        addTearDown(stateSub.cancel);
+        final syncChanges = <bool>[];
+        final syncSub = harness.readium.onNarrationSyncChanged.listen(syncChanges.add);
+        addTearDown(syncSub.cancel);
+
+        await tester.pumpWidget(bareReaderApp(pub));
+        await waitWithPump(
+          tester,
+          () => textLocators.isNotEmpty,
+          timeout: firstMountTimeout,
+          reason: 'Reader did not emit its initial text locator',
+        );
+        await harness.readium
+            .audioEnable(prefs: AudioPreferences(speed: 1.0))
+            .timeout(
+              const Duration(seconds: 30),
+              onTimeout: () => fail('audioEnable did not complete within 30 seconds'),
+            );
+        await harness.readium.pause();
+
+        Future<ReadiumTimebasedState> expectPausedCue(
+          String href,
+          String cssSelector, {
+          required Future<Object?> Function() act,
+          Duration? offsetBelow,
+          String? viewHref,
+        }) async {
+          states.clear();
+          textLocators.clear();
+          await act();
+          bool matches(ReadiumTimebasedState state) =>
+              state.currentLocator?.href.endsWith(href) == true &&
+              state.currentLocator?.locations?.cssSelector == cssSelector &&
+              (offsetBelow == null || (state.currentOffset ?? Duration.zero) < offsetBelow);
+          await waitWithPump(
+            tester,
+            () => states.any(matches),
+            timeout: const Duration(seconds: 30),
+            reason: 'Player did not reach cue $href$cssSelector',
+            diagnostics: () => states.map((state) => '${state.state}: ${state.currentLocator}').join(' | '),
+          );
+          expect(
+            states.every((state) => state.state != TimebasedState.playing),
+            isTrue,
+            reason: 'A cue step while paused must not start playback',
+          );
+          if (viewHref != null) {
+            // The reader view follows the target cue even though playback is paused.
+            await waitWithPump(
+              tester,
+              () => textLocators.isNotEmpty && textLocators.last.href.endsWith(viewHref),
+              timeout: const Duration(seconds: 30),
+              reason: 'Reader view did not move to $viewHref',
+              diagnostics: () => 'textLocators=${textLocators.map((l) => l.href).toList()}',
+            );
+          }
+          return states.lastWhere(matches);
+        }
+
+        Locator at(String href, double seconds) => Locator(
+          href: href,
+          type: 'application/xhtml+xml',
+          locations: Locations(fragments: ['t=$seconds']),
+        );
+
+        // Cues of the second chapter: #uwlh00011 spans 5.8-18.2 s, #uwlh00012 spans 18.2-33.4 s.
+        const chapter2 = '38533-0002-generic.xhtml';
+        const chapter3 = '38533-0003-generic.xhtml';
+        await expectPausedCue(
+          chapter2,
+          '#uwlh00011',
+          act: () => harness.readium.goToLocator(at(chapter2, 6.5)),
+        );
+
+        await expectPausedCue(chapter2, '#uwlh00012', act: harness.readium.next);
+
+        // Within 2 s of the cue start, previous steps back to the cue before it.
+        await expectPausedCue(chapter2, '#uwlh00011', act: harness.readium.previous);
+
+        // Further into the cue, previous restarts the current cue instead.
+        await harness.readium.goToLocator(at(chapter2, 10));
+        await expectPausedCue(
+          chapter2,
+          '#uwlh00011',
+          act: harness.readium.previous,
+          offsetBelow: const Duration(seconds: 7),
+        );
+
+        // The last cue of a chapter steps into the first cue of the next chapter, and back.
+        await harness.readium.goToLocator(at(chapter2, 41));
+        await expectPausedCue(chapter3, '#uwlh00015', act: harness.readium.next, viewHref: chapter3);
+        await expectPausedCue(chapter2, '#xbdi_0001', act: harness.readium.previous, viewHref: chapter2);
+
+        // A cue step leaves manual mode, announcing it once.
+        await harness.readium.setNarrationSyncEnabled(false);
+        await waitWithPump(
+          tester,
+          () => syncChanges.isNotEmpty && syncChanges.last == false,
+          timeout: const Duration(seconds: 10),
+          reason: 'Narration sync was not reported as disabled',
+        );
+        syncChanges.clear();
+        await expectPausedCue(chapter3, '#uwlh00015', act: harness.readium.next, viewHref: chapter3);
+        await waitWithPump(
+          tester,
+          () => syncChanges.isNotEmpty,
+          timeout: const Duration(seconds: 10),
+          reason: 'A cue step did not re-enable narration sync',
+        );
+        expect(syncChanges, [true]);
+
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+
+    testWidgets(
       'media-overlay WebPub initializes synchronized text cues on web',
       skip: !kIsWeb,
       (tester) async {

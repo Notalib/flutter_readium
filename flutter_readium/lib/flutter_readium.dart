@@ -209,10 +209,14 @@ class FlutterReadium {
   /// Resumes playback from the current position.
   Future<void> resume() => _readiumCall(() => _platform.resume());
 
-  /// Skips to the next playback unit, such as the next TTS utterance or one audio seek interval.
+  /// Steps to the next playback unit: the next narration cue in a media-overlay publication, the next TTS utterance, or one seek interval in a plain audiobook (the next audio file on web).
+  ///
+  /// A media-overlay step keeps the play state and re-enables narration sync. Use [audioSeekBy] for interval skips.
   Future<void> next() => _readiumCall(() => _platform.next());
 
-  /// Skips to the previous playback unit, such as the previous TTS utterance or one audio seek interval.
+  /// Steps to the previous playback unit: the previous narration cue in a media-overlay publication, the previous TTS utterance, or one seek interval in a plain audiobook (the previous audio file on web).
+  ///
+  /// In a media-overlay publication, more than 2 seconds into a cue restarts that cue instead. Use [audioSeekBy] for interval skips.
   Future<void> previous() => _readiumCall(() => _platform.previous());
 
   /// Navigates the reader to the given [locator].
