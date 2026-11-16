@@ -38,3 +38,5 @@ runs:
           adb logcat -c || true
           # Retries once if `adb install` hangs, and stays under the job's time limit.
           bash "${{ github.action_path }}/run-tests.sh" ${{ inputs.api-level }}
+          # Which renderer and platform view mode actually ran, e.g. whether HCPP fell back.
+          adb logcat -d | grep -E "Impeller rendering backend|platform view rendering strategy|HCPP" | sort -u | head -20 || true
