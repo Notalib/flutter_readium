@@ -218,7 +218,9 @@ Locator _targetLocator(Publication publication) {
 Future<void> _recordEpubScene(WidgetTester tester) async {
   await _hold(tester, const Duration(milliseconds: 1200));
 
-  final settingsButton = find.byTooltip('Open visual reader settings');
+  await tester.tap(find.byKey(const ValueKey('reader_overflow_menu')));
+  await _hold(tester, const Duration(milliseconds: 400));
+  final settingsButton = find.byKey(const ValueKey('visual_settings_button'));
   expect(settingsButton, findsOneWidget);
   await tester.tap(settingsButton);
   await _hold(tester, const Duration(milliseconds: 700));

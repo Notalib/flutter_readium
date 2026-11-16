@@ -51,6 +51,9 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   Stream<ReadiumExternalPlaybackCommand> get onExternalPlaybackCommand => _externalPlaybackCommandController.stream;
 
   @override
+  Stream<ReadiumAudioRoute> get onAudioRouteChanged => const Stream.empty();
+
+  @override
   Stream<ReadiumError> get onErrorEvent => _errorController.stream;
 
   @override

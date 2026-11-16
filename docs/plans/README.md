@@ -27,6 +27,8 @@ This directory holds implementation plans, parity audits, and retained reference
 - **[todo/native-reader-interaction-navigation-plan.md](todo/native-reader-interaction-navigation-plan.md)** —
 	disentangle manual reader interaction from page-navigation/manual-mode signaling. *(Cross-platform parity / M)*
 
+- **[todo/audio-remote-playback.md](todo/audio-remote-playback.md)** — AirPlay, Chromecast and web Remote Playback: upstream state, what the plugin exposes, and what Cast would take. *(Cross-platform feature / S–L)*
+
 ## Upstream plans (`upstream/`)
 
 - **[upstream/upstream-audio-error-surfacing-plan.md](upstream/upstream-audio-error-surfacing-plan.md)** —

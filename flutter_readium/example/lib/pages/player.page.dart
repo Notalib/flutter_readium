@@ -209,49 +209,6 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   );
 
   List<Widget> _buildActionButtons(final bool isAudioBook, final bool isDivina) => <Widget>[
-    if (!isAudioBook && !isDivina)
-      IconButton(
-        key: const ValueKey('visual_settings_button'),
-        icon: const Icon(Icons.format_paint),
-        onPressed: () {
-          final publication = context.read<PublicationBloc>().state.publication;
-          final isPDF = publication?.conformsToReadiumPDF ?? false;
-
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            builder: (final context) => PointerInterceptor(
-              child: isPDF ? const PDFSettingsWidget() : const TextSettingsWidget(),
-            ),
-          );
-        },
-        tooltip: 'Open visual reader settings',
-      ),
-    IconButton(
-      key: const ValueKey('audio_settings_button'),
-      icon: const Icon(Icons.headphones),
-      onPressed: () {
-        final publication = context.read<PublicationBloc>().state.publication;
-        // Broader than the `isAudioBook` param above (which only gates the
-        // visual/body layout): also true for Media Overlay / Guided
-        // Navigation EPUBs, which play back through the same audio pipeline
-        // as a plain audiobook and need the same speed/pitch controls.
-        final hasAudioPlayback = publication?.isAudioBook ?? false;
-
-        if (!hasAudioPlayback) {
-          context.read<TtsSettingsBloc>().add(LoadAvailableVoices());
-        }
-
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          builder: (final context) => PointerInterceptor(
-            child: hasAudioPlayback ? const AudioPlaybackSettingsWidget() : const TtsSettingsWidget(),
-          ),
-        );
-      },
-      tooltip: 'Open audio/playback settings',
-    ),
     IconButton(
       key: const ValueKey('search_button'),
       icon: const Icon(Icons.search),
@@ -293,7 +250,65 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
       },
       tooltip: 'Open table of contents',
     ),
+    PopupMenuButton<void>(
+      key: const ValueKey('reader_overflow_menu'),
+      tooltip: 'More',
+      itemBuilder: (final context) => [
+        if (!isAudioBook && !isDivina) _menuItem('visual_settings_button', 'Visual settings', _openVisualSettings),
+        _menuItem('audio_settings_button', 'Audio settings', _openAudioSettings),
+      ],
+    ),
   ];
+
+  // The web reader is an iframe that steals clicks, so on web the interceptor covers the whole item.
+  // Off web it must stay off: on iOS it adds a native view that swallows taps beside the label.
+  PopupMenuItem<void> _menuItem(final String key, final String label, final VoidCallback onTap) => PopupMenuItem<void>(
+    key: ValueKey(key),
+    onTap: onTap,
+    padding: EdgeInsets.zero,
+    child: PointerInterceptor(
+      intercepting: kIsWeb,
+      child: Container(
+        width: double.infinity,
+        height: kMinInteractiveDimension,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        alignment: AlignmentDirectional.centerStart,
+        child: Text(label),
+      ),
+    ),
+  );
+
+  void _openVisualSettings() {
+    final publication = context.read<PublicationBloc>().state.publication;
+    final isPDF = publication?.conformsToReadiumPDF ?? false;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (final context) => PointerInterceptor(
+        child: isPDF ? const PDFSettingsWidget() : const TextSettingsWidget(),
+      ),
+    );
+  }
+
+  void _openAudioSettings() {
+    final publication = context.read<PublicationBloc>().state.publication;
+    // Broader than _buildActionButtons' `isAudioBook`: also true for Media Overlay and Guided Navigation
+    // EPUBs, which play through the same audio pipeline and need the same speed/pitch controls.
+    final hasAudioPlayback = publication?.isAudioBook ?? false;
+
+    if (!hasAudioPlayback) {
+      context.read<TtsSettingsBloc>().add(LoadAvailableVoices());
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (final context) => PointerInterceptor(
+        child: hasAudioPlayback ? const AudioPlaybackSettingsWidget() : const TtsSettingsWidget(),
+      ),
+    );
+  }
 
   Widget _controls(final Publication publication) {
     return AnimatedSlideOutWidget(

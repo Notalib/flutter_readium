@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_readium/flutter_readium.dart' show ControlPanelTimebase, Locator, Publication;
+import 'package:flutter_readium/flutter_readium.dart'
+    show
+        ControlPanelTimebase,
+        FlutterReadium,
+        Locator,
+        Publication,
+        ReadiumAudioRoute,
+        ReadiumAudioRoutePicker,
+        ReadiumAudioRouteType;
 import 'package:flutter_readium_example/state/index.dart';
 
 import 'progression_slider.widget.dart';
@@ -68,12 +76,6 @@ class PlayerControls extends StatelessWidget {
                 tooltip: state.playing ? 'Pause' : 'Play',
               ),
               IconButton(
-                key: const ValueKey('stop_button'),
-                icon: const Icon(Icons.stop),
-                onPressed: () => context.read<PlayerControlsBloc>().add(Stop()),
-                tooltip: 'Stop',
-              ),
-              IconButton(
                 key: const ValueKey('skip_next_button'),
                 icon: const Icon(Icons.fast_forward),
                 onPressed: () {
@@ -91,6 +93,14 @@ class PlayerControls extends StatelessWidget {
                 ),
                 tooltip: 'Skip to next chapter',
               ),
+            ],
+          ),
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 4,
+            runSpacing: 4,
+            children: [
               if (state.audioEnabled) ...[
                 IconButton(
                   key: const ValueKey('seek_back_10s'),
@@ -105,6 +115,12 @@ class PlayerControls extends StatelessWidget {
                   tooltip: 'Seek forward 10 s',
                 ),
               ],
+              IconButton(
+                key: const ValueKey('stop_button'),
+                icon: const Icon(Icons.stop),
+                onPressed: () => context.read<PlayerControlsBloc>().add(Stop()),
+                tooltip: 'Stop',
+              ),
               if (isAudioBook)
                 IconButton(
                   key: const ValueKey('toggle_control_panel_timebase'),
@@ -118,7 +134,23 @@ class PlayerControls extends StatelessWidget {
                     ToggleAudioControlPanelTimebase(),
                   ),
                 ),
+              const SizedBox.square(
+                dimension: 48,
+                child: Center(child: ReadiumAudioRoutePicker(key: ValueKey('audio_route_picker'))),
+              ),
             ],
+          ),
+          StreamBuilder<ReadiumAudioRoute>(
+            stream: FlutterReadium().onAudioRouteChanged,
+            builder: (final context, final snapshot) {
+              final route = snapshot.data;
+              if (route == null || route.type != ReadiumAudioRouteType.airPlay) return const SizedBox.shrink();
+              return Text(
+                'Playing on ${route.name}',
+                key: const ValueKey('audio_route_label'),
+                style: Theme.of(context).textTheme.bodySmall,
+              );
+            },
           ),
         ],
       );

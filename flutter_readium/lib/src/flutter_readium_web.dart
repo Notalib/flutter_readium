@@ -91,6 +91,10 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   @override
   Stream<ReadiumExternalPlaybackCommand> get onExternalPlaybackCommand => _externalPlaybackCommandController.stream;
 
+  // No AirPlay picker on web. Remote Playback is a separate follow-up.
+  @override
+  Stream<ReadiumAudioRoute> get onAudioRouteChanged => const Stream.empty();
+
   @override
   Stream<ReadiumReaderStatus> get onReaderStatusChanged => _readerStatusController.stream;
 

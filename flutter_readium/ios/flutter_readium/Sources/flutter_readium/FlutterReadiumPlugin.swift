@@ -65,6 +65,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   internal var lastTimebasedPlayerState: ReadiumTimebasedState? = nil
   internal var externalPlaybackCommandStreamHandler: EventStreamHandler?
 
+  /// Audio output route stream (e.g. AirPlay). Lives for the plugin's lifetime.
+  private var audioRouteObserver: AudioRouteObserver?
+
   /// Timebased Navigator. Can be TTS, Audio or MediaOverlay implementations.
   internal var timebasedNavigator: FlutterTimebasedNavigator? = nil
 
@@ -103,7 +106,10 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     plugin.readerStatusStreamHandler = EventStreamHandler(withName: "reader-status", messenger: registrar.messenger(), bufferLatestEvent: true)
     plugin.errorStreamHandler = EventStreamHandler(withName: "error", messenger: registrar.messenger())
     plugin.narrationSyncStreamHandler = EventStreamHandler(withName: "narration-sync", messenger: registrar.messenger())
+    plugin.audioRouteObserver = AudioRouteObserver(messenger: registrar.messenger())
     instance = plugin
+
+    registrar.register(AudioRoutePickerViewFactory(), withId: AudioRoutePickerViewFactory.viewType)
 
     // Register reader view factory
     let factory = ReadiumReaderViewFactory(registrar: registrar)
