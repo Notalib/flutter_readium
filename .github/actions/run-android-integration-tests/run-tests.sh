@@ -9,10 +9,30 @@ logcat_file="$GITHUB_WORKSPACE/android-logcat-api$api_level.txt"
 # Must match applicationId in example/android/app/build.gradle.kts.
 app_id=com.example.flutter_readium_example
 # flutter test runs `adb -s <serial> install -t -r <apk>`. It takes ~11 s when healthy, but on the
-# API 24 emulator it sometimes never returns.
-install_pattern='adb -s [^ ]+ install '
+# API 24 emulator it sometimes never returns. `[^ /]*` also matches the adb-real binary below.
+install_pattern='adb[^ /]* -s [^ ]+ install '
 install_limit_s=120
 hang_marker=$(mktemp -u)
+
+# On API 24 the hung install is the streamed one (`cmd package install`): the device reserves space
+# for the APK, then receives nothing. flutter test passes no install flags, so swap the SDK's adb,
+# which flutter calls by path, for a shim that adds --no-streaming (push to /data/local/tmp, then pm).
+force_push_install() {
+  local adb_path="${ANDROID_HOME:?}/platform-tools/adb"
+  mv "$adb_path" "$adb_path-real"
+  cat > "$adb_path" << EOF
+#!/usr/bin/env bash
+if [ "\${1:-}" = -s ] && [ "\${3:-}" = install ]; then
+  set -- "\$1" "\$2" install --no-streaming "\${@:4}"
+elif [ "\${1:-}" = install ]; then
+  set -- install --no-streaming "\${@:2}"
+fi
+exec "$adb_path-real" "\$@"
+EOF
+  chmod +x "$adb_path"
+  echo "adb install on API $api_level uses --no-streaming"
+}
+[ "$api_level" = 24 ] && force_push_install
 
 # Kills a hung `adb install`, so flutter test fails fast instead of eating the job's time limit.
 watch_install() {
