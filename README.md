@@ -61,7 +61,7 @@ continues with navigation, preferences, and position restoration.
 flutter_readium is a federated plugin that delegates to the upstream Readium toolkit on each
 platform:
 
-- **swift-toolkit 3.11.0** on iOS
+- **swift-toolkit 3.11.1** on iOS
 - **kotlin-toolkit 3.4.0** on Android
 - **ts-toolkit** (`@readium/shared`, `@readium/navigator`) on Web
 

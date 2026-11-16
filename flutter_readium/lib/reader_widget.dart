@@ -36,6 +36,7 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.preloadPreviousPositionCount = 2,
     this.preloadNextPositionCount = 6,
     this.disablePageTurnsWhileScrolling = false,
+    this.allowScreenReaderNavigation = false,
     super.key,
   });
 
@@ -82,7 +83,8 @@ class ReadiumReaderWidget extends StatefulWidget {
   ///
   /// On Android, these replace the system menu. On iOS, they appear first and
   /// the system items follow. To show only these on iOS too, pass
-  /// `allowedDefaultActions: const {}`.
+  /// `allowedDefaultActions: const {}`. On web, they appear in a floating toolbar
+  /// next to the selection, since the browser's menu cannot be extended.
   final List<SelectionAction> selectionActions;
 
   /// Static font families whose faces are bundled as Flutter assets.
@@ -96,6 +98,8 @@ class ReadiumReaderWidget extends StatefulWidget {
   ///
   /// Note: [DefaultSelectionAction.translate] is iOS-only; [DefaultSelectionAction.selectAll]
   /// is Android-only. Unsupported values for a platform are silently ignored.
+  ///
+  /// Not supported on web: the browser's selection menu is not customisable, so this is ignored.
   final Set<DefaultSelectionAction>? allowedDefaultActions;
 
   /// Accessibility label for the backward navigation semantic region.
@@ -126,6 +130,15 @@ class ReadiumReaderWidget extends StatefulWidget {
   /// to change resources, such as [FlutterReadium.goForward],
   /// [FlutterReadium.goBackward], or table-of-contents navigation.
   final bool disablePageTurnsWhileScrolling;
+
+  /// Whether screen readers can reach the publication content.
+  ///
+  /// When `false` (the default) the content is hidden from screen readers and only the three
+  /// navigation regions are exposed. When `true` the content is reachable, which a braille
+  /// display needs to show the text.
+  ///
+  /// Read when the native view is created: pass a new widget `key` to change it.
+  final bool allowScreenReaderNavigation;
 
   @override
   State<StatefulWidget> createState() => _ReadiumReaderWidgetState();
@@ -234,6 +247,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
           ),
         ),
         ExcludeSemantics(
+          excluding: !widget.allowScreenReaderNavigation,
           // Observe interactions without competing with the native reader in
           // Flutter's gesture arena.
           child: Listener(
@@ -308,6 +322,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       'preloadPreviousPositionCount': widget.preloadPreviousPositionCount,
       'preloadNextPositionCount': widget.preloadNextPositionCount,
       'disablePageTurnsWhileScrolling': widget.disablePageTurnsWhileScrolling,
+      'allowScreenReaderNavigation': widget.allowScreenReaderNavigation,
       'fontFamilyDeclarations': widget.fontFamilyDeclarations.map((font) => font.toMap()).toList(),
       if (widget.selectionActions.isNotEmpty)
         'selectionActions': widget.selectionActions.map((a) => a.toJson()).toList(),
