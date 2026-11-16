@@ -2,9 +2,9 @@
 
 Snapshot of every `TODO` / `FIXME` marker in the repo and the plan documents, classified by what to do with it. Produced by a read-only spike on 2026-11-09; GitHub was unreachable during the spike, so open issues and PRs were not cross-checked.
 
-Classes: **fix-now** (done in the same change), **file-issue** (grouped into G1-G9 below, not one issue per marker), **upstream** (the real fix belongs in a Readium toolkit), **delete** (not a task: stub, rationale or template line).
+Classes: **fix-now** (done in the same change), **file-issue** (grouped into G1-G9 below, not one issue per marker), **upstream** (the real fix belongs in a Readium toolkit), **delete** (not a task: stub, rationale or template line), **keep** (left as is on purpose).
 
-Counts: fix-now 3, file-issue 35, upstream 10, delete 6. The spike table omitted the three `FlutterDecorationPreferences.kt` markers that G4 refers to; they are listed here.
+Counts: fix-now 3, file-issue 35, upstream 10, delete 5, keep 1. The spike table omitted the three `FlutterDecorationPreferences.kt` markers that G4 refers to; they are listed here.
 
 Paths are shortened: Android paths are under `flutter_readium/android/src/main/kotlin/dk/nota/flutterreadium/`, iOS under `flutter_readium/ios/flutter_readium/Sources/flutter_readium/`, `platform_interface/` is `flutter_readium_platform_interface/lib/src/`, and Dart, web and example paths start at `flutter_readium/`.
 
@@ -60,7 +60,7 @@ Paths are shortened: Android paths are under `flutter_readium/android/src/main/k
 | `navigator/NowPlayingInfoUpdater.swift:45` | limit cover size? | file-issue G2 | Perf question; no evidence of a problem. |
 | `navigator/NowPlayingInfoUpdater.swift:229` | should these skip a full track? | file-issue G2 | Behaviour decision. |
 | `navigator/NowPlayingInfoUpdater.swift:237` | same as 229 | file-issue G2 | Same decision. |
-| `navigator/FlutterAudioNavigator.swift:489` | LCP errors ignored until LCP is supported | delete | LCP is out of scope (README). Reworded in this branch. |
+| `navigator/FlutterAudioNavigator.swift:489` | LCP errors ignored until LCP is supported | keep | LCP support is in progress in a separate PR; left unchanged to avoid a conflict. |
 | `navigator/FlutterAudioNavigator.swift:959` | should be handled by the Readium navigator | upstream | swift-toolkit; unchecked. |
 | `reader/EPUBReaderView.swift:171` | PoC for custom editing actions; configure from Flutter | file-issue G8 | Feature decision. |
 | `reader/EPUBReaderView.swift:364` | send resource-load error this way? | file-issue G8 | Error-contract question. |

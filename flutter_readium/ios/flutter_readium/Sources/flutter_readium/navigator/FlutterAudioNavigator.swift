@@ -486,7 +486,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   public func navigator(_ navigator: any ReadiumNavigator.Navigator, presentError error: ReadiumNavigator.NavigatorError) {
     Log.navigator.error("Should present error: \(error)")
-    // LCP-related errors are ignored because LCP is not supported.
+    // TODO: LCP related errors, ignored until supporting LCP.
   }
 
   public func navigator(_ navigator: any ReadiumNavigator.Navigator, didFailToLoadResourceAt href: ReadiumShared.RelativeURL, withError error: ReadiumShared.ReadError) {
