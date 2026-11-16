@@ -51,6 +51,48 @@ jobs:
         run: flutter analyze --fatal-infos --fatal-warnings
         working-directory: ${{ matrix.package }}
 
+  # Every other job builds with .flutter-version. This one checks that the
+  # libraries still compile on the oldest Flutter their pubspecs accept. The
+  # example is skipped because it may require a newer SDK than the libraries.
+  floor-sdk-analyze:
+    name: Analyze on minimum Flutter
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        package:
+          - flutter_readium_platform_interface
+          - flutter_readium
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read minimum Flutter version (${{ matrix.package }})
+        id: floor
+        run: |
+          version=$(sed -n "s/^  flutter: *['\"]>=\([0-9.]*\)['\"].*/\1/p" pubspec.yaml)
+          if [ -z "$version" ]; then
+            echo "::error::No 'flutter: >=x.y.z' constraint found in ${{ matrix.package }}/pubspec.yaml"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+        working-directory: ${{ matrix.package }}
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ steps.floor.outputs.version }}
+          pub-cache: true
+
+      - name: Install dependencies (${{ matrix.package }})
+        run: flutter pub get --no-example
+        working-directory: ${{ matrix.package }}
+
+      # Infos are not fatal: lints and deprecations differ between SDK
+      # versions, and the pinned-SDK job already enforces them.
+      - name: Analyze (${{ matrix.package }})
+        run: flutter analyze --no-fatal-infos --fatal-warnings lib test
+        working-directory: ${{ matrix.package }}
+
   readium-pins:
     name: Readium Pins
     runs-on: ubuntu-latest
@@ -59,7 +101,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # The iOS swift-toolkit version is declared in three files. A bump that
+      # The iOS swift-toolkit version is declared in two files. A bump that
       # misses one lets CocoaPods and SwiftPM consumers resolve different
       # Readium versions, which only shows up as odd native behaviour later.
       - name: Check Readium version pins are in sync
