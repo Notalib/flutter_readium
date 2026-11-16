@@ -49,6 +49,7 @@ ReadiumReaderWidget(
 | `toggleShowControlsSemanticLabel` | `String?` | `null` | Accessibility label for the controls toggle |
 | `selectionActions` | `List<SelectionAction>` | `[]` | Custom actions for selected text (native menu on mobile, floating toolbar on web) |
 | `allowedDefaultActions` | `Set<DefaultSelectionAction>?` | `null` | System actions to keep in the selection menu. Ignored on Android and web |
+| `allowScreenReaderNavigation` | `bool` | `false` | `false` hides the publication content from screen readers and exposes only the three navigation regions. `true` makes the content reachable, which a braille display needs. Read when the native view is created: pass a new widget `key` to change it. Native iOS and Android only; no effect on web |
 
 ## Platform implementations
 
