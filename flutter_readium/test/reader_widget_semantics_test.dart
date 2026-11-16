@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -14,8 +14,9 @@ void main() {
 
     for (final allow in [false, true]) {
       await tester.pumpWidget(
-        MaterialApp(
-          home: ReadiumReaderWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: ReadiumReaderWidget(
             key: ValueKey(allow),
             publication: publication,
             allowScreenReaderNavigation: allow,

@@ -4,7 +4,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 environment:
   sdk: ">=3.8.0 <4.0.0"
-  flutter: '>=3.47.2'
+  flutter: '>=3.50.0'
 
 dependencies:
   flutter:
@@ -30,6 +30,8 @@ dependencies:
   path_provider: ^2.1.5
   pointer_interceptor: ^0.10.1
   rxdart: ^0.28.0
+  material_ui: ^1.11.0
+  cupertino_ui: ^1.1.6
 
 dev_dependencies:
   integration_test:
@@ -50,8 +52,6 @@ dependency_overrides:
 
 flutter:
   uses-material-design: true
-  config:
-    enable-swift-package-manager: false
   assets:
     - assets/pubs/
     - assets/fonts/AtkinsonHyperlegible/

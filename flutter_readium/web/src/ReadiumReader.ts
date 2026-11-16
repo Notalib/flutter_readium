@@ -51,7 +51,7 @@ import { UncuedTocTargets } from "./mediaoverlay/uncuedTocTargets";
 // Decoration overrides (for comic/visual sync)
 import { navIframeWindows } from "./decorations/decorationFrameUtils";
 // Iframe injection utilities
-import { injectMOBreakCSSIntoWindow } from "./utils/iframeInjection";
+import { injectMOBreakCSSIntoWindow, setHelperAssetUrls } from "./utils/iframeInjection";
 import { FontFamilyDeclaration, injectFontFacesIntoWindow, parseFontFamilyDeclarations } from "./fonts/FontFamilyDeclarations";
 // Errors
 import { ReadiumWebError, ReadiumWebErrorCode, ResourceReadErrorReason } from "./errors/ReadiumWebError";
@@ -114,6 +114,11 @@ class _ReadiumReader {
     const policy = AudioRecoveryPolicy.fromJson(JSON.parse(policyJson));
     setCurrentAudioRecoveryPolicy(policy);
     log.info("Audio recovery policy set", policy);
+  }
+
+  /** Sets the helper bundle URLs, as resolved by Flutter's asset manager. */
+  public setHelperAssetUrls(jsUrl: string, cssUrl: string): void {
+    setHelperAssetUrls(jsUrl, cssUrl);
   }
 
   private _publication: ReadiumPublication | undefined;

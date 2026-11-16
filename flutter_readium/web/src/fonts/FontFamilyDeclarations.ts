@@ -1,4 +1,5 @@
 export interface FontFaceDeclaration {
+  /** Font URL, already resolved by Flutter's asset manager on the Dart side. */
   asset: string;
   style: "normal" | "italic";
   weight: number;
@@ -47,9 +48,13 @@ function cssString(value: string): string {
   return `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
 
-/** Directory that Flutter web serves app assets from. */
-export function flutterAssetsUrl(baseUrl: string): string {
-  return new URL("assets/", baseUrl).href;
+function fontFaceUrl(face: FontFaceDeclaration, baseUrl: string): string {
+  return new URL(face.asset, baseUrl).href;
+}
+
+/** Every declared font URL, for the frame CSP. The asset base can be another host, such as a CDN. */
+export function fontFaceUrls(declarations: FontFamilyDeclaration[], baseUrl: string): string[] {
+  return [...new Set(declarations.flatMap((family) => family.faces.map((face) => fontFaceUrl(face, baseUrl))))];
 }
 
 export function fontFaceCss(
@@ -58,7 +63,7 @@ export function fontFaceCss(
 ): string {
   return declarations
     .flatMap((family) => family.faces.map((face) => {
-      const assetUrl = new URL(face.asset, flutterAssetsUrl(baseUrl)).href;
+      const assetUrl = fontFaceUrl(face, baseUrl);
       return `@font-face { font-family: ${cssString(family.name)}; src: url(${cssString(assetUrl)}); font-style: ${face.style}; font-weight: ${face.weight}; }`;
     }))
     .join("\n");

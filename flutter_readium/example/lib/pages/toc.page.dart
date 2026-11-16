@@ -1,6 +1,6 @@
 import 'dart:math' show min, max;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart' show Link, PublicationLists;

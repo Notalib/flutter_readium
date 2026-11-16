@@ -38,7 +38,7 @@ ReadiumReaderWidget(
 |-----------|------|---------|-------------|
 | `publication` | `Publication` | required | The open publication to display |
 | `initialLocator` | `Locator?` | `null` | Position to restore on open |
-| `loadingWidget` | `Widget?` | `CircularProgressIndicator` | Shown while native view loads |
+| `loadingWidget` | `Widget?` | `null` (nothing shown) | Shown while native view loads |
 | `fontFamilyDeclarations` | `List<ReaderFontFamily>` | `[]` | Static Flutter font assets available to EPUB/WebPub font-family preferences |
 | `shouldShowControls` | `bool` | `true` | Show built-in navigation controls |
 | `verticalScroll` | `bool?` | from preferences | Override scroll/paginated mode |

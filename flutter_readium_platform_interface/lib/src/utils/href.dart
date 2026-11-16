@@ -8,7 +8,7 @@ import 'dart:convert';
 
 import 'package:collection/collection.dart';
 import 'package:dartx/dartx.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../extensions/strings.dart';
 import 'readium_log.dart';
