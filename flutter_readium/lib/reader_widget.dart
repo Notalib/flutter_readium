@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart' as mq show Orientation;
 import 'package:flutter/widgets.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -143,7 +142,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   final _readium = FlutterReadiumPlatform.instance;
 
-  mq.Orientation? _lastOrientation;
+  Orientation? _lastOrientation;
   late Widget _readerWidget;
   late final ReaderPointerTracker _pointerTracker = ReaderPointerTracker(
     onDeliberateDrag: _hideControls,
@@ -431,7 +430,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   /// TODO: Remove this workaround, if the underlying issue is completely fixed in Readium.
   ///
   /// If orientation changes, fix page alignment, so it doesn't stay on a weird-looking page 5½.
-  void _onOrientationChangeWorkaround(final mq.Orientation orientation) async {
+  void _onOrientationChangeWorkaround(final Orientation orientation) async {
     if (_lastOrientation == null) {
       _lastOrientation = orientation;
 
