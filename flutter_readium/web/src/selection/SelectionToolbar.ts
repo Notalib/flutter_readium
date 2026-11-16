@@ -38,16 +38,21 @@ export interface ToolbarPlacementInput {
   toolbarWidth: number;
   toolbarHeight: number;
   containerWidth: number;
+  containerHeight: number;
 }
 
 const TOOLBAR_CLASS = "flutter-readium-selection-toolbar";
 const GAP = 8;
 const EDGE = 4;
 
-/** Above the selection, or below it when there is no room; kept inside the container horizontally. */
+/**
+ * Above the selection, or below it when there is no room; kept inside the container, which clips overflow.
+ * A selection that fills the container leaves room on neither side, so the toolbar then covers its end.
+ */
 export function placeToolbar(input: ToolbarPlacementInput): { top: number; left: number } {
   const above = input.anchorTop - input.toolbarHeight - GAP;
-  const toolbarTop = above >= EDGE ? above : input.anchorBottom + GAP;
+  const maxTop = Math.max(EDGE, input.containerHeight - input.toolbarHeight - EDGE);
+  const toolbarTop = above >= EDGE ? above : Math.min(input.anchorBottom + GAP, maxTop);
   const maxLeft = Math.max(EDGE, input.containerWidth - input.toolbarWidth - EDGE);
   const left = Math.min(Math.max(input.anchorCenterX - input.toolbarWidth / 2, EDGE), maxLeft);
   return { top: toolbarTop, left };
@@ -77,6 +82,8 @@ export class SelectionToolbar {
   setActions(actions: SelectionActionConfig[]): void {
     this._actions = actions;
     if (actions.length === 0) this.hide();
+    // Rebuild an open toolbar: its buttons hold the old actions.
+    else if (this._target) this.show(this._target);
   }
 
   show(target: SelectionToolbarTarget): void {
@@ -173,6 +180,7 @@ export class SelectionToolbar {
       toolbarWidth: toolbarEl.offsetWidth,
       toolbarHeight: toolbarEl.offsetHeight,
       containerWidth: containerRect.width,
+      containerHeight: containerRect.height,
     });
     toolbarEl.style.top = `${toolbarTop}px`;
     toolbarEl.style.left = `${left}px`;

@@ -76,6 +76,15 @@ describe("SelectionToolbar", () => {
     expect(document.querySelector(".flutter-readium-selection-toolbar")).toBeNull();
   });
 
+  it("rebuilds an open toolbar when the actions change", () => {
+    const { container, toolbar, show } = setup();
+    show();
+
+    toolbar.setActions([{ id: "share", title: "Share" }]);
+
+    expect(buttons(container).map((b) => b.textContent)).toEqual(["Share"]);
+  });
+
   it("emits the action with the resolved locator and text, then clears the selection and hides", () => {
     const { container, wnd, onAction, show } = setup();
     show();
@@ -179,6 +188,7 @@ describe("placeToolbar", () => {
     toolbarWidth: 100,
     toolbarHeight: 30,
     containerWidth: 400,
+    containerHeight: 600,
   };
 
   it("sits above the first line when there is room", () => {
@@ -187,6 +197,10 @@ describe("placeToolbar", () => {
 
   it("goes below the last line when there is no room above", () => {
     expect(placeToolbar({ ...base, anchorTop: 10 }).top).toBe(140 + 8);
+  });
+
+  it("stays inside the container when the selection fills it", () => {
+    expect(placeToolbar({ ...base, anchorTop: 10, anchorBottom: 590 }).top).toBe(600 - 30 - 4);
   });
 
   it("stays inside the container horizontally", () => {
