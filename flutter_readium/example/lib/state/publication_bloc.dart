@@ -67,14 +67,21 @@ class PublicationState {
   /// Not persisted to storage — resets when the publication closes.
   final Map<String, Highlight> highlights;
 
-  /// [highlights] sorted by total progression. Highlights without one come
-  /// last, and ties keep creation order.
+  /// [highlights] sorted by reading-order resource, then total progression, then progression. A missing value
+  /// sorts last, and ties keep creation order. The resource comes first because some locators have no total
+  /// progression, such as web WebPub locators and selections on the second page of a spread.
   List<Highlight> get highlightsInReadingOrder {
+    final readingOrder = publication?.readingOrder ?? const <Link>[];
+    int compare(num? a, num? b) => (a ?? double.infinity).compareTo(b ?? double.infinity);
+    int? resourceIndex(Locator locator) => readingOrder.indexOfFirstWithHref(locator.hrefPath);
+
     final indexed = highlights.values.indexed.toList()
       ..sort((a, b) {
-        final pa = a.$2.decoration.locator.locations?.totalProgression ?? double.infinity;
-        final pb = b.$2.decoration.locator.locations?.totalProgression ?? double.infinity;
-        final cmp = pa.compareTo(pb);
+        final la = a.$2.decoration.locator;
+        final lb = b.$2.decoration.locator;
+        var cmp = compare(resourceIndex(la), resourceIndex(lb));
+        if (cmp == 0) cmp = compare(la.locations?.totalProgression, lb.locations?.totalProgression);
+        if (cmp == 0) cmp = compare(la.locations?.progression, lb.locations?.progression);
         return cmp != 0 ? cmp : a.$1.compareTo(b.$1);
       });
     return [for (final (_, highlight) in indexed) highlight];
