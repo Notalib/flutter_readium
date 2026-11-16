@@ -15,7 +15,6 @@ import dk.nota.flutterreadium.models.FlutterMediaOverlay
 import dk.nota.flutterreadium.models.cueStepTarget
 import dk.nota.flutterreadium.progression
 import dk.nota.flutterreadium.timeWithDuration
-import dk.nota.flutterreadium.toSeconds
 import dk.nota.flutterreadium.tocHref
 import dk.nota.flutterreadium.xhtmlIdTree
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -143,12 +142,20 @@ class SyncAudiobookNavigator(
                 PluginLog.w(TAG, "::skipToCue. Navigator not ready.")
                 return false
             }
-        val current = navigator.currentLocator.value
-        val duration = publication.getReadingOrderItemDuration(current.href)
-        val time = current.locations.timeWithDuration(duration)?.toSeconds ?: 0.0
+        // Playback state is updated as soon as a seek settles. `currentLocator` is derived from it
+        // later, so it can still show the position before the previous step.
+        val playback = navigator.playback.value
+        val href =
+            navigator.readingOrder.items
+                .getOrNull(playback.index)
+                ?.href ?: run {
+                PluginLog.w(TAG, "::skipToCue. No reading order item at index ${playback.index}.")
+                return false
+            }
+        val time = playback.offset.inWholeMilliseconds / 1000.0
 
         val target =
-            mediaOverlays.cueStepTarget(current.href, time, forward) ?: run {
+            mediaOverlays.cueStepTarget(href, time, forward) ?: run {
                 PluginLog.d(TAG, "::skipToCue. No cue to step to, forward=$forward")
                 return false
             }

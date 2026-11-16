@@ -39,6 +39,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.readium.adapter.pdfium.document.PdfiumDocumentFactory
 import org.readium.navigator.media.tts.android.AndroidTtsEngine
@@ -198,6 +200,8 @@ object ReadiumReader :
         MutableStateFlow(ReadiumTimebasedState.none())
 
     private val currentTextLocator = MutableStateFlow<Locator?>(null)
+
+    private val cueStepMutex = Mutex()
 
     private var defaultHttpHeaders = mutableMapOf<String, String>()
 
@@ -1523,8 +1527,11 @@ object ReadiumReader :
     private suspend fun stepMediaOverlayCue(forward: Boolean): Boolean {
         val navigator = syncAudiobookNavigator ?: return false
         if (timebasedNavigator !== navigator) return false
-        if (navigator.skipToCue(forward) && !narrationSyncEnabled) {
-            setNarrationSyncEnabled(true)
+        // Method calls run concurrently, and each step must start from where the previous one landed.
+        cueStepMutex.withLock {
+            if (navigator.skipToCue(forward) && !narrationSyncEnabled) {
+                setNarrationSyncEnabled(true)
+            }
         }
         return true
     }

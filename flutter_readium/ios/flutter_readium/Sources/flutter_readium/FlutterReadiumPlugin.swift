@@ -48,6 +48,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   /// Dart session (hot restart) clobbering a freshly opened publication.
   private var publicationGeneration: Int = 0
 
+  /// Tail of the media-overlay next/previous chain. Only touched on the main actor.
+  private var cueStepTask: Task<Void, Never>?
+
   /// TTS Decoration style
   internal var ttsUtteranceDecorationStyle: Decoration.Style? = .highlight(tint: .yellow)
   internal var ttsRangeDecorationStyle: Decoration.Style? = .underline(tint: .black)
@@ -418,7 +421,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "next":
       Task { @MainActor in
         if let moNavigator = self.timebasedNavigator as? FlutterMediaOverlayNavigator {
-          await self.skipToCue(on: moNavigator, forward: true)
+          self.enqueueCueStep(on: moNavigator, forward: true)
         } else {
           await self.timebasedNavigator?.seekForward()
         }
@@ -427,7 +430,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "previous":
       Task { @MainActor in
         if let moNavigator = self.timebasedNavigator as? FlutterMediaOverlayNavigator {
-          await self.skipToCue(on: moNavigator, forward: false)
+          self.enqueueCueStep(on: moNavigator, forward: false)
         } else {
           await self.timebasedNavigator?.seekBackward()
         }
@@ -821,6 +824,17 @@ extension FlutterReadiumPlugin {
   func skipToCue(on navigator: FlutterMediaOverlayNavigator, forward: Bool) async {
     guard let cue = await navigator.skipToCue(forward: forward) else { return }
     (currentReaderView as? EPUBReaderView)?.resyncToCue(cue.locator, segmentDuration: cue.segmentDuration)
+  }
+
+  /// Runs cue steps one after another. Overlapping steps would clear `_isNavigating` early in
+  /// `goBounded`, and each step must start from where the previous one landed.
+  @MainActor
+  func enqueueCueStep(on navigator: FlutterMediaOverlayNavigator, forward: Bool) {
+    let prior = cueStepTask
+    cueStepTask = Task { @MainActor in
+      await prior?.value
+      await self.skipToCue(on: navigator, forward: forward)
+    }
   }
 
   func clearNowPlaying() {

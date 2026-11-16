@@ -1108,7 +1108,9 @@ class _ReadiumReader {
     const useSyncNarrationLookup = !!this._audioNavPublication &&
       detectSyncNarration(this._audioNavPublication) && !detectGuidedNavigation(this._audioNavPublication);
     const current = nav.currentLocator;
-    const time = getTime(current.locations) ?? nav.currentTime;
+    // While playing, `currentLocator` lags by up to one position poll, so it can still name the
+    // previous cue. When paused it is exact (seek and `seeked` both set it).
+    const time = isPlayingOrResuming(nav) ? nav.currentTime : (getTime(current.locations) ?? nav.currentTime);
     const target = findCueStepTarget(this._syncItems, current.href, time, direction, useSyncNarrationLookup);
     if (!target || target.audioStart === null) return;
 

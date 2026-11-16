@@ -52,7 +52,12 @@ function audioNav(time: number, isPlaying: boolean) {
     isPlaying,
     play: jest.fn(),
     pause: jest.fn(),
-    go: jest.fn(async (_locator: Locator, _animated: boolean, cb: (ok: boolean) => void) => cb(true)),
+    // Like upstream, a completed seek moves both the locator and the clock to the target.
+    go: jest.fn(async (locator: Locator, _animated: boolean, cb: (ok: boolean) => void) => {
+      nav.currentLocator = locator;
+      nav.currentTime = Number(locator.locations?.fragments?.[0]?.replace("t=", ""));
+      cb(true);
+    }),
   };
   return nav;
 }
@@ -95,6 +100,29 @@ describe("Media Overlay cue step", () => {
     reader.previous();
     await settle(reader);
     expect(seekedTo(nav)).toEqual(["t=5", "t=0"]);
+  });
+
+  it("two quick steps land two cues on, not one cue twice", async () => {
+    const nav = audioNav(1, false);
+    const reader = readerWith(nav);
+
+    reader.next();
+    reader.next();
+    await settle(reader);
+
+    expect(seekedTo(nav)).toEqual(["t=5", "t=9"]);
+  });
+
+  it("while playing, steps from the live clock, not the lagging locator", async () => {
+    const nav = audioNav(1, true);
+    // The position poll still reports cue c1; playback has already crossed into c2.
+    nav.currentTime = 6;
+    const reader = readerWith(nav);
+
+    reader.next();
+    await settle(reader);
+
+    expect(seekedTo(nav)).toEqual(["t=9"]);
   });
 
   it("is a no-op on the last cue", async () => {

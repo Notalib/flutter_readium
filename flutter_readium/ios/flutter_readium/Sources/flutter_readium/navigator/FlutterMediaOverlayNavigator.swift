@@ -146,10 +146,13 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   /// only the method-channel next/previous come through here.
   @MainActor
   internal func skipToCue(forward: Bool) async -> (locator: Locator, segmentDuration: TimeInterval?)? {
-    guard let navigator = _audioNavigator,
-          let current = audioLocator,
-          let time = MediaTimeFragment.seconds(from: current.locations.fragments),
-          let target = mediaOverlays.cueStepTarget(audioHref: current.href.string, time: time, forward: forward),
+    guard let navigator = _audioNavigator, let current = audioLocator else {
+      Log.navigator.warn("skipToCue - No current audio locator")
+      return nil
+    }
+    // A locator without a time fragment is treated as the start of its resource, as on Android.
+    let time = MediaTimeFragment.seconds(from: current.locations.fragments) ?? 0
+    guard let target = mediaOverlays.cueStepTarget(audioHref: current.href.string, time: time, forward: forward),
           let audioLocator = target.asAudioLocator,
           let textLocator = target.asTextLocator else {
       return nil
@@ -160,8 +163,8 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     if wasPlaying {
       navigator.play()
     }
-    // A paused seek gets no playback tick, so report the target cue ourselves. Setting the sync
-    // key first makes the later playback emission of the same cue a no-op.
+    // The landed time can fall just inside the previous cue, so report the target explicitly.
+    // That sets the sync key and makes the later emission of the target a no-op.
     reportCueReached(target, textLocator: textLocator)
     return (textLocator, target.audioDuration)
   }
