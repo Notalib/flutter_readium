@@ -42,6 +42,10 @@ class ReaderWidget extends StatelessWidget {
     // A player page that is animating out must not mount a second reader for the next publication.
     buildWhen: (prev, next) => (ModalRoute.of(context)?.isActive ?? true) && prev.hasNonHighlightChanges(next),
     builder: (final context, final state) {
+      if (!(ModalRoute.of(context)?.isActive ?? true)) {
+        return const SizedBox.shrink();
+      }
+
       if (state.isLoading) {
         return const Center(child: CircularProgressIndicator());
       } else if (state.error != null) {
