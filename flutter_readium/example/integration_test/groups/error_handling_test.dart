@@ -164,13 +164,16 @@ void main() {
     );
 
     testWidgets(
-      'default resource-loading timeout reports loading without retrying',
+      'disabled resource-loading recovery reports loading without retrying',
       skip: kIsWeb,
       (_) async {
         final server = await StallingAudioServer.start();
         addTearDown(server.close);
         await harness.readium.setAudioRecoveryPolicy(
-          const AudioRecoveryPolicy(stallTimeoutSeconds: 1.0),
+          const AudioRecoveryPolicy(
+            stallTimeoutSeconds: 1.0,
+            recoverOnResourceLoadingTimeout: false,
+          ),
         );
         addTearDown(() => harness.readium.setAudioRecoveryPolicy(const AudioRecoveryPolicy()));
 
@@ -200,7 +203,7 @@ void main() {
         await expectConditionHolds(
           () => !errors.any((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
           duration: const Duration(seconds: 2),
-          reason: 'Default resource-loading policy must not retry',
+          reason: 'Disabled resource-loading recovery must not retry',
         );
         expect(server.loadingRequestCount, greaterThanOrEqualTo(1));
       },
