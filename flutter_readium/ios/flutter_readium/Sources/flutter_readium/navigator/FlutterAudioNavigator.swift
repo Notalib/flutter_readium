@@ -830,10 +830,11 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   /// True when playback is `.playing` and its time has moved past `sinceTime` by more
-  /// than 0.1s. A rebuilt navigator must prove actual progress before recovery succeeds.
+  /// than the progress threshold. A rebuilt navigator must prove actual progress before
+  /// recovery succeeds.
   @MainActor
   private func offsetAdvanced(sinceTime: TimeInterval) -> Bool {
-    playback.state == .playing && playback.time > sinceTime + 0.1
+    playback.state == .playing && playback.time > sinceTime + playbackProgressThresholdSeconds
   }
 
   @MainActor
@@ -1247,14 +1248,14 @@ func stallBufferState(
 }
 
 /// Smallest change in playback time that counts as progress between two samples.
-let stallProgressThresholdSeconds: TimeInterval = 0.1
+let playbackProgressThresholdSeconds: TimeInterval = 0.1
 
 /// True when a stalled player is playing again. Time is compared with the previous sample,
 /// not the stall position: after a seek, playback can be fine from an earlier time.
 func playbackMoved(
   isPlaying: Bool, resourceChanged: Bool, time: TimeInterval, lastTime: TimeInterval
 ) -> Bool {
-  isPlaying && (resourceChanged || abs(time - lastTime) > stallProgressThresholdSeconds)
+  isPlaying && (resourceChanged || abs(time - lastTime) > playbackProgressThresholdSeconds)
 }
 
 /// Finds the private `AVPlayer` of a toolkit `AudioNavigator` by reflection.
