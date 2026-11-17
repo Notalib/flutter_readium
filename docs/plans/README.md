@@ -26,6 +26,7 @@ This directory holds implementation plans, parity audits, and retained reference
 	native comic cue framing work after the shared narration sync API landed. *(Cross-platform parity / M-L)*
 - **[todo/native-reader-interaction-navigation-plan.md](todo/native-reader-interaction-navigation-plan.md)** —
 	disentangle manual reader interaction from page-navigation/manual-mode signaling. *(Cross-platform parity / M)*
+- **[lcp-support.md](lcp-support.md)** — Readium LCP for iOS and Android through the optional `flutter_readium_lcp` add-on. In progress on `feat/lcp-support`. *(New feature / L)*
 
 ## Upstream plans (`upstream/`)
 

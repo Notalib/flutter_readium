@@ -85,6 +85,34 @@ class FlutterReadiumLcp {
     return LcpLicenseInfo.fromJson(json);
   }
 
+  /// Renews the loan of the LCP publication at [publicationPath] and returns the refreshed license info.
+  ///
+  /// [end] is the preferred new end date. The toolkit clamps it to [LcpLicenseInfo.maxRenewDate], and
+  /// ignores it when the server's renew link takes no end date. Null lets the server decide.
+  /// Renewing through a web page is not supported: the call throws [LcpRenewWebPageException] with the URL.
+  ///
+  /// The toolkit refetches the license after a renewal, so [LcpLicenseInfo.rightsEnd] shows the new end date
+  /// only when the license server's `license` link is reachable (see docs/guides/lcp.md).
+  /// Throws an [LcpException] when the loan cannot be renewed, and an [UnsupportedError] on platforms
+  /// without the plugin (web).
+  Future<LcpLicenseInfo> renewLoan(final String publicationPath, {final DateTime? end}) async {
+    final json = await _invoke<Map<Object?, Object?>>('renewLoan', {
+      'path': publicationPath,
+      'endMillis': end?.millisecondsSinceEpoch,
+    });
+    return LcpLicenseInfo.fromJson(json);
+  }
+
+  /// Returns the loan of the LCP publication at [publicationPath] to its provider.
+  ///
+  /// Afterwards the license is returned: the toolkit refuses to open the publication with an
+  /// [LcpLicenseStatusException], and [getLicenseInfo] fails the same way, so there is no refreshed info.
+  /// Throws an [LcpException] when the loan cannot be returned, and an [UnsupportedError] on platforms
+  /// without the plugin (web).
+  Future<void> returnPublication(final String publicationPath) async {
+    await _invoke<bool>('returnPublication', {'path': publicationPath});
+  }
+
   /// Whether the native LCP content protection is registered: the iOS app set its LCP client, or
   /// the Android app has EDRLab's LCP library on its classpath. False on platforms without the plugin (web).
   Future<bool> isAvailable() async {

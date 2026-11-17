@@ -45,7 +45,13 @@ void main() {
         'state': 'active',
         'statusMessage': 'ok',
         'statusUpdated': '2026-01-03T00:00:00Z',
+        'canRenewLoan': true,
+        'maxRenewDate': '2026-04-01T00:00:00Z',
+        'canReturnPublication': true,
       });
+      expect(info.canRenewLoan, isTrue);
+      expect(info.maxRenewDate, DateTime.utc(2026, 4));
+      expect(info.canReturnPublication, isTrue);
       expect(info.licenseId, 'abc');
       expect(info.provider, 'https://provider.example');
       expect(info.issued, DateTime.utc(2026));
@@ -72,6 +78,9 @@ void main() {
       expect(info.copyLimit, isNull);
       expect(info.charactersToCopyLeft, isNull);
       expect(info.state, isNull);
+      expect(info.canRenewLoan, isFalse);
+      expect(info.maxRenewDate, isNull);
+      expect(info.canReturnPublication, isFalse);
     });
 
     test('an unknown status state becomes null', () {
@@ -92,12 +101,18 @@ void main() {
         'issued': '2026-01-01T00:00:00Z',
         'updated': '2026-01-01T00:00:00Z',
         'copyLimit': 5,
+        'canRenewLoan': true,
+        'maxRenewDate': '2026-04-01T00:00:00Z',
+        'canReturnPublication': true,
         'state': 'revoked',
       });
       final copy = LcpLicenseInfo.fromJson(info.toJson());
       expect(copy.licenseId, 'a');
       expect(copy.issued, info.issued);
       expect(copy.copyLimit, 5);
+      expect(copy.canRenewLoan, isTrue);
+      expect(copy.maxRenewDate, DateTime.utc(2026, 4));
+      expect(copy.canReturnPublication, isTrue);
       expect(copy.state, LcpLicenseState.revoked);
     });
   });
@@ -155,6 +170,22 @@ void main() {
       });
       await expectLater(lcp.acquirePublication('/x.lcpl'), throwsA(isA<LcpNetworkException>()));
       await expectLater(lcp.getLicenseInfo('/x.epub'), throwsA(isA<LcpNetworkException>()));
+      await expectLater(lcp.renewLoan('/x.epub'), throwsA(isA<LcpNetworkException>()));
+      await expectLater(lcp.returnPublication('/x.epub'), throwsA(isA<LcpNetworkException>()));
+    });
+
+    test('loan failures become their typed exceptions', () async {
+      mockNative((final call) async {
+        throw PlatformException(
+          code: LcpErrorCodes.renewWebPage,
+          message: 'page',
+          details: {'url': 'https://provider.example/renew'},
+        );
+      });
+      await expectLater(
+        lcp.renewLoan('/x.epub'),
+        throwsA(isA<LcpRenewWebPageException>().having((final e) => e.url, 'url', 'https://provider.example/renew')),
+      );
     });
 
     test('a failure without an LCP code stays a ReadiumException', () async {
@@ -178,6 +209,51 @@ void main() {
       final info = await lcp.getLicenseInfo('/book.epub');
       expect((seen!.arguments as Map)['path'], '/book.epub');
       expect(info.licenseId, 'abc');
+    });
+
+    const refreshed = {
+      'licenseId': 'abc',
+      'provider': 'p',
+      'issued': '2026-01-01T00:00:00Z',
+      'updated': '2026-01-01T00:00:00Z',
+      'rightsEnd': '2026-03-01T00:00:00Z',
+      'canRenewLoan': true,
+    };
+
+    test('renewLoan forwards the path and the end date as epoch milliseconds', () async {
+      MethodCall? seen;
+      mockNative((final call) async {
+        seen = call;
+        return refreshed;
+      });
+      final end = DateTime.utc(2026, 3, 1);
+      final info = await lcp.renewLoan('/book.epub', end: end);
+      expect(seen!.method, 'renewLoan');
+      expect((seen!.arguments as Map)['path'], '/book.epub');
+      expect((seen!.arguments as Map)['endMillis'], end.millisecondsSinceEpoch);
+      expect(info.rightsEnd, DateTime.utc(2026, 3));
+      expect(info.canRenewLoan, isTrue);
+    });
+
+    test('renewLoan without an end date sends null', () async {
+      MethodCall? seen;
+      mockNative((final call) async {
+        seen = call;
+        return refreshed;
+      });
+      await lcp.renewLoan('/book.epub');
+      expect((seen!.arguments as Map)['endMillis'], isNull);
+    });
+
+    test('returnPublication forwards the path', () async {
+      MethodCall? seen;
+      mockNative((final call) async {
+        seen = call;
+        return true;
+      });
+      await lcp.returnPublication('/book.epub');
+      expect(seen!.method, 'returnPublication');
+      expect((seen!.arguments as Map)['path'], '/book.epub');
     });
   });
 }

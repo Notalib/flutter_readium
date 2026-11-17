@@ -4,7 +4,7 @@ Readium LCP add-on for [`flutter_readium`](https://pub.dev/packages/flutter_read
 
 LCP decryption needs EDRLab's private client library (`R2LCPClient` on iOS, `liblcp` on Android). It is only available to registered reading apps, this package never contains it, and your app must supply it. Without it, `FlutterReadiumLcp.isAvailable()` returns false.
 
-Not covered: returning or renewing a loan, and web.
+Not covered: web, and renewing a loan through a web page.
 
 ```dart
 final lcp = FlutterReadiumLcp();

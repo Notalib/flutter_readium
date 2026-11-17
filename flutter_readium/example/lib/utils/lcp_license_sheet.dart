@@ -19,7 +19,9 @@ class _LcpLicenseSheet extends StatefulWidget {
 }
 
 class _LcpLicenseSheetState extends State<_LcpLicenseSheet> {
-  late final Future<LcpLicenseInfo> _info = FlutterReadiumLcp().getLicenseInfo(widget.publicationPath);
+  late Future<LcpLicenseInfo> _info = FlutterReadiumLcp().getLicenseInfo(widget.publicationPath);
+  var _busy = false;
+  String? _failure;
 
   @override
   Widget build(final BuildContext context) => SafeArea(
@@ -57,8 +59,69 @@ class _LcpLicenseSheetState extends State<_LcpLicenseSheet> {
       _row('lcp_license_copy', 'Copy left', _allowance(info.charactersToCopyLeft, info.copyLimit)),
       _row('lcp_license_print', 'Print left', _allowance(info.pagesToPrintLeft, info.printLimit)),
       _row('lcp_license_state', 'Status', info.state?.name ?? 'no status document'),
+      _row('lcp_license_can_renew', 'Can renew', info.canRenewLoan ? 'yes' : 'no'),
+      _row('lcp_license_max_renew', 'Max renew date', info.maxRenewDate?.toIso8601String() ?? 'none'),
+      _row('lcp_license_can_return', 'Can return', info.canReturnPublication ? 'yes' : 'no'),
+      const SizedBox(height: 8),
+      Row(
+        children: [
+          ElevatedButton(
+            key: const ValueKey('lcp_renew_button'),
+            onPressed: info.canRenewLoan && !_busy ? _renew : null,
+            child: const Text('Renew loan'),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            key: const ValueKey('lcp_return_button'),
+            onPressed: info.canReturnPublication && !_busy ? _return : null,
+            child: const Text('Return loan'),
+          ),
+        ],
+      ),
+      // The snackbar can sit behind the sheet, so the failure is also shown here.
+      if (_failure != null) Text(_failure!, key: const ValueKey('lcp_loan_error')),
     ],
   );
+
+  String get _path => widget.publicationPath;
+
+  Future<void> _renew() => _run(() async {
+    final info = await FlutterReadiumLcp().renewLoan(_path);
+    if (!mounted) return;
+    // A block body: setState rejects a callback that returns a Future.
+    setState(() {
+      _info = Future.value(info);
+    });
+  });
+
+  /// A returned license cannot be read any more, so the sheet closes and reports the return instead.
+  Future<void> _return() {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    return _run(() async {
+      await FlutterReadiumLcp().returnPublication(_path);
+      messenger.showSnackBar(const SnackBar(content: Text('LCP loan returned')));
+      navigator.pop();
+    });
+  }
+
+  /// Runs a loan action. Failures show up as a snackbar and under the buttons.
+  Future<void> _run(final Future<void> Function() action) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() {
+      _busy = true;
+      _failure = null;
+    });
+    try {
+      await action();
+    } on LcpException catch (e) {
+      final text = 'LCP failure: ${e.runtimeType}';
+      messenger.showSnackBar(SnackBar(content: Text(text)));
+      if (mounted) setState(() => _failure = text);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   static String _allowance(final int? left, final int? limit) =>
       limit == null ? 'no limit' : '${left ?? limit} of $limit';

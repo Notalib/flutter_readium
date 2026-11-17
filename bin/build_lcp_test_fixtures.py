@@ -14,6 +14,18 @@ Output files (all under --out-dir, which is gitignored):
 
 Keys are generated per run and never written to disk; only the root CA certificate is.
 
+Opt-in loan mode (`--lcp-server URL`, off by default; the normal run stays offline): instead of the
+files above, it registers an encrypted Peter Rabbit with a Readium lcpserver and asks it for a signed
+loan license, so the license's status server can be exercised (renew, return). It writes:
+  lcp_loan_content.epub           encrypted package, no license; the lcpserver downloads it
+  lcp_loan_peter_rabbit.epub      the same content with the server's license embedded
+  lcp_loan_peter_rabbit.lcpl      the server's license on its own
+`--content-url-base` is where the lcpserver can fetch lcp_loan_content.epub from, so serve --out-dir
+there first (a container needs host.docker.internal, not 127.0.0.1). The lcpserver API credentials
+come from the environment (LCP_SERVER_USER, LCP_SERVER_PASSWORD) and are never printed. Every
+content id is prefixed `flutter-readium-test`, and each run registers a new one, so licenses from
+earlier runs stay valid. The server signs with its own certificate chain, not the throwaway root CA.
+
 Format facts, checked against swift-toolkit 3.11.0 and kotlin-toolkit 3.4.0 sources:
 - Resource layout is IV (16 bytes) || AES-CBC ciphertext, padded with PKCS#7 (last byte =
   pad length, 1..16, a full block when already aligned). Swift:
@@ -50,6 +62,8 @@ import os
 import posixpath
 import re
 import sys
+import urllib.error
+import urllib.request
 import uuid
 import zipfile
 import zlib
@@ -99,6 +113,15 @@ OUTPUTS = {
 }
 PDF_ENTRY = "publication.pdf"
 
+LOAN_OUTPUTS = {
+    "pkg": "lcp_loan_content.epub",
+    "epub": "lcp_loan_peter_rabbit.epub",
+    "lcpl": "lcp_loan_peter_rabbit.lcpl",
+}
+LOAN_ID_PREFIX = "flutter-readium-test"
+LOAN_USER_ID = "flutter-readium-test-user"
+LOAN_DAYS = 3
+
 
 # --- crypto primitives -------------------------------------------------------
 
@@ -121,6 +144,13 @@ def aes_decrypt(key, blob):
     if not 1 <= pad <= 16 or padded[-pad:] != bytes([pad]) * pad:
         raise ValueError("invalid PKCS#7 padding")
     return padded[:-pad]
+
+
+def aes_decrypt_w3c(key, blob):
+    """Like aes_decrypt, but only reads the pad length: the Readium lcpserver pads with zeros (W3C)."""
+    dec = Cipher(algorithms.AES(key), modes.CBC(blob[:16])).decryptor()
+    padded = dec.update(blob[16:]) + dec.finalize()
+    return padded[: -padded[-1]]
 
 
 def deflate(data):
@@ -358,7 +388,7 @@ def write_zip(entries):
 
 
 def build_epub(src_path, content_key, license_doc):
-    """Protects an EPUB. `license_doc` None produces a package without license.lcpl."""
+    """Protects an EPUB. `license_doc` is a dict, raw license bytes, or None for no license.lcpl."""
     with zipfile.ZipFile(src_path) as z:
         clear, media = epub_layout(z)
         if "META-INF/encryption.xml" in z.namelist():
@@ -378,7 +408,8 @@ def build_epub(src_path, content_key, license_doc):
             enc_entries.append((name, 8 if deflated else 0, len(data)))
     entries.append(("META-INF/encryption.xml", encryption_xml(enc_entries), True))
     if license_doc is not None:
-        entries.append(("META-INF/license.lcpl", license_bytes(license_doc), True))
+        data = license_doc if isinstance(license_doc, bytes) else license_bytes(license_doc)
+        entries.append(("META-INF/license.lcpl", data, True))
     return write_zip(entries)
 
 
@@ -496,6 +527,101 @@ def generate(args):
     der = pki.root_cert.public_bytes(serialization.Encoding.DER)
     write_file(os.path.join(out, OUTPUTS["root_der"]), der)
     write_file(os.path.join(out, OUTPUTS["root_pem"]), pki.root_cert.public_bytes(serialization.Encoding.PEM))
+
+
+# --- loan license from a Readium lcpserver (opt-in) ---------------------------
+
+
+def lcp_server_request(method, url, auth, body=None):
+    """Returns the response body. Fails with the status code only, never echoing credentials."""
+    data = None if body is None else json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(url, data=data, method=method)
+    req.add_header("Authorization", "Basic " + b64(f"{auth[0]}:{auth[1]}".encode("utf-8")))
+    if data is not None:
+        req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            return resp.read()
+    except urllib.error.HTTPError as e:
+        detail = e.read(300).decode("utf-8", "replace")
+        raise SystemExit(f"lcpserver {method} {url} failed: HTTP {e.code} {detail}") from None
+    except urllib.error.URLError as e:
+        raise SystemExit(f"lcpserver {method} {url} unreachable: {e.reason}") from None
+
+
+def generate_loan(args):
+    user, password = os.environ.get("LCP_SERVER_USER"), os.environ.get("LCP_SERVER_PASSWORD")
+    if not user or not password:
+        raise SystemExit("--lcp-server needs LCP_SERVER_USER and LCP_SERVER_PASSWORD in the environment")
+    auth = (user, password)
+    server = args.lcp_server.rstrip("/")
+    now = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
+    out = args.out_dir
+    os.makedirs(out, exist_ok=True)
+    src_path = os.path.join(args.src_dir, SOURCES["epub"])
+    if not os.path.isfile(src_path):
+        raise SystemExit(f"missing source fixture {src_path}; run bin/fetch_test_resources")
+
+    content_id = f"{LOAN_ID_PREFIX}-{now.strftime('%Y%m%d%H%M%S')}"
+    key = os.urandom(32)
+    package = build_epub(src_path, key, None)
+    write_file(os.path.join(out, LOAN_OUTPUTS["pkg"]), package)
+
+    # The lcpserver downloads the package itself (storage-mode 0) and keeps the content key.
+    lcp_server_request("PUT", f"{server}/contents/{content_id}", auth, {
+        "content-id": content_id,
+        "content-encryption-key": b64(key),
+        "storage-mode": 0,
+        "protected-content-location": f"{args.content_url_base.rstrip('/')}/{LOAN_OUTPUTS['pkg']}",
+        "protected-content-disposition": LOAN_OUTPUTS["pkg"],
+        "protected-content-length": len(package),
+        "protected-content-sha256": hashlib.sha256(package).hexdigest(),
+        "protected-content-type": MIME_EPUB,
+    })
+    raw = lcp_server_request("POST", f"{server}/contents/{content_id}/license", auth, {
+        # Kotlin's LicenseDocument rejects an empty provider, and the server leaves it empty by default.
+        "provider": PROVIDER,
+        "user": {"id": LOAN_USER_ID, "name": "Test Reader"},
+        "encryption": {"user_key": {
+            "text_hint": args.hint,
+            "hex_value": hashlib.sha256(args.passphrase.encode("utf-8")).hexdigest(),
+        }},
+        "rights": {"start": utc_iso(now), "end": utc_iso(now + datetime.timedelta(days=LOAN_DAYS))},
+        "links": [
+            {"rel": "hint", "href": HINT_URL, "type": "text/html"},
+            # The server fills in type, length and hash, and expands {publication_id}.
+            {"rel": "publication", "href": f"{server}/contents/{{publication_id}}", "type": MIME_EPUB},
+        ],
+    })
+    doc = json.loads(raw)
+    write_file(os.path.join(out, LOAN_OUTPUTS["lcpl"]), raw)
+    write_file(os.path.join(out, LOAN_OUTPUTS["epub"]), build_epub(src_path, key, raw))
+
+    # Self-check what does not depend on the server's certificate: key check, content key, bytes.
+    c = Checker()
+    ukey = user_key(args.passphrase)
+    enc = doc["encryption"]
+    c.check(
+        c.guard("key_check", lambda: aes_decrypt_w3c(ukey, base64.b64decode(enc["user_key"]["key_check"])))
+        == doc["id"].encode("utf-8"),
+        "key_check does not decrypt to the license id",
+    )
+    c.check(
+        c.guard("content key", lambda: aes_decrypt_w3c(ukey, base64.b64decode(enc["content_key"]["encrypted_value"])))
+        == key,
+        "the server's content key is not the one we sent",
+    )
+    verify_epub(c, LOAN_OUTPUTS["epub"], os.path.join(out, LOAN_OUTPUTS["epub"]), src_path, key, True)
+    if c.failures:
+        print(f"Loan self-check FAILED ({len(c.failures)} problem(s))", file=sys.stderr)
+        sys.exit(1)
+    rels = {link["rel"]: link["href"] for link in doc["links"] if isinstance(link["rel"], str)}
+    print(f"  content id: {content_id}")
+    print(f"  license id: {doc['id']}")
+    print(f"  status:     {rels.get('status', 'none')}")
+    print(f"  publication link: {rels.get('publication', 'none')}")
+    print(f"  wrote {', '.join(LOAN_OUTPUTS.values())} to {out}")
+    print("Loan self-check passed: key_check, content key and bytes match.")
 
 
 # --- verification ------------------------------------------------------------
@@ -719,7 +845,18 @@ def main():
     p.add_argument("--out-dir", required=True)
     p.add_argument("--base-url", default="http://127.0.0.1:8765")
     p.add_argument("--verify", action="store_true", help="only verify existing outputs")
+    p.add_argument("--lcp-server", help="opt-in: create the loan fixtures on this lcpserver (see the module doc)")
+    p.add_argument(
+        "--content-url-base",
+        default="http://host.docker.internal:8765",
+        help="where the lcpserver can download lcp_loan_content.epub from",
+    )
     args = p.parse_args()
+    if args.lcp_server:
+        if args.verify:
+            raise SystemExit("--lcp-server and --verify cannot be combined")
+        generate_loan(args)
+        return
     if not args.verify:
         generate(args)
     verify(args)
