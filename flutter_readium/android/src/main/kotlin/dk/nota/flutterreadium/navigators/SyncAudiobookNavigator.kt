@@ -120,7 +120,7 @@ class SyncAudiobookNavigator internal constructor(
         // ahead, and a tail-based check would disable lookahead while fillAhead still
         // fills from the playhead.
         val playhead = store.roIndexForAudio(locator.href.toString()) ?: store.loadedTailIndex()
-        if (store.nextLoadableSegment(playhead + 1) == null) return
+        if (!store.needsFillAhead(playhead)) return
         val remaining = trackDuration?.minus(timeOffset) ?: return
         if (remaining > SyncTimelineStore.LOOKAHEAD_MARGIN_SECONDS.seconds) return
         PluginLog.d(
@@ -140,11 +140,13 @@ class SyncAudiobookNavigator internal constructor(
     }
 
     /**
-     * Loads segments past the playhead one at a time, advancing past slots at the failure
-     * cap, until new cues land - the K-ahead budget may stop on exhausted slots while a
-     * healthy segment waits beyond them (ADR 0003 "honest end"). Then swaps in the wider
-     * pseudo publication and rebuilds the player at the current audio locator (the same
-     * teardown + media-session reopen sequence the stream-recovery rebuild runs). Cue
+     * Loads the K-segment lookahead budget past the playhead in one batch, then,
+     * when the batch landed no new cues (every budget slot exhausted), advances
+     * one segment at a time past slots at the failure cap until new cues land -
+     * a healthy segment beyond the exhausted ones must still extend the window
+     * (ADR 0003 "honest end"). Then swaps in the wider pseudo publication and
+     * rebuilds the player at the current audio locator (the same teardown +
+     * media-session reopen sequence the stream-recovery rebuild runs). Cue
      * mapping is muted only across the swap, not during the fetch.
      */
     private suspend fun runWindowExtension(): Boolean {
@@ -153,6 +155,10 @@ class SyncAudiobookNavigator internal constructor(
         var cursor =
             store.roIndexForAudio(audioNavigator?.currentLocator?.value?.href?.toString())
                 ?: store.loadedTailIndex()
+        // The scan past the batch only runs for the honest-end case: budget
+        // slots all settled with nothing new, e.g. flaky reads hiding a
+        // healthy segment further along.
+        store.fillAhead(cursor)
         while (!isNavigatorDisposed && store.loadedCueCount() <= loadedCues) {
             val next = store.nextLoadableSegment(cursor + 1) ?: break
             store.loadSegment(next)

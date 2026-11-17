@@ -244,6 +244,16 @@ internal class SyncTimelineStore private constructor(
         }
     }
 
+    /**
+     * True when at least one of the next [LOOKAHEAD_SEGMENTS] segment slots past
+     * [roIndex] is not yet settled, i.e. [fillAhead] still has work to do. The
+     * periodic lookahead trigger uses it to stop firing once the budget ahead of
+     * the playhead is loaded; the edge takeover ignores it to walk past exhausted
+     * slots to a healthy segment beyond.
+     */
+    fun needsFillAhead(roIndex: Int): Boolean =
+        segmentIndexes().filter { it > roIndex }.take(LOOKAHEAD_SEGMENTS).any { !isSettled(it) }
+
     /** Highest loaded segment index, or -1. */
     fun loadedTailIndex(): Int = loaded.keys.maxOrNull() ?: -1
 
