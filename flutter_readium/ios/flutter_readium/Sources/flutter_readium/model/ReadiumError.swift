@@ -48,6 +48,7 @@ enum ReadiumError: Error {
   case notFound(String?)
   case forbidden(String?)
   case publicationIsRestricted(Error)
+  case custom(FlutterReadiumCustomError)
   case voiceNotFound
   case unknown(Error?)
 }
@@ -55,6 +56,8 @@ enum ReadiumError: Error {
 extension Error {
   func toReadiumError() -> ReadiumError {
     switch self {
+    case let err as ReadiumError:
+      return err
     case is AssetRetrieveError:
       return (self as! AssetRetrieveError).toReadiumError()
     case is AssetRetrieveURLError:
@@ -237,6 +240,12 @@ extension ReadiumError: UserErrorConvertible {
         message: self.localizedDescription,
         code: "voiceNotFound"
       ).toFlutterError()
+    case .custom(let custom):
+      return FlutterReadiumError(
+        message: custom.message,
+        code: custom.code,
+        data: custom.data
+      ).toFlutterError()
     default:
       return FlutterReadiumError(
         message: self.localizedDescription,
@@ -283,6 +292,8 @@ extension ReadiumError: UserErrorConvertible {
         } else {
           return "library_error_publicationIsRestricted".localized
         }
+      case .custom:
+        return "library_error_publicationIsRestricted".localized
       case .unknown:
         return "library_error_unknown".localized
       }

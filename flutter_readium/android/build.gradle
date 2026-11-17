@@ -96,7 +96,6 @@ dependencies {
   implementation "org.readium.kotlin-toolkit:readium-navigator-media-audio:$readium_version"
   implementation "org.readium.kotlin-toolkit:readium-adapter-exoplayer-audio:$readium_version"
   implementation "org.readium.kotlin-toolkit:readium-adapter-pdfium:$readium_version"
-  //implementation "org.readium.kotlin-toolkit:readium-lcp:$readium_version"
 
   // Used for media-session controls
   def media_version = "1.11.1"

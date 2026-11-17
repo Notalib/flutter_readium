@@ -10,12 +10,6 @@ import ReadiumShared
 import ReadiumStreamer
 import UIKit
 
-#if LCP
-import R2LCPClient
-import ReadiumAdapterLCPSQLite
-import ReadiumLCP
-#endif
-
 let sharedReadium = Readium(withHeaders: nil)
 
 final class Readium : DefaultHTTPClientDelegate {
@@ -52,14 +46,43 @@ final class Readium : DefaultHTTPClientDelegate {
       resourceTimeout: 300.0, // default = 7 days
       delegate: self)
     self.assetRetriever = AssetRetriever(httpClient: self.httpClient!)
+    rebuildPublicationOpener()
+  }
+
+  /// Rebuilds the opener from the current `httpClient` / `assetRetriever`, re-running every
+  /// registered content-protection factory.
+  private func rebuildPublicationOpener() {
+    let httpClient = self.httpClient!
+    let assetRetriever = self.assetRetriever!
+    let protections = contentProtectionFactories.map { $0() }
     self.publicationOpener = PublicationOpener(
       parser: DefaultPublicationParser(
-        httpClient: httpClient!,
-        assetRetriever: assetRetriever!,
+        httpClient: httpClient,
+        assetRetriever: assetRetriever,
         pdfFactory: DefaultPDFDocumentFactory()
       ),
-      contentProtections: contentProtections,
+      contentProtections: protections
     )
+  }
+
+  // Add-ons register on the main thread while their Flutter plugin registers, before any open
+  // starts, and nothing mutates these lists afterwards. Open tasks read them without a lock.
+  private var contentProtectionFactories: [FlutterReadiumContentProtections.Factory] = []
+
+  func registerContentProtection(_ factory: @escaping FlutterReadiumContentProtections.Factory) {
+    contentProtectionFactories.append(factory)
+    rebuildPublicationOpener()
+  }
+
+  private var restrictionMappers: [FlutterReadiumRestrictions.Mapper] = []
+
+  func registerRestrictionMapper(_ mapper: @escaping FlutterReadiumRestrictions.Mapper) {
+    restrictionMappers.append(mapper)
+  }
+
+  /// First custom error an add-on reports for `publication`, if any.
+  func customError(forRestricted publication: Publication) -> FlutterReadiumCustomError? {
+    restrictionMappers.lazy.compactMap { $0(publication) }.first
   }
 
   func setAdditionalHeaders(_ headers: [String: String]) -> Void {
@@ -192,40 +215,42 @@ final class Readium : DefaultHTTPClientDelegate {
     }
   }
 
-  //--- MARK: LCP
+}
 
-#if !LCP
-  let contentProtections: [ContentProtection] = []
+/// Public entry point for add-on plugins (e.g. an LCP package) to register extra
+/// `ContentProtection`s. Registrations persist across rebuilds of core's `PublicationOpener`.
+public enum FlutterReadiumContentProtections {
+  public typealias Factory = () -> ContentProtection
 
-#else
-  lazy var contentProtections: [ContentProtection] = [
-    lcpService.contentProtection(with: lcpAuthentication),
-  ]
-
-  lazy var lcpService = LCPService(
-    client: LCPClient(),
-    licenseRepository: try! LCPSQLiteLicenseRepository(),
-    passphraseRepository: try! LCPSQLitePassphraseRepository(),
-    assetRetriever: assetRetriever,
-    httpClient: httpClient
-  )
-
-  lazy var lcpAuthentication: LCPAuthenticating = LCPDialogAuthentication()
-
-  /// Facade to the private R2LCPClient.framework.
-  class LCPClient: ReadiumLCP.LCPClient {
-    func createContext(jsonLicense: String, hashedPassphrase: LCPPassphraseHash, pemCrl: String) throws -> LCPClientContext {
-      try R2LCPClient.createContext(jsonLicense: jsonLicense, hashedPassphrase: hashedPassphrase, pemCrl: pemCrl)
-    }
-
-    func decrypt(data: Data, using context: LCPClientContext) -> Data? {
-      R2LCPClient.decrypt(data: data, using: context as! DRMContext)
-    }
-
-    func findOneValidPassphrase(jsonLicense: String, hashedPassphrases: [LCPPassphraseHash]) -> LCPPassphraseHash? {
-      R2LCPClient.findOneValidPassphrase(jsonLicense: jsonLicense, hashedPassphrases: hashedPassphrases)
-    }
+  /// Registers `factory`. Call once, on the main thread, during the add-on's plugin registration.
+  public static func register(_ factory: @escaping Factory) {
+    sharedReadium.registerContentProtection(factory)
   }
-#endif
+}
 
+/// An error with a caller-chosen wire code. Dart sees it as `ReadiumException.code` / `.message` / `.details`.
+public struct FlutterReadiumCustomError {
+  public let code: String
+  public let message: String
+  public let data: [String: Any]?
+
+  public init(code: String, message: String, data: [String: Any]? = nil) {
+    self.code = code
+    self.message = message
+    self.data = data
+  }
+}
+
+/// Public entry point for add-on plugins to explain why a publication opened restricted
+/// (e.g. an LCP license that is expired or has no passphrase). Core fails an open for reading with
+/// the first custom error a mapper returns, or with `forbidden` when none does. Metadata-only
+/// loads still return the restricted publication.
+public enum FlutterReadiumRestrictions {
+  /// Called with the restricted publication. Return nil for protections the add-on does not own.
+  public typealias Mapper = (_ publication: Publication) -> FlutterReadiumCustomError?
+
+  /// Registers `mapper`. Call once, on the main thread, during the add-on's plugin registration.
+  public static func registerMapper(_ mapper: @escaping Mapper) {
+    sharedReadium.registerRestrictionMapper(mapper)
+  }
 }

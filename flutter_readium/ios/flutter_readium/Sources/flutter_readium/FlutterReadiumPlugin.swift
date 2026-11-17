@@ -192,7 +192,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           if (self.currentPublication != nil) {
             await self.closePublication(ifGeneration: nil)
           }
-          let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
+          let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr, forReading: true).get()
           self.currentPublication = pub
           self.currentPublicationUrlStr = pubUrlStr
           await MainActor.run { self.publicationGeneration += 1 }
@@ -505,7 +505,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         if (publication.containsSyncNarration) {
           do {
             // MediaOverlayNavigator will modify the Publication readingOrder, so we first load a modifiable copy.
-            let modifiablePublicationCopy = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
+            let modifiablePublicationCopy = try await self.loadPublication(fromUrlStr: pubUrlStr, forReading: true).get()
             await MainActor.run { [locator] in
               self.timebasedNavigator = FlutterMediaOverlayNavigator(publication: modifiablePublicationCopy, preferences: prefs, initialLocator: locator)
             }
@@ -816,8 +816,12 @@ extension FlutterReadiumPlugin {
     externalPlaybackCommandStreamHandler?.sendEvent(command.toMap())
   }
 
+  /// With `forReading` false (metadata only) the user is never prompted and a restricted publication,
+  /// e.g. an LCP book without a passphrase, is returned as is. With `forReading` true the user may be
+  /// prompted and a restricted publication fails with the add-on's error.
   private func loadPublication (
     fromUrlStr: String,
+    forReading: Bool = false
   ) async -> Result<Publication, ReadiumError> {
     var url: URL
     if fromUrlStr.hasPrefix("http") {
@@ -834,7 +838,7 @@ extension FlutterReadiumPlugin {
 
     Log.readium.info("Attempting to open publication at: \(absUrl)")
     do {
-      let pub: (Publication, Format) = try await self.openPublication(at: absUrl, allowUserInteraction: true, sender: nil)
+      let pub: (Publication, Format) = try await self.openPublication(at: absUrl, forReading: forReading, sender: nil)
       let mediaType: String = pub.1.mediaType?.string ?? "unknown"
       Log.readium.info("Opened publication: identifier: \(pub.0.metadata.identifier ?? "[no-ident]") format: \(mediaType)")
       return .success(pub.0)
@@ -846,7 +850,7 @@ extension FlutterReadiumPlugin {
 
   private func openPublication(
     at url: AbsoluteURL,
-    allowUserInteraction: Bool,
+    forReading: Bool,
     sender: UIViewController?
   ) async throws(ReadiumError) -> (Publication, Format) {
     do {
@@ -865,7 +869,7 @@ extension FlutterReadiumPlugin {
 
       let publication = try await sharedReadium.publicationOpener!.open(
         asset: asset,
-        allowUserInteraction: allowUserInteraction,
+        allowUserInteraction: forReading,
         onCreatePublication: { manifest, container, services in
           /// Report resource read failures (audio streaming errors are otherwise
           /// swallowed inside upstream AudioNavigator — no handler set means no-op).
@@ -890,6 +894,16 @@ extension FlutterReadiumPlugin {
         },
         sender: sender
       ).get()
+
+      // The toolkits open a publication whose protection failed (bad passphrase, expired license)
+      // as restricted rather than failing the open.
+      if forReading, publication.isRestricted {
+        let custom = sharedReadium.customError(forRestricted: publication)
+        let cause = publication.protectionError
+        publication.close()
+        if let custom { throw ReadiumError.custom(custom) }
+        throw ReadiumError.publicationIsRestricted(cause ?? DebugError("The publication is restricted."))
+      }
 
       return (publication, asset.format)
     } catch let err {

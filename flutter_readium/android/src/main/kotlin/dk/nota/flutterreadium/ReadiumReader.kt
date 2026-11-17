@@ -300,7 +300,7 @@ object ReadiumReader :
      * The PublicationFactory is used to open publications.
      */
     private val publicationOpener: PublicationOpener
-        get() {
+        @Synchronized get() {
             if (publicationOpenerCache == null) {
                 publicationOpenerCache =
                     PublicationOpener(
@@ -311,11 +311,18 @@ object ReadiumReader :
                                 httpClient = httpClient,
                                 pdfFactory = PdfiumDocumentFactory(context),
                             ),
+                        contentProtections = FlutterReadiumContentProtections.create(),
                     )
             }
 
             return publicationOpenerCache!!
         }
+
+    /** Forces the next open to rebuild the opener, e.g. after a content protection is registered. */
+    @Synchronized
+    internal fun invalidatePublicationOpener() {
+        publicationOpenerCache = null
+    }
 
     // Initialize from plugin or anywhere you have an Application or Context.
     fun attach(
@@ -523,7 +530,7 @@ object ReadiumReader :
         savedStateRef = null
 
         assetRetrieverCache = null
-        publicationOpenerCache = null
+        invalidatePublicationOpener()
 
         readerViewRef?.clear()
         readerViewRef = null
@@ -615,11 +622,12 @@ object ReadiumReader :
 
     private suspend fun assetToPublication(
         asset: Asset,
+        allowUserInteraction: Boolean,
         transformingContainerFactory: ((Container<Resource>) -> Container<Resource>)? = null,
     ): Try<Publication, OpenError> {
         val publication: Publication =
             publicationOpener
-                .open(asset, allowUserInteraction = true, onCreatePublication = {
+                .open(asset, allowUserInteraction = allowUserInteraction, onCreatePublication = {
                     container = transformingContainerFactory?.let { it(container) } ?: container
                     if (manifest.conformsTo(Publication.Profile.EPUB)) {
                         val factory = PageBreakSkippingContentIteratorFactory()
@@ -680,11 +688,16 @@ object ReadiumReader :
     /**
      * Load a publication from an AbsoluteUrl
      *
+     * With [forReading] false (metadata only) the user is never prompted and a restricted
+     * publication, e.g. an LCP book without a passphrase, is returned as is. With [forReading] true
+     * the user may be prompted and a restricted publication fails with the add-on's error.
+     *
      * Note: Remember to close the publication to avoid leaks.
      */
     suspend fun loadPublication(
         pubUrl: AbsoluteUrl,
         transformingContainerFactory: ((Container<Resource>) -> Container<Resource>)? = null,
+        forReading: Boolean = false,
     ): Try<Publication, PublicationError> {
         // Always load a new instance, even for the open publication: callers close what this returns.
         return withContext(Dispatchers.IO) {
@@ -700,6 +713,7 @@ object ReadiumReader :
                 val pub =
                     assetToPublication(
                         asset,
+                        allowUserInteraction = forReading,
                         transformingContainerFactory,
                     ).getOrElse { error: OpenError ->
                         PluginLog.e(
@@ -708,6 +722,15 @@ object ReadiumReader :
                         )
                         return@withContext failure(PublicationError.invoke(error))
                     }
+                // The toolkits open a publication whose protection failed (bad passphrase, expired
+                // license) as restricted rather than failing the open.
+                if (forReading) {
+                    pub.restrictionFailure()?.let { restriction ->
+                        pub.close()
+                        PluginLog.e(TAG, "::loadPublication. Publication is restricted: ${restriction.wireCode}")
+                        return@withContext failure(restriction)
+                    }
+                }
                 PluginLog.d(TAG, "Opened publication = ${pub.metadata.identifier} from url:$pubUrl")
                 return@withContext Try.success(pub)
             } catch (e: Throwable) {
@@ -780,6 +803,7 @@ object ReadiumReader :
             loadPublication(
                 pubUrl,
                 transformingContainerFactory,
+                forReading = true,
             ).getOrElse { e -> return failure(e) }
 
         _currentPublication = pub

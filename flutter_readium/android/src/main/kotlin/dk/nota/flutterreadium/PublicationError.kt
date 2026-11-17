@@ -23,6 +23,9 @@ sealed class PublicationError(
     override val message: String,
     override val cause: Error? = null,
 ) : Error {
+    /** Wire `code` sent to Dart. Differs from [errorCode] only for [Custom]. */
+    open val wireCode: String get() = errorCode.wireValue
+
     class Reading(
         override val cause: ReadError,
     ) : PublicationError(cause.readingErrorCode(), cause.message, cause.cause)
@@ -34,6 +37,22 @@ sealed class PublicationError(
     class FormatNotSupported(
         cause: Error,
     ) : PublicationError(ReadiumExceptionType.FORMAT_NOT_SUPPORTED, cause.message, cause.cause)
+
+    /** The toolkit opened the publication but its content protection left it restricted. */
+    class Restricted(
+        cause: Error?,
+    ) : PublicationError(
+            ReadiumExceptionType.FORBIDDEN,
+            cause?.message ?: "The publication is restricted",
+            cause?.cause,
+        )
+
+    /** A restriction an add-on explained through [FlutterReadiumRestrictions]. */
+    class Custom(
+        val custom: FlutterReadiumCustomError,
+    ) : PublicationError(ReadiumExceptionType.FORBIDDEN, custom.message) {
+        override val wireCode: String get() = custom.code
+    }
 
     class InvalidPublicationUrl(
         msg: String,
@@ -230,6 +249,8 @@ class PublicationErrorException(
 ) : Exception(publicationError.message)
 
 fun PublicationError.toMethodChannelDetails(): Map<String, Any?>? {
+    if (this is PublicationError.Custom) return custom.data
+
     // Short discriminator for a ResourceRead failure (e.g. "notFound", "cache") - mirrors
     // iOS's ResourceReadError `details: ["reason": ...]`. Not part of ReadiumErrorDetails
     // since it's specific to this one error code.
