@@ -247,6 +247,13 @@ packages:
       relative: true
     source: path
     version: "0.9.1"
+  flutter_readium_lcp:
+    dependency: "direct main"
+    description:
+      path: "../../flutter_readium_lcp"
+      relative: true
+    source: path
+    version: "0.9.1"
   flutter_readium_platform_interface:
     dependency: "direct overridden"
     description:

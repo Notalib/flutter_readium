@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+# Generates Readium LCP basic-profile test fixtures (the spec's public, test-only profile)
+# from the unprotected fixtures in example/assets/pubs/, then verifies its own output.
+# Needs bin/fetch_test_resources to have run first; keys are throwaway and never stored.
+#
+# Usage: bin/build_lcp_test_fixtures [--verify] [--base-url URL]
+#   (no flag)     generate, then verify
+#   --verify      only verify the existing outputs
+#   --base-url    where the acquisition .lcpl says the publication is served
+#                 (default: $LCP_ACQUIRE_BASE_URL or http://127.0.0.1:8765)
+#
+# Outputs (gitignored): lcp_*.epub / .lcpa / .lcpdf, lcp_acquire_*.{epub,lcpl} and the
+# root CA certificate lcp_test_root_ca.{der,pem}. Details: bin/build_lcp_test_fixtures.py.
+
+# Public test credentials, defined once here. They are not secrets.
+LCP_TEST_PASSPHRASE="flutter-readium-lcp-test"
+LCP_TEST_HINT="Test publication. The passphrase is in bin/build_lcp_test_fixtures"
+LCP_ACQUIRE_BASE_URL="${LCP_ACQUIRE_BASE_URL:-http://127.0.0.1:8765}"
+CRYPTOGRAPHY_VERSION=50.0.2
+
+PUBS_DIR="$REPO_ROOT/flutter_readium/example/assets/pubs"
+
+if ! command -v uvx >/dev/null 2>&1; then
+  echo "ERROR: needs uv (brew install uv) to run the Python helper." >&2
+  exit 1
+fi
+
+uvx --with "cryptography==$CRYPTOGRAPHY_VERSION" python -I \
+  "$REPO_ROOT/bin/build_lcp_test_fixtures.py" \
+  --passphrase "$LCP_TEST_PASSPHRASE" \
+  --hint "$LCP_TEST_HINT" \
+  --src-dir "$PUBS_DIR" \
+  --out-dir "$PUBS_DIR" \
+  --base-url "$LCP_ACQUIRE_BASE_URL" \
+  "$@"
+
+echo
+echo "LCP test passphrase: $LCP_TEST_PASSPHRASE"
+echo "LCP test hint:       $LCP_TEST_HINT"
+echo "Acquisition base URL: $LCP_ACQUIRE_BASE_URL"
+echo "Root CA: $PUBS_DIR/lcp_test_root_ca.der (and .pem)"

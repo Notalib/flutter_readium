@@ -16,7 +16,7 @@
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 
 TOWNCRIER_VERSION=26.9.0
-PACKAGES=(flutter_readium flutter_readium_platform_interface)
+PACKAGES=(flutter_readium flutter_readium_platform_interface flutter_readium_lcp)
 
 towncrier() {
   if command -v uvx >/dev/null 2>&1; then

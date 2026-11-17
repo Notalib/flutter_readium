@@ -1,0 +1,46 @@
+name: flutter_readium_lcp
+description: >-
+  Readium LCP add-on for flutter_readium. Opens LCP-protected publications on iOS and Android
+  with a passphrase prompt driven from Dart. The app supplies EDRLab's private LCP client library.
+version: 0.9.1
+homepage: https://github.com/notalib/flutter_readium
+repository: https://github.com/notalib/flutter_readium
+issue_tracker: https://github.com/notalib/flutter_readium/issues
+topics:
+  - readium
+  - lcp
+  - drm
+  - ebook
+  - audiobook
+
+environment:
+  sdk: ">=3.8.0 <4.0.0"
+  flutter: '>=3.44.8'
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: dk.nota.flutterreadiumlcp
+        pluginClass: FlutterReadiumLcpPlugin
+      ios:
+        pluginClass: FlutterReadiumLcpPlugin
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Before release this must be a hosted constraint (^0.9.1), matching the flutter_readium version.
+  flutter_readium:
+    # ignore: invalid_dependency
+    path: ../flutter_readium
+  meta: ^1.18.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+# For local development: flutter_readium itself resolves its platform interface from pub.dev.
+dependency_overrides:
+  flutter_readium_platform_interface:
+    path: ../flutter_readium_platform_interface

@@ -25,7 +25,7 @@ check dart    required
 check flutter required
 check node    required
 check npm     required
-check uvx     optional  # bin/changelog (towncrier)
+check uvx     optional  # bin/changelog (towncrier), bin/build_lcp_test_fixtures
 
 # The @readium ts-toolkit packages declare engines.node >=24.
 node_major="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null)"

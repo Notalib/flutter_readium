@@ -6,7 +6,8 @@ usage() {
 Usage: bin/readium_versions [--check]
 
   (no args)  Print the Readium toolkit version pins for every platform.
-  --check    Verify the iOS pins agree across the podspec and Package.swift.
+  --check    Verify the iOS pins agree across the podspecs and Package.swift,
+             and that the flutter_readium_lcp Android pin matches core.
              Exits non-zero on a mismatch.
 USAGE
 }
@@ -15,19 +16,22 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 ANDROID_BUILD_GRADLE="$ROOT_DIR/flutter_readium/android/build.gradle"
 IOS_PODSPEC="$ROOT_DIR/flutter_readium/ios/flutter_readium.podspec"
+LCP_ANDROID_BUILD_GRADLE="$ROOT_DIR/flutter_readium_lcp/android/build.gradle"
+LCP_IOS_PODSPEC="$ROOT_DIR/flutter_readium_lcp/ios/flutter_readium_lcp.podspec"
 IOS_PACKAGE_SWIFT="$ROOT_DIR/flutter_readium/ios/flutter_readium/Package.swift"
 WEB_PACKAGE_JSON="$ROOT_DIR/flutter_readium/package.json"
 
-# Drop whole-line comments first: a deliberately disabled pin (ReadiumLCP in the
-# podspec) must not read as an active one.
+# Drop whole-line comments first: a commented-out pin must not read as an active one.
 uncommented() {
   grep -v '^[[:space:]]*#' "$1"
 }
 
-# Every active swift-toolkit pin in the two iOS files, as "<path> <version>".
+# Every active swift-toolkit pin in the iOS files, as "<path> <version>".
 ios_pins() {
   uncommented "$IOS_PODSPEC" |
     sed -n "s|.*s\.dependency 'Readium[A-Za-z]*', '~> \([^']*\)'.*|flutter_readium/ios/flutter_readium.podspec \1|p"
+  uncommented "$LCP_IOS_PODSPEC" |
+    sed -n "s|.*s\.dependency 'Readium[A-Za-z]*', '~> \([^']*\)'.*|flutter_readium_lcp/ios/flutter_readium_lcp.podspec \1|p"
   uncommented "$IOS_PACKAGE_SWIFT" |
     sed -n 's|.*swift-toolkit.*upToNextMinor(from: "\([^"]*\)").*|flutter_readium/ios/flutter_readium/Package.swift \1|p'
 }
@@ -39,6 +43,10 @@ android_version="$(
 ios_swift_toolkit_version="$(
   uncommented "$IOS_PODSPEC" |
     sed -n "s/.*s.dependency 'ReadiumShared', '~> \\([^']*\\)'.*/\\1/p" | head -n1
+)"
+lcp_android_version="$(
+  uncommented "$LCP_ANDROID_BUILD_GRADLE" |
+    sed -n "s/.*ext.readium_version = '\\([^']*\\)'.*/\\1/p" | head -n1
 )"
 web_readium_shared="$(
   sed -n 's/.*"@readium\/shared": "\(.*\)".*/\1/p' "$WEB_PACKAGE_JSON" | head -n1
@@ -54,6 +62,7 @@ print_versions() {
   echo "Readium toolkit version pins"
   echo "----------------------------"
   echo "Android kotlin-toolkit: $android_version"
+  echo "  flutter_readium_lcp:  $lcp_android_version"
   echo "iOS swift-toolkit:      $ios_swift_toolkit_version"
   echo "Web @readium/shared:    $web_readium_shared"
   echo "Web @readium/navigator: $web_readium_navigator"
@@ -75,6 +84,7 @@ check_ios_sync() {
   # A pin-syntax change would otherwise make this check pass by finding nothing.
   for expected_file in \
     flutter_readium/ios/flutter_readium.podspec \
+    flutter_readium_lcp/ios/flutter_readium_lcp.podspec \
     flutter_readium/ios/flutter_readium/Package.swift; do
     if ! grep -q "^$expected_file " <<<"$pins"; then
       echo "ERROR: found no swift-toolkit pin in $expected_file — has its syntax changed?" >&2
@@ -99,8 +109,20 @@ check_ios_sync() {
   return "$status"
 }
 
+check_lcp_android() {
+  if [ -z "$lcp_android_version" ] || [ "$lcp_android_version" != "$android_version" ]; then
+    echo "  MISMATCH  flutter_readium_lcp/android/build.gradle ${lcp_android_version:-<none>} (core: $android_version)" >&2
+    return 1
+  fi
+  printf '  ok        %-50s %s\n' "flutter_readium_lcp/android/build.gradle" "$lcp_android_version"
+}
+
 case "${1:-}" in
-  --check) check_ios_sync ;;
+  --check)
+    check_ios_sync
+    echo "Android kotlin-toolkit pin (reference: core $android_version)"
+    check_lcp_android
+    ;;
   -h | --help) usage ;;
   "") print_versions ;;
   *)

@@ -8,5 +8,8 @@ dart analyze --fatal-infos --fatal-warnings "$REPO_ROOT/flutter_readium_platform
 echo "Analyzing flutter_readium..."
 dart analyze --fatal-infos --fatal-warnings "$REPO_ROOT/flutter_readium"
 
+echo "Analyzing flutter_readium_lcp..."
+dart analyze --fatal-infos --fatal-warnings "$REPO_ROOT/flutter_readium_lcp"
+
 echo "Analyzing example app..."
 dart analyze --fatal-infos --fatal-warnings "$REPO_ROOT/flutter_readium/example"
