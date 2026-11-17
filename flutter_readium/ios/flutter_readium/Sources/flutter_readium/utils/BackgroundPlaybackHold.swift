@@ -64,9 +64,3 @@ func playbackAdvancedPastGap(
 ) -> Bool {
   toResourceIndex == fromResourceIndex ? toTime > fromTime + 0.5 : toTime > 0.5
 }
-
-/// True when buffered audio covers `time` and at least `minimum` seconds after it, so a
-/// stalled player can resume without stalling again at once.
-func hasBufferedAudio(after time: TimeInterval, in ranges: [Range<Double>], minimum: TimeInterval = 1.0) -> Bool {
-  ranges.contains { $0.lowerBound <= time + 0.1 && $0.upperBound >= time + minimum }
-}

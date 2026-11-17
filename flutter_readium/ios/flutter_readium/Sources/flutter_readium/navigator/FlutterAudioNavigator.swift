@@ -449,9 +449,6 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   public func navigator(_ navigator: AudioNavigator, playbackDidChange info: MediaPlaybackInfo) {
     self._nowPlayingUpdater.updatePlaybackFromInfo(info, withSpeedSetting: _audioNavigator?.settings.speed)
     self._nowPlayingUpdater.updateCommandCenterControls()
-    if info.resourceIndex != self.playback.resourceIndex {
-      _loadedRanges = []
-    }
     if info.state == .playing {
       _backgroundHold.releaseIfAdvanced(resourceIndex: info.resourceIndex, time: info.time)
     }
@@ -475,7 +472,6 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   /// Called when the ranges of buffered media data change.
   /// Warning: They may be discontinuous.
   public func navigator(_ navigator: AudioNavigator, loadedTimeRangesDidChange ranges: [Range<Double>]) {
-    _loadedRanges = ranges
     // See `_isNavigating`: reading `playbackInfo` mid-`go(to:)` deadlocks the main thread.
     if _isNavigating { return }
 
@@ -598,8 +594,6 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   private var _rebuildOnNextPlay = false
   private var _nowPlayingSetUp = false
   private let _backgroundHold = BackgroundPlaybackHold()
-  /// Buffered ranges of the current resource, as last reported by the navigator.
-  private var _loadedRanges: [Range<Double>] = []
   private var _playbackStalledObserver: NSObjectProtocol?
   private var _stallCheckTask: Task<Void, Never>?
   /// One-shot readiness check for the current resource-loading attempt.
@@ -721,8 +715,15 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
         guard self._playbackIntent, !self._disposed, !self._hasFailed, self._recoveryTask == nil else {
           return
         }
-        if self.playback.state != .playing, !AudioSession.shared.isInterrupted,
-           hasBufferedAudio(after: self.playback.time, in: self._loadedRanges) {
+        // Without the item, resume blindly: the player plays what it has and stalls again.
+        let item = self.underlyingPlayer()?.currentItem
+        if item?.status == .failed {
+          break
+        }
+        let buffered = item.map {
+          $0.status == .readyToPlay && ($0.isPlaybackLikelyToKeepUp || $0.isPlaybackBufferFull)
+        } ?? true
+        if buffered, self.playback.state != .playing, !AudioSession.shared.isInterrupted {
           self._audioNavigator?.play()
         }
         try? await Task.sleep(nanoseconds: 500_000_000)
@@ -739,6 +740,16 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
         terminalCode: "AudioStreamNetworkError"
       )
     }
+  }
+
+  /// The toolkit keeps its `AVPlayer` private and never reports buffered ranges, so the
+  /// buffer state is read reflectively. Returns nil if the toolkit renames the property.
+  private func underlyingPlayer() -> AVPlayer? {
+    guard let navigator = _audioNavigator else { return nil }
+    for child in Mirror(reflecting: navigator).children where child.label?.contains("player") == true {
+      if let player = child.value as? AVPlayer { return player }
+    }
+    return nil
   }
 
   /// Why the plugin started a recovery itself (stall, resource-loading timeout). A
@@ -767,7 +778,6 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       return false
     }
     _audioNavigator = navigator
-    _loadedRanges = []
     navigator.play()
     return true
   }
