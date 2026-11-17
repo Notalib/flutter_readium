@@ -636,6 +636,16 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
         _rebuildOnNextPlay = true
         return
       }
+      // A rebuild discards the buffer and reloads the track, so it is the last resort.
+      // The stall check rebuilds if the item fails or does not resume.
+      if readErrorCanWaitForStallCheck(
+        stallCheckRunning: _stallCheckTask != nil,
+        isPlaying: playback.state == .playing,
+        bufferState: stalledItemBufferState())
+      {
+        Log.navigator.debug("Leaving the item in place after a retryable read error")
+        return
+      }
       startRecovery(href: href, error: error, terminalCode: "AudioStreamNetworkError")
     }
   }
@@ -1249,6 +1259,14 @@ func stallBufferState(
 
 /// Smallest change in playback time that counts as progress between two samples.
 let playbackProgressThresholdSeconds: TimeInterval = 0.1
+
+/// True when a retryable read error should not rebuild the navigator yet: a stall check is
+/// already watching the item, or the item is healthy and still playing from its buffer.
+func readErrorCanWaitForStallCheck(
+  stallCheckRunning: Bool, isPlaying: Bool, bufferState: StallBufferState
+) -> Bool {
+  stallCheckRunning || (isPlaying && bufferState != .failed)
+}
 
 /// True when a stalled player is playing again. Time is compared with the previous sample,
 /// not the stall position: after a seek, playback can be fine from an earlier time.

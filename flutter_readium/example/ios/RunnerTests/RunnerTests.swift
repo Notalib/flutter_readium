@@ -258,6 +258,13 @@ final class StallCheckTests: XCTestCase {
     XCTAssertEqual(stallBufferState(status: .readyToPlay, isLikelyToKeepUp: true, isBufferFull: false), .ready)
     XCTAssertEqual(stallBufferState(status: .readyToPlay, isLikelyToKeepUp: false, isBufferFull: true), .ready)
   }
+
+  func testReadErrorWaitsWhileTheItemIsWatchedOrStillPlaying() {
+    XCTAssertTrue(readErrorCanWaitForStallCheck(stallCheckRunning: true, isPlaying: false, bufferState: .failed))
+    XCTAssertTrue(readErrorCanWaitForStallCheck(stallCheckRunning: false, isPlaying: true, bufferState: .unknown))
+    XCTAssertFalse(readErrorCanWaitForStallCheck(stallCheckRunning: false, isPlaying: true, bufferState: .failed))
+    XCTAssertFalse(readErrorCanWaitForStallCheck(stallCheckRunning: false, isPlaying: false, bufferState: .ready))
+  }
 }
 
 final class ReadiumAVPlayerLookupTests: XCTestCase {
