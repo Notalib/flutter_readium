@@ -185,7 +185,7 @@ The iOS toolkit reports a license that has not started yet as expired; the plugi
 
 Both toolkits report an unreachable server as an unexpected server error, so connectivity failures also arrive as `LcpLoanFailedException` with `isServerError` true.
 
-After a successful renew or return, both toolkits try to fetch the updated license from the status document's `license` link. From their source, a failed fetch is ignored and the old license stays on disk (iOS), or the old rights are returned (Android renew). Which date `renewLoan` then reports was not observed: no renew succeeded against a server here (see below).
+After a successful renew or return, both toolkits try to fetch the updated license from the status document's `license` link. When the fetch works, `renewLoan` returns the new end date, and it is still there after reopening the book. When the link is unreachable, the renew still succeeds on the server, but the toolkit ignores the failed fetch and the app keeps the old end date. A fetched license without a `publication` link is rejected as malformed: the renew and later opens fail with `LcpLicenseInvalidException`.
 
 ## `loadPublication` and `openPublication`
 
@@ -226,7 +226,7 @@ It checks that `loadPublication` returns metadata without a prompt, that a cance
 ## Known limitations
 
 - No web support and no web-page renewal (see above).
-- Renew and return were exercised against a real server only as far as the request: a successful renew or return was never observed (see [docs/plans/lcp-support.md](../plans/lcp-support.md)).
+- Renew and return were tested against a local Readium `lcpserver` and `lsdserver` only, with a local stand-in for the license gateway, not against a production provider (see [docs/plans/lcp-support.md](../plans/lcp-support.md)).
 - iOS does not show the embedded outline of an LCP PDF as table of contents (see above).
 - The iOS audio navigator ignores LCP navigator errors (`presentError` in `navigator/FlutterAudioNavigator.swift`), so a license that becomes unusable during audio playback is not reported to Dart.
 - Headers set with `setCustomHeaders` are not sent on LCP traffic in these places: on Android, on all LCP requests (CRL, license status server, license-linked downloads), and on iOS, on `acquirePublication` and `getLicenseInfo`, which use the add-on's own `DefaultHTTPClient`.
