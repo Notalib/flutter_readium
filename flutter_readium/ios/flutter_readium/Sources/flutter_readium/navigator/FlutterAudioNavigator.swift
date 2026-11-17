@@ -602,7 +602,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   private var _playbackStalledObserver: NSObjectProtocol?
   /// The running stall check; see `handlePlaybackStalled`. At most one at a time.
   private var _stallCheckTask: Task<Void, Never>?
-  private static let stallPollIntervalNanoseconds: UInt64 = 500_000_000
+  /// How often the stall check and the recovery check sample playback.
+  private static let playbackPollIntervalSeconds: TimeInterval = 0.5
   /// One-shot readiness check for the current resource-loading attempt.
   internal var _resourceLoadingWatchdog = AudioResourceLoadingWatchdog()
   internal var _resourceLoadingWatchdogTask: Task<Void, Never>?
@@ -765,7 +766,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
           _audioNavigator?.play()
         }
       }
-      try? await Task.sleep(nanoseconds: Self.stallPollIntervalNanoseconds)
+      try? await Task.sleep(nanoseconds: UInt64(Self.playbackPollIntervalSeconds * 1_000_000_000))
     }
     return .gaveUp
   }
@@ -823,7 +824,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       if offsetAdvanced(sinceTime: startTime) {
         return true
       }
-      try? await Task.sleep(nanoseconds: 500_000_000)
+      try? await Task.sleep(nanoseconds: UInt64(Self.playbackPollIntervalSeconds * 1_000_000_000))
     }
     return false
   }
