@@ -18,6 +18,10 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   private var pendingTextInitialLocator: Locator?
   /// Parsed XHTML per resource path, for seeks to ToC containers absent from the narration.
   private var xhtmlIdTrees: [String: XhtmlIdTree?] = [:]
+  /// Last cue-mapped text locator, reused for off-cue ticks (a gap, a boundary
+  /// tick during a window extension, the position after a cross-chapter jump) so
+  /// the raw audio href never leaks as `currentLocator`.
+  private var lastMappedTextLocator: Locator?
   
   public override var currentLocator: Locator? {
     get {
@@ -146,7 +150,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     // Map the initial Text-based locator to Audio-based MediaOverlay Locator.
     var anchored = fromLocator
     if let fromLocator {
-      await ensureWindowForSeek(textHref: fromLocator.href.string)
+      await ensureWindowForSeek(textLocator: fromLocator)
       anchored = await anchorUncuedTextLocator(fromLocator)
     }
     if fromLocator != nil && anchored == nil {
@@ -164,7 +168,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   
   public override func seek(toLocator: Locator) async -> Bool {
     // A seek beyond the loaded window needs that segment's cues + audio track first.
-    await ensureWindowForSeek(textHref: toLocator.href.string)
+    await ensureWindowForSeek(textLocator: toLocator)
     let toLocator = await anchorUncuedTextLocator(toLocator)
     guard let navigator = _audioNavigator,
           let audioLocator = mapTextLocatorToMediaOverlayAudioLocator(toLocator) else {
@@ -172,7 +176,10 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
       settlePendingEdgeTakeover(seekSucceeded: false)
       return false
     }
-    let wasPlaying = navigator.state == .playing || navigator.state == .loading
+    // Read the play INTENT, not the navigator's state: a window extension may
+    // have just rebuilt the player, and a fresh navigator still reports
+    // `.paused` until play lands, which stranded cross-chapter jumps paused.
+    let wasPlaying = _playbackIntent
     let navigated = await goBounded(to: audioLocator)
     // Go will sometimes result in a pause, if buffering was necessary.
     // So we actively ensure we resume playing (if we were before).
@@ -283,7 +290,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   /// land on the about-to-be-replaced navigator (no position report while
   /// paused). Each pass joins any in-flight extension, fetches the target, and
   /// extends under the exclusive slot; a pass that lands nothing new returns.
-  private func ensureWindowForSeek(textHref: String) async {
+  private func ensureWindowForSeek(textLocator: Locator) async {
     guard store != nil, !_disposed else { return }
     for attempt in 0..<3 {
       await extensionInFlight?.value
@@ -291,6 +298,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
         continue // joined an extension; re-check on the next pass
       }
       guard let store, !_disposed else { return }
+      let textHref = textLocator.href.string
       guard store.roIndexForText(textHref) != nil else { return }
       windowBusy = true
       await store.ensureSegmentForText(textHref)
@@ -298,7 +306,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
       let grew = hasNewAudioTrack(loadedBefore: mediaOverlays)
         || store.overlays().flatMap(\.items).count > mediaOverlays.flatMap(\.items).count
       if grew {
-        await applyWindowExtension(resumeAt: audioLocator)
+        await applyWindowExtension(resumeAt: audioLocator, seekText: textLocator)
       }
       windowBusy = false
       if !grew || attempt == 2 { return }
@@ -363,7 +371,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
 
   /// Re-applies the merged overlay list, re-derives the audio window manifest and
   /// rebuilds the upstream navigator at `resumeAt`.
-  private func applyWindowExtension(resumeAt: Locator?) async {
+  private func applyWindowExtension(resumeAt: Locator?, seekText: Locator? = nil) async {
     guard let store else { return }
     var extended = store.overlays()
     guard !extended.isEmpty else { return }
@@ -378,7 +386,10 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     // in the window are picked up by the lookups without a rebuild hiccup.
     guard newTrack || takeover else { return }
     guard applyAudioWindow(extended) else { return }
-    let target = takeover ? firstNewTrackLocator(loadedBefore: previous) ?? resumeAt : resumeAt
+    var target = takeover ? firstNewTrackLocator(loadedBefore: previous) ?? resumeAt : resumeAt
+    if let seekText, let mapped = mapTextLocatorToMediaOverlayAudioLocator(seekText) {
+      target = mapped
+    }
     Log.navigator.info("Extending media-overlay window to \(extended.count) overlay(s); rebuilding at \(target?.href.string ?? "(initial)")")
     // Rebuild from the play INTENT, not player state: at a just-ended edge the state is
     // `.ended`/`.paused` while the user still wants playback, and a mid-tick race can
@@ -415,6 +426,29 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     state.totalDuration = store.totalDurationSecs() ?? state.totalDuration
     state.totalProgressDuration = computeTotalProgressDuration(
       totalProgression: progression, publicationDuration: state.totalDuration)
+  }
+
+  /// The base ended payload carries the raw audio locator and the window's
+  /// duration. Media overlay must report the cue-mapped text locator and the
+  /// book-wide total, the same contract the periodic tick keeps.
+  internal override func makeEndedState(info: MediaPlaybackInfo) -> ReadiumTimebasedState {
+    let state = super.makeEndedState(info: info)
+    let audio = audioLocator
+    if let audio,
+       let item = mediaOverlayItemFromAudioLocator(audio),
+       let combined = item.toCombinedLocator(fromAudioLocator: audio) {
+      state.currentLocator = combined
+    } else {
+      state.currentLocator = lastMappedTextLocator
+    }
+    applyTimelineTotals(to: state, audioLocator: audio)
+    state.currentLocator?.locations.totalProgression = 1.0
+    if let total = store?.totalDurationSecs() {
+      state.totalDuration = total
+      state.totalProgressDuration = computeTotalProgressDuration(
+        totalProgression: 1.0, publicationDuration: total)
+    }
+    return state
   }
 
   public override func dispose() -> Void {
@@ -463,14 +497,23 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     /// map falls back to the raw audio locator, which must never leak when the playhead
     /// briefly sits on a track the lazily loaded set no longer contains (e.g. the old resume
     /// position right after a paused cross-chapter jump rebuilds the navigator).
+    // Map audio Locator to a combined Text-based Locator, before submitting to
+    // listener. In media-overlay mode `currentLocator` is contractually a text
+    // locator; the raw audio href must never leak when the playhead briefly
+    // sits off-cue (a gap, or a boundary tick during a window extension), so
+    // the last mapped locator is reused until a cue matches again.
+    var mapped: Locator?
     if let locator = location,
        let mediaOverlayItem = mediaOverlayItemFromAudioLocator(locator),
        let combinedLocator = mediaOverlayItem.toCombinedLocator(fromAudioLocator: locator) {
-      timebasedState.currentLocator = combinedLocator
-      applyTimelineTotals(to: timebasedState, audioLocator: locator)
-    } else {
-      timebasedState.currentLocator = nil
+      mapped = combinedLocator
+      lastMappedTextLocator = combinedLocator
     }
+    timebasedState.currentLocator = mapped ?? lastMappedTextLocator
+    // Book-wide totals when the store knows the playhead's segment, including
+    // the off-cue ticks the window-extension rebuild emits (else totalDuration
+    // reads the window's, not the book's).
+    if let location { applyTimelineTotals(to: timebasedState, audioLocator: location) }
     
     /// If state has changed, submit it to listener.
     if (timebasedState != self._lastTimebasedPlayerState) {

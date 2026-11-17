@@ -961,20 +961,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   /// Submits the terminal `.ended` state directly, bypassing the throttled `$playback`
   /// pipeline. See `navigator(_:shouldPlayNextResource:)` for why.
-  private func submitEndedStateToListener(info: MediaPlaybackInfo) {
-    var locator = audioLocator
-    locator?.locations.position = info.resourceIndex + 1
-    locator = locator?.toClientFriendlyLocator()
-    locator?.locations.totalProgression = 1.0
-
-    let timebasedState = ReadiumTimebasedState(
-      state: .ended,
-      currentOffset: info.time,
-      currentDuration: info.duration,
-      totalProgressDuration: makeTotalProgressDuration(locator),
-      totalDuration: makePublicationDuration(),
-      currentLocator: locator
-    )
+  internal func submitEndedStateToListener(info: MediaPlaybackInfo) {
+    let timebasedState = makeEndedState(info: info)
 
     _endedResourceIndex = info.resourceIndex
 
@@ -986,6 +974,25 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       Log.navigator.debug("Skipped state emission - duplicate")
     }
   }
+
+  /// Terminal `.ended` payload; overridable so media-overlay sessions can keep
+  /// the text-locator + book-wide-totals contract on the ended emission.
+  internal func makeEndedState(info: MediaPlaybackInfo) -> ReadiumTimebasedState {
+    var locator = audioLocator
+    locator?.locations.position = info.resourceIndex + 1
+    locator = locator?.toClientFriendlyLocator()
+    locator?.locations.totalProgression = 1.0
+
+    return ReadiumTimebasedState(
+      state: .ended,
+      currentOffset: info.time,
+      currentDuration: info.duration,
+      totalProgressDuration: makeTotalProgressDuration(locator),
+      totalDuration: makePublicationDuration(),
+      currentLocator: locator
+    )
+  }
+
 
   internal func resolveLocator(_ locator: Locator?) -> Locator? {
     guard let locator = locator else {
@@ -1040,7 +1047,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     return timebasedState
   }
 
-  private func makePublicationDuration() -> TimeInterval? {
+  internal func makePublicationDuration() -> TimeInterval? {
     computePublicationDuration(publication.readingOrder.map { $0.duration })
   }
 
