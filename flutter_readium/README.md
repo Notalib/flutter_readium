@@ -197,9 +197,11 @@ for details.
 
 ### iOS
 
-Add the Readium pods to your `ios/Podfile`. The versions must match the ones pinned in
-`ios/flutter_readium.podspec`. The `example/ios/Podfile` is the source-of-truth for app
-integration — copy these lines into your own `Podfile`:
+Use Swift Package Manager, Flutter's default since 3.44. No setup is needed: Flutter resolves the
+Readium packages through the plugin's `Package.swift`.
+
+If your app still uses CocoaPods, add the Readium pods to your `ios/Podfile`. The versions must
+match the ones pinned in `ios/flutter_readium.podspec`:
 
 ```ruby
 source 'https://github.com/readium/podspecs'
@@ -209,15 +211,15 @@ target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  pod 'ReadiumShared', '~> 3.11.0'
-  pod 'ReadiumInternal', '~> 3.11.0'
-  pod 'ReadiumStreamer', '~> 3.11.0'
-  pod 'ReadiumNavigator', '~> 3.11.0'
-  pod 'ReadiumOPDS', '~> 3.11.0'
+  pod 'ReadiumShared', '~> 3.11.1'
+  pod 'ReadiumInternal', '~> 3.11.1'
+  pod 'ReadiumStreamer', '~> 3.11.1'
+  pod 'ReadiumNavigator', '~> 3.11.1'
+  pod 'ReadiumOPDS', '~> 3.11.1'
 end
 ```
 
-Keep these pod versions aligned with the plugin's pin; do not override them independently.
+The CocoaPods trunk becomes read-only in December 2026, so plan to move to Swift Package Manager.
 
 ### Web
 

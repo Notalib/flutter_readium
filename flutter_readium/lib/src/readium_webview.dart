@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'dart:js_interop' as js_interop;
+import 'dart:ui_web' as ui_web;
 
 import 'package:collection/collection.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 import 'package:web/web.dart' as web;
 
@@ -156,9 +157,16 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
         pubId: pubId,
         initialPreferences: json.encode(preferences),
         initialPositionJson: currentLocatorString,
-        fontFamilyDeclarationsJson: json.encode(
-          widget.fontFamilyDeclarations.map((font) => font.toMap()).toList(),
-        ),
+        // Send served URLs, not asset keys: `--web-content-hash` renames the font files.
+        fontFamilyDeclarationsJson: json.encode([
+          for (final font in widget.fontFamilyDeclarations)
+            {
+              ...font.toMap(),
+              'faces': [
+                for (final face in font.faces) {...face.toMap(), 'asset': ui_web.assetManager.getAssetUrl(face.asset)},
+              ],
+            },
+        ]),
       );
     } catch (e) {
       // This is a temporary solution to show an error message when opening a publication fails

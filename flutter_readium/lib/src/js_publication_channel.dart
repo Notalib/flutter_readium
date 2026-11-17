@@ -1,5 +1,6 @@
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
+import 'dart:ui_web' as ui_web;
 import 'package:flutter/services.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 import 'js_error.dart';
@@ -23,11 +24,13 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
   external void setEPUBPreferences(JSString newPreferencesString);
   external void setLogLevel(JSNumber level);
   external void setAudioRecoveryPolicy(JSString policyJson);
+  external void setHelperAssetUrls(JSString jsUrl, JSString cssUrl);
   external void applyDecorations(JSString group, JSString decorationsJson);
   external void setDecorationStyle(
     JSString? utteranceStyleJson,
     JSString? rangeStyleJson,
   );
+  external void setSelectionActions(JSString actionsJson);
   external JSBoolean get isNavigatorReady;
   external void play(JSString? locatorJson);
   external void pause();
@@ -84,8 +87,15 @@ external set onImageTappedCallback(JSFunction f);
 external set onExternalLinkActivatedCallback(JSFunction f);
 
 class JsPublicationChannel {
-  static final ReadiumReader _readiumReader = ReadiumReader();
+  // Asset URLs must come from the asset manager: `--web-content-hash` renames the files.
+  static final ReadiumReader _readiumReader = ReadiumReader()
+    ..setHelperAssetUrls(
+      _assetUrl('packages/flutter_readium/assets/helpers/flutterReadiumTools.js'),
+      _assetUrl('packages/flutter_readium/assets/helpers/flutterReadiumTools.css'),
+    );
   static final _log = ReadiumLog.tag('JsChannel');
+
+  static JSString _assetUrl(String key) => ui_web.assetManager.getAssetUrl(key).toJS;
 
   static void setLogLevel(LogLevel level) {
     _readiumReader.setLogLevel(level.index.toJS);
@@ -363,6 +373,11 @@ class JsPublicationChannel {
     } else {
       ReadiumLog.w('ReadiumReader is not ready yet, skipping applyDecorations');
     }
+  }
+
+  /// Replaces the actions shown in the web selection toolbar. An empty list hides it.
+  void setSelectionActions(String actionsJson) {
+    _guardJsCall(() => _readiumReader.setSelectionActions(actionsJson.toJS));
   }
 
   void setDecorationStyle(String? utteranceStyleJson, String? rangeStyleJson) {

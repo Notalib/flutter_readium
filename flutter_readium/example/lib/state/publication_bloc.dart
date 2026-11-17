@@ -1,10 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:logging/logging.dart';
 import 'package:rxdart/rxdart.dart';
+
+import 'highlight.dart';
 
 final _log = Logger('PublicationBloc');
 
@@ -23,8 +26,21 @@ class ClosePublication extends PublicationEvent {
 
 @immutable
 class AddHighlight extends PublicationEvent {
-  AddHighlight(this.decoration);
-  final ReaderDecoration decoration;
+  AddHighlight(this.highlight);
+  final Highlight highlight;
+}
+
+@immutable
+class UpdateHighlightColor extends PublicationEvent {
+  UpdateHighlightColor(this.id, this.tint);
+  final String id;
+  final Color tint;
+}
+
+@immutable
+class DeleteHighlight extends PublicationEvent {
+  DeleteHighlight(this.id);
+  final String id;
 }
 
 @immutable
@@ -45,23 +61,43 @@ class PublicationState {
     this.initialLocator,
     this.error,
     this.isLoading = false,
-    Map<String, ReaderDecoration>? highlights,
+    Map<String, Highlight>? highlights,
   }) : highlights = highlights ?? {};
   final Publication? publication;
   final Locator? initialLocator;
   final dynamic error;
   final bool isLoading;
 
-  /// Accumulated decorations for the current publication, keyed by decoration ID.
-  /// Not persisted to storage — resets on app restart.
-  final Map<String, ReaderDecoration> highlights;
+  /// User highlights for the current publication, keyed by decoration ID.
+  /// Not persisted to storage — resets when the publication closes.
+  final Map<String, Highlight> highlights;
+
+  /// [highlights] sorted by reading-order resource, then total progression, then progression. A missing value
+  /// sorts last, and ties keep creation order. The resource comes first because some locators have no total
+  /// progression, such as web WebPub locators and selections on the second page of a spread.
+  List<Highlight> get highlightsInReadingOrder {
+    final readingOrder = publication?.readingOrder ?? const <Link>[];
+    int compare(num? a, num? b) => (a ?? double.infinity).compareTo(b ?? double.infinity);
+    int? resourceIndex(Locator locator) => readingOrder.indexOfFirstWithHref(locator.hrefPath);
+
+    final indexed = highlights.values.indexed.toList()
+      ..sort((a, b) {
+        final la = a.$2.decoration.locator;
+        final lb = b.$2.decoration.locator;
+        var cmp = compare(resourceIndex(la), resourceIndex(lb));
+        if (cmp == 0) cmp = compare(la.locations?.totalProgression, lb.locations?.totalProgression);
+        if (cmp == 0) cmp = compare(la.locations?.progression, lb.locations?.progression);
+        return cmp != 0 ? cmp : a.$1.compareTo(b.$1);
+      });
+    return [for (final (_, highlight) in indexed) highlight];
+  }
 
   PublicationState copyWith({
     final Publication? publication,
     final Locator? initialLocator,
     final dynamic error,
     final bool? isLoading,
-    final Map<String, ReaderDecoration>? highlights,
+    final Map<String, Highlight>? highlights,
   }) => PublicationState(
     publication: publication ?? this.publication,
     initialLocator: initialLocator ?? this.initialLocator,
@@ -144,6 +180,9 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
   StreamSubscription? textLocatorSub;
   StreamSubscription? errorEventSub;
 
+  /// Latest reader locator for the open publication, cleared on close.
+  Locator? currentLocator;
+
   final instance = FlutterReadium();
 
   PublicationBloc() : super(PublicationState()) {
@@ -174,6 +213,7 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
               timebasedLocatorReceived = true;
             });
         textLocatorSub = instance.onTextLocatorChanged.listen((locator) {
+          currentLocator = locator;
           _log.fine('onTextLocatorChanged: $locator');
           if ((publication.containsMediaOverlays || publication.containsGuidedNavigation) && timebasedLocatorReceived) {
             // TODO: would be better to check if audio is currently enabled for the publication.
@@ -200,9 +240,17 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
     });
 
     on<AddHighlight>((final event, final emit) {
-      final updated = Map<String, ReaderDecoration>.from(state.highlights)..[event.decoration.id] = event.decoration;
-      emit(state.copyWith(highlights: updated));
-      instance.applyDecorations('user_highlights', updated.values.toList());
+      _emitHighlights(emit, {...state.highlights, event.highlight.id: event.highlight});
+    });
+
+    on<UpdateHighlightColor>((final event, final emit) {
+      final highlight = state.highlights[event.id];
+      if (highlight == null) return;
+      _emitHighlights(emit, {...state.highlights, event.id: highlight.withTint(event.tint)});
+    });
+
+    on<DeleteHighlight>((final event, final emit) {
+      _emitHighlights(emit, Map.of(state.highlights)..remove(event.id));
     });
 
     on<ClosePublication>((final event, final emit) async {
@@ -217,8 +265,16 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
           'Exception while closing publication: ${error.toString()}',
         );
       }
+      currentLocator = null;
       emit(PublicationState());
     });
+  }
+
+  /// Stores [highlights] and re-applies the whole group, since
+  /// `applyDecorations` replaces every decoration in it.
+  void _emitHighlights(final Emitter<PublicationState> emit, final Map<String, Highlight> highlights) {
+    emit(state.copyWith(highlights: highlights));
+    instance.applyDecorations(highlightsGroup, [for (final highlight in highlights.values) highlight.decoration]);
   }
 
   void _cancelSubscriptions() {

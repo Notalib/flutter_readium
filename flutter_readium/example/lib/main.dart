@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
@@ -10,6 +10,8 @@ import 'package:path_provider/path_provider.dart';
 
 import 'pages/index.dart';
 import 'state/index.dart';
+import 'utils/agent_extensions.dart';
+import 'utils/navigator_key.dart';
 
 Future<void> main() async {
   // Initialize Marionette only in debug mode
@@ -17,6 +19,7 @@ Future<void> main() async {
     MarionetteBinding.ensureInitialized(
       MarionetteConfiguration(logCollector: LoggingLogCollector()),
     );
+    registerAgentExtensions();
   } else {
     WidgetsFlutterBinding.ensureInitialized();
   }
@@ -77,6 +80,7 @@ class _MyAppState extends State<MyApp> with RestorationMixin {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       restorationScopeId: 'app',
       routes: {
         '/': (context) => BookshelfPage(),
@@ -84,6 +88,7 @@ class _MyAppState extends State<MyApp> with RestorationMixin {
         '/toc': (context) => TableOfContentsPage(),
         '/pagelist': (context) => PageListPage(),
         '/search': (context) => SearchPage(),
+        '/highlights': (context) => HighlightsPage(),
       },
     );
   }

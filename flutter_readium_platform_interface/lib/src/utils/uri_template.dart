@@ -4,7 +4,7 @@
 
 // Originally from https://github.com/Mantano/iridium/blob/main/components/commons/lib/utils/uri_template.dart
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import 'href.dart';
 

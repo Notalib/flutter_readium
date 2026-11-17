@@ -5,13 +5,19 @@
 const HELPER_INJECTED_FLAG = "flutterReadiumHelperInjected";
 
 /**
- * Flutter web asset paths for the prebuilt helper bundle. These are the same
- * files that native (iOS / Android) injects into the EPUB webview, so injecting
- * them here gives the web iframe the same capabilities (comic pan/zoom overlay,
- * flutterReadium tools, responsive tables, etc.).
+ * URLs of the prebuilt helper bundle. These are the same files that native
+ * (iOS / Android) injects into the EPUB webview, so injecting them here gives
+ * the web iframe the same capabilities (comic pan/zoom overlay, flutterReadium
+ * tools, responsive tables, etc.).
  */
-const HELPER_JS_ASSET = "assets/packages/flutter_readium/assets/helpers/flutterReadiumTools.js";
-const HELPER_CSS_ASSET = "assets/packages/flutter_readium/assets/helpers/flutterReadiumTools.css";
+let helperJsUrl = "assets/packages/flutter_readium/assets/helpers/flutterReadiumTools.js";
+let helperCssUrl = "assets/packages/flutter_readium/assets/helpers/flutterReadiumTools.css";
+
+/** Dart passes the served URLs, which carry a content hash under `--web-content-hash`. */
+export function setHelperAssetUrls(jsUrl: string, cssUrl: string): void {
+  helperJsUrl = jsUrl;
+  helperCssUrl = cssUrl;
+}
 
 // Cache the fetched text so subsequent iframes (on the same page or after a
 // chapter navigation) don't hit the network again.
@@ -21,13 +27,13 @@ let _cachedHelperCss: string | null = null;
 async function _fetchHelperAssets(): Promise<{ js: string; css: string } | null> {
   try {
     if (_cachedHelperJs === null) {
-      const res = await fetch(HELPER_JS_ASSET);
-      if (!res.ok) throw new Error(`HTTP ${res.status} for ${HELPER_JS_ASSET}`);
+      const res = await fetch(helperJsUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status} for ${helperJsUrl}`);
       _cachedHelperJs = await res.text();
     }
     if (_cachedHelperCss === null) {
-      const res = await fetch(HELPER_CSS_ASSET);
-      if (!res.ok) throw new Error(`HTTP ${res.status} for ${HELPER_CSS_ASSET}`);
+      const res = await fetch(helperCssUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status} for ${helperCssUrl}`);
       _cachedHelperCss = await res.text();
     }
     return { js: _cachedHelperJs, css: _cachedHelperCss };

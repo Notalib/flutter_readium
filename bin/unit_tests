@@ -39,18 +39,11 @@ function test_ios() {
   # cd, not --directory: --directory loses this pubspec's SPM override.
   ( cd "$EXAMPLE_DIR" && flutter pub get > /dev/null )
 
-  # The CocoaPods podhelper needs Flutter's generated iOS config (and the
-  # ephemeral SPM packages the plugin depends on); --config-only writes them
-  # without a full build.
-  if [ ! -f "$IOS_DIR/Flutter/Generated.xcconfig" ]; then
+  # xcodebuild needs Flutter's generated iOS config and the generated plugin
+  # Swift package; --config-only writes both without a full build.
+  if [ ! -f "$IOS_DIR/Flutter/Generated.xcconfig" ] || \
+     [ ! -d "$IOS_DIR/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage" ]; then
     ( cd "$EXAMPLE_DIR" && flutter build ios --config-only )
-  fi
-
-  # xcodebuild's "Check Pods Manifest.lock" phase fails when the pod sandbox is
-  # missing or stale (Manifest.lock is gitignored, so absent on fresh checkout).
-  if [ ! -f "$IOS_DIR/Pods/Manifest.lock" ] || \
-     ! diff -q "$IOS_DIR/Podfile.lock" "$IOS_DIR/Pods/Manifest.lock" > /dev/null 2>&1; then
-    ( cd "$IOS_DIR" && pod install )
   fi
 
   local f

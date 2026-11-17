@@ -75,7 +75,7 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     fi
     printf '| **Measured total** | **%d** | |\n' "$measured"
     echo ""
-    echo "Excludes simulator boot, pod install and SDK setup — the job's own step timings cover those."
+    echo "Excludes simulator boot, package resolution and SDK setup — the job's own step timings cover those."
     echo ""
     if [ -n "$slowest" ]; then
       echo "<details><summary>Slowest tests</summary>"

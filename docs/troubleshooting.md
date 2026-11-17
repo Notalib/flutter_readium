@@ -42,7 +42,7 @@ treat missing headers as an empty map when adding CORS. That prevents missing as
 crashing the app; it does not supply those assets. This plugin uses official Readium 3.4.0
 without a navigator substitution.
 
-## iOS: pod install fails
+## iOS (CocoaPods): pod install fails
 
 ```bash
 cd ios
@@ -104,9 +104,9 @@ This forces **every** element's background to transparent. Any decoration whose 
 How each platform satisfies this:
 
 - **iOS / Android** — emit the `!important` directly in the decoration template HTML.
-- **Web** — the upstream decorator sets only a *plain* inline `background-color`, so `injectDecorationOverrides` re-asserts it as inline `!important` (inline important beats stylesheet important) via a `MutationObserver`.
+- **Web** — upstream's Decorator already covers it. Its CSS Highlight API path styles `::highlight()`, which the `*` selector does not match, and its DOM fallback sets the fill as inline `!important`.
 
-Decorations that don't rely on a fill are immune: `spotlight` works via box-shadow (iOS/Android) or body-dimming `color` CSS (Web), and `underline` swaps the fill for a `border-bottom`.
+Decorations that don't rely on a fill are immune: `spotlight` works via box-shadow (iOS/Android) or body-dimming `color` CSS (Web), and `underline` draws a text decoration rather than a fill.
 
 ## Integration tests pass locally but fail in CI
 
