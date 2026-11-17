@@ -157,6 +157,10 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     }
     _audioNavigator?.play()
     armResourceLoadingWatchdog()
+    setUpNowPlaying()
+  }
+
+  private func setUpNowPlaying() {
     _nowPlayingSetUp = true
     _nowPlayingUpdater.setupNowPlayingInfo()
     _nowPlayingUpdater.setupCommandCenterControls(
@@ -187,13 +191,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     // Playback can start here without play(fromLocator:), and the lock screen needs this too.
     // Once only: setupCommandCenterControls adds remote-command targets without removing old ones.
     if !_nowPlayingSetUp {
-      _nowPlayingSetUp = true
-      _nowPlayingUpdater.setupNowPlayingInfo()
-      _nowPlayingUpdater.setupCommandCenterControls(
-        preferredIntervals: [_preferences.seekInterval],
-        seekToEnabled: _preferences.allowExternalSeeking,
-        timebasedNavigator: self
-      )
+      setUpNowPlaying()
     }
   }
 
@@ -752,11 +750,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   /// The toolkit keeps its `AVPlayer` private and never reports buffered ranges, so the
   /// buffer state is read reflectively. Returns nil if the toolkit renames the property.
   private func underlyingPlayer() -> AVPlayer? {
-    guard let navigator = _audioNavigator else { return nil }
-    for child in Mirror(reflecting: navigator).children where child.label?.contains("player") == true {
-      if let player = child.value as? AVPlayer { return player }
-    }
-    return nil
+    _audioNavigator.flatMap(readiumAVPlayer(in:))
   }
 
   /// Why the plugin started a recovery itself (stall, resource-loading timeout). A
@@ -1190,4 +1184,12 @@ func computeTotalProgressDuration(
   }
 
   return min(1.0, max(0.0, totalProgression)) * publicationDuration
+}
+
+/// Finds the private `AVPlayer` of a toolkit `AudioNavigator` by reflection.
+func readiumAVPlayer(in navigator: AudioNavigator) -> AVPlayer? {
+  for child in Mirror(reflecting: navigator).children where child.label?.contains("player") == true {
+    if let player = child.value as? AVPlayer { return player }
+  }
+  return nil
 }

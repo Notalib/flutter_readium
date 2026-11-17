@@ -238,6 +238,19 @@ final class BackgroundPlaybackGapTests: XCTestCase {
   }
 }
 
+final class ReadiumAVPlayerLookupTests: XCTestCase {
+  // Fails when a toolkit update renames or wraps the private player. The stall check then
+  // resumes blindly; see FlutterAudioNavigator.handlePlaybackStalled.
+  func testFindsThePrivatePlayerOfTheToolkitNavigator() {
+    let navigator = AudioNavigator(publication: Publication(manifest: Manifest(
+      metadata: Metadata(title: "Audiobook"),
+      readingOrder: [Link(href: "track1.mp3", mediaType: .mp3)])))
+    // The player is created lazily; pause() touches it without loading anything.
+    navigator.pause()
+    XCTAssertNotNil(readiumAVPlayer(in: navigator))
+  }
+}
+
 final class AudioResourceLoadingWatchdogTests: XCTestCase {
   func testWatchesExactlyWhilePlaybackIsIntended() {
     XCTAssertFalse(shouldWatchForResourceLoading(playbackIntent: false))
