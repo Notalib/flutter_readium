@@ -37,7 +37,7 @@ oversight. Finer-grained distinctions that a client wouldn't branch on different
 | `unsupportedScheme` | `unsupportedScheme` | iOS, Android, web | opening | fatal | URL scheme not supported when opening |
 | `readingError` | `readingError` | iOS, Android, web | opening | fatal | Generic read failure while opening a publication |
 | `notFound` | `notFound` | iOS, Android, web | opening | fatal | Publication resource not found |
-| `forbidden` | `forbidden` | iOS, Android, web | opening | fatal | Access to the publication resource is forbidden |
+| `forbidden` | `forbidden` | iOS, Android, web | opening | fatal | Access to the publication resource is forbidden, or the publication is DRM-protected and could not be unlocked |
 | `unavailable` | `unavailable` | iOS, Android, web | opening | fatal | Publication temporarily unavailable |
 | `incorrectCredentials` | `incorrectCredentials` | iOS, Android, web | opening | fatal | Credentials rejected while opening a protected publication |
 | `audioStreamRetry` | `AudioStreamRetry` | iOS, Android, web | audioStream | **informational** | Automatic connection recovery in progress after a transient network error or recoverable resource-loading timeout; playback state pinned to loading |

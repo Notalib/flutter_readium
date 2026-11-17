@@ -11,13 +11,13 @@ extension EPUBReaderView {
     switch call.method {
     case "go":
       let args = call.arguments as? [Any?]
-      guard let locatorStr = args?[0] as? String,
+      guard let locatorStr = args?.first as? String,
             let locator = try? Locator(legacyJSONString: locatorStr, warnings: readiumBugLogger) else {
         Log.reader.warn("go: failed to parse locator argument; ignoring navigation request")
         result(false)
         break
       }
-      let animated = args?[1] as? Bool ?? false
+      let animated = args?.dropFirst().first as? Bool ?? false
 
       Task.detached(priority: .high) {
         let success = await self.goToLocator(locator, animated: animated)
