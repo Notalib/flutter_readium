@@ -226,6 +226,26 @@ final class AudioRecoveryPolicyTests: XCTestCase {
   }
 }
 
+final class BackgroundPlaybackGapTests: XCTestCase {
+  func testSameResourceAdvancesAfterHalfASecond() {
+    XCTAssertFalse(playbackAdvancedPastGap(fromResourceIndex: 2, time: 10, toResourceIndex: 2, time: 10.5))
+    XCTAssertTrue(playbackAdvancedPastGap(fromResourceIndex: 2, time: 10, toResourceIndex: 2, time: 10.6))
+  }
+
+  func testNextResourceAdvancesOnceItIsAudible() {
+    XCTAssertFalse(playbackAdvancedPastGap(fromResourceIndex: 2, time: 300, toResourceIndex: 3, time: 0))
+    XCTAssertTrue(playbackAdvancedPastGap(fromResourceIndex: 2, time: 300, toResourceIndex: 3, time: 0.6))
+  }
+
+  func testBufferedAudioMustCoverThePositionAndTheMinimumAfterIt() {
+    XCTAssertFalse(hasBufferedAudio(after: 5.4, in: []))
+    XCTAssertFalse(hasBufferedAudio(after: 5.4, in: [0.0..<5.5]))
+    XCTAssertTrue(hasBufferedAudio(after: 5.4, in: [0.0..<9.2]))
+    XCTAssertFalse(hasBufferedAudio(after: 5.4, in: [20.0..<60.0]))
+    XCTAssertTrue(hasBufferedAudio(after: 5.4, in: [0.0..<1.0, 5.3..<9.3]))
+  }
+}
+
 final class AudioResourceLoadingWatchdogTests: XCTestCase {
   func testWatchesExactlyWhilePlaybackIsIntended() {
     XCTAssertFalse(shouldWatchForResourceLoading(playbackIntent: false))
