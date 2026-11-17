@@ -706,12 +706,19 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       defer { self._stallCheckTask = nil }
       // The stalled item is usually healthy and still buffering. Resume it once enough is
       // buffered; a rebuild discards the buffer and restarts the whole load.
-      let startTime = self.playback.time
+      let startIndex = self.playback.resourceIndex
+      var lastTime = self.playback.time
       let deadline = Date().addingTimeInterval(self._recoveryPolicy.stallTimeoutSeconds)
       while Date() < deadline, !Task.isCancelled {
-        if self.offsetAdvanced(sinceTime: startTime) {
+        // Compare with the previous sample, not the stall position: a seek or a chapter
+        // change during the wait can play fine from an earlier time.
+        let time = self.playback.time
+        if self.playback.state == .playing,
+           self.playback.resourceIndex != startIndex || abs(time - lastTime) > 0.1
+        {
           return
         }
+        lastTime = time
         guard self._playbackIntent, !self._disposed, !self._hasFailed, self._recoveryTask == nil else {
           return
         }
