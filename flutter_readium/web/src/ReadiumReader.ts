@@ -994,9 +994,13 @@ class _ReadiumReader {
     if (requested && isTextLocator && this._mediaOverlaySession &&
         !this._syncItems.some((item) => normalizeHref(item.textHref) === normalizeHref(requested.href))) {
       const session = this._mediaOverlaySession;
-      void session.ensureWindowForText(requested.href).then(() => {
+      void session.ensureWindowForText(requested.href).then(async () => {
         if (this._mediaOverlaySession !== session) return;
-        const mapped = this._mapActiveTextLocator(requested, useSyncNarrationLookup);
+        // The segment is loaded now, so run the uncued-anchor resolution before
+        // mapping: a bookmark that is neither a cue nor a ToC owner must start at
+        // the cue at/after its element, and one past the final cue must reject.
+        const anchored = await this._anchorUncuedTextLocator(requested);
+        const mapped = anchored && this._mapActiveTextLocator(anchored, useSyncNarrationLookup);
         if (mapped) this.play(JSON.stringify(mapped.serialize()));
       });
       return;

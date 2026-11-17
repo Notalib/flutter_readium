@@ -125,6 +125,8 @@ export class MediaOverlaySession implements StreamingTimeline {
   private playbackWasActive = false;
   private lastDetailedTextLocatorKey: string | undefined;
   private lastPublicTextLocatorKey: string | undefined;
+  /** Last cue-mapped locator, reused for off-cue state ticks so `ended` reaches Dart. */
+  private lastStateLocator: Locator | undefined;
 
   private constructor(
     private readonly publication: ReadiumPublication,
@@ -471,13 +473,19 @@ export class MediaOverlaySession implements StreamingTimeline {
         const shouldEmitPublicTextLocator = publicKey !== this.lastPublicTextLocatorKey;
         if (shouldEmitPublicTextLocator) this.lastPublicTextLocatorKey = publicKey;
 
+        const stateLocator = combinedLocatorForItem(item, navLocator);
+        this.lastStateLocator = stateLocator;
         return {
-          stateLocator: combinedLocatorForItem(item, navLocator),
+          stateLocator,
           textLocator: shouldEmitDetailedTextLocator ? detailedTextLocator : undefined,
           publicTextLocator: shouldEmitPublicTextLocator ? publicTextLocator : undefined,
         };
       }
-      return {};
+      // Off-cue tick (a gap, or the half-open final cue excluding its end
+      // timestamp): forward the state with the last mapped text locator so
+      // `ended`/`paused` reach Dart. The raw audio href must not leak as
+      // currentLocator, and suppressing here would strand the player controls.
+      return this.lastStateLocator ? { stateLocator: this.lastStateLocator } : {};
     };
 
     // Wrap the caller's callback to enrich it with the cue duration.

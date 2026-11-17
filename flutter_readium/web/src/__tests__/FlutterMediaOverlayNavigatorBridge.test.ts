@@ -251,3 +251,20 @@ it("titles synthetic audio links from corrected owners", async () => {
     (globalThis as any).DOMParser = originalParser;
   }
 });
+
+it("maps an off-cue tick to the last cue locator so `ended` reaches Dart", async () => {
+  const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue();
+  await initializeMediaOverlayNavigator(publication(), undefined, "{}", () => {});
+  const mapper = create.mock.calls[0][4]!;
+  const audio = (t: string) => new Locator({
+    href: "https://example.test/pub/audio/01.mp3", type: "audio/mpeg",
+    locations: new LocatorLocations({fragments: [t]}),
+  });
+  // Seed the last mapped cue with an on-cue tick (cue spans 0-5s).
+  expect(mapper({ currentTime: 2 } as never, audio("t=2")).stateLocator).toBeDefined();
+  // The half-open cue excludes t=5 (track end), so the position maps to no cue.
+  const offCue = mapper({ currentTime: 5 } as never, audio("t=5"));
+  // The state must still carry the cue-mapped text locator, not the raw mp3 href,
+  // so Dart closes the player on `ended` instead of leaking an audio locator.
+  expect(offCue.stateLocator?.href).toBe("chap.xhtml");
+});
