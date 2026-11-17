@@ -35,9 +35,10 @@ fi
 
 if [ "$status" -ne 0 ]; then
   echo
-  echo "Missing or outdated required tool. Put it on your PATH, or install fvm to use the"
-  echo ".fvmrc-pinned Flutter/Dart. bin/_common.sh prepends the usual locations"
-  echo "(/opt/homebrew/bin, /usr/local/bin, ~/.pub-cache/bin, nvm node)."
+  echo "Missing or outdated required tool. Put it on your PATH, or run 'fvm install' to get"
+  echo "the pinned Flutter/Dart. bin/_common.sh prepends the usual locations"
+  echo "(/opt/homebrew/bin, /usr/local/bin, ~/.pub-cache/bin, nvm node) and uses the fvm"
+  echo "SDK for the version in .flutter-version when the flutter on PATH is another version."
 fi
 
 echo
