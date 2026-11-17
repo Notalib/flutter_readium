@@ -1,3 +1,4 @@
+import AVFoundation
 import XCTest
 import ReadiumNavigator
 import ReadiumShared
@@ -235,6 +236,27 @@ final class BackgroundPlaybackGapTests: XCTestCase {
   func testNextResourceAdvancesOnceItIsAudible() {
     XCTAssertFalse(playbackAdvancedPastGap(fromResourceIndex: 2, time: 300, toResourceIndex: 3, time: 0))
     XCTAssertTrue(playbackAdvancedPastGap(fromResourceIndex: 2, time: 300, toResourceIndex: 3, time: 0.6))
+  }
+}
+
+final class StallCheckTests: XCTestCase {
+  func testPlaybackMovedNeedsPlayingAndProgress() {
+    XCTAssertFalse(playbackMoved(isPlaying: false, resourceChanged: true, time: 20, lastTime: 10))
+    XCTAssertFalse(playbackMoved(isPlaying: true, resourceChanged: false, time: 10.1, lastTime: 10))
+    XCTAssertTrue(playbackMoved(isPlaying: true, resourceChanged: false, time: 10.2, lastTime: 10))
+  }
+
+  func testPlaybackMovedCountsABackwardSeekAndANewResource() {
+    XCTAssertTrue(playbackMoved(isPlaying: true, resourceChanged: false, time: 60, lastTime: 120))
+    XCTAssertTrue(playbackMoved(isPlaying: true, resourceChanged: true, time: 0, lastTime: 0))
+  }
+
+  func testBufferStateMapping() {
+    XCTAssertEqual(stallBufferState(status: .failed, isLikelyToKeepUp: true, isBufferFull: true), .failed)
+    XCTAssertEqual(stallBufferState(status: .unknown, isLikelyToKeepUp: true, isBufferFull: false), .buffering)
+    XCTAssertEqual(stallBufferState(status: .readyToPlay, isLikelyToKeepUp: false, isBufferFull: false), .buffering)
+    XCTAssertEqual(stallBufferState(status: .readyToPlay, isLikelyToKeepUp: true, isBufferFull: false), .ready)
+    XCTAssertEqual(stallBufferState(status: .readyToPlay, isLikelyToKeepUp: false, isBufferFull: true), .ready)
   }
 }
 

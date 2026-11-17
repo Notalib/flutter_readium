@@ -587,13 +587,22 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   /// User/app playback intent. iOS exposes only `.paused/.playing/.loading`, so
   /// this mirrors Android's `playWhenReady` for resource-loading decisions.
   internal var _playbackIntent = false
+
+  // MARK: Background playback and stall recovery
+
   /// A retryable read error arrived while paused. The next play rebuilds the player
   /// instead of recovering now, which would start playback the user did not ask for.
+  /// Cleared by that play.
   private var _rebuildOnNextPlay = false
+  /// The lock-screen controls are registered. Set by the first play or resume.
   private var _nowPlayingSetUp = false
+  /// Keeps the app alive in the background while the player is stopped between tracks,
+  /// stalled or recovering. Released once playback is audible again, or on pause.
   private let _backgroundHold = BackgroundPlaybackHold()
   private var _playbackStalledObserver: NSObjectProtocol?
+  /// The running stall check; see `handlePlaybackStalled`. At most one at a time.
   private var _stallCheckTask: Task<Void, Never>?
+  private static let stallPollIntervalNanoseconds: UInt64 = 500_000_000
   /// One-shot readiness check for the current resource-loading attempt.
   internal var _resourceLoadingWatchdog = AudioResourceLoadingWatchdog()
   internal var _resourceLoadingWatchdogTask: Task<Void, Never>?
@@ -686,14 +695,14 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   /// In non-waiting mode the player drops to `.paused` on an underrun and does not resume by
-  /// itself. Resume the same item once it has buffered again. If playback has not moved
-  /// within `stallTimeoutSeconds`, run the same recovery as a retryable read error. A user
-  /// pause clears the intent first and a stall during an interruption is the system's, so
-  /// both are left alone.
+  /// itself. Wait for the stalled item to buffer and resume it. If it has not resumed within
+  /// `stallTimeoutSeconds`, run the same recovery as a retryable read error. A user pause
+  /// clears the intent first and a stall during an interruption is the system's, so both
+  /// are left alone.
   @MainActor
   private func handlePlaybackStalled() {
-    guard _playbackIntent, !_disposed, !_hasFailed, _recoveryTask == nil, _stallCheckTask == nil,
-          !_isNavigating, !AudioSession.shared.isInterrupted
+    guard stallCheckStillApplies, _stallCheckTask == nil, !_isNavigating,
+          !AudioSession.shared.isInterrupted
     else {
       return
     }
@@ -702,38 +711,9 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     _stallCheckTask = Task { @MainActor [weak self] in
       guard let self else { return }
       defer { self._stallCheckTask = nil }
-      // The stalled item is usually healthy and still buffering. Resume it once enough is
-      // buffered; a rebuild discards the buffer and restarts the whole load.
-      let startIndex = self.playback.resourceIndex
-      var lastTime = self.playback.time
-      let deadline = Date().addingTimeInterval(self._recoveryPolicy.stallTimeoutSeconds)
-      while Date() < deadline, !Task.isCancelled {
-        // Compare with the previous sample, not the stall position: a seek or a chapter
-        // change during the wait can play fine from an earlier time.
-        let time = self.playback.time
-        if self.playback.state == .playing,
-           self.playback.resourceIndex != startIndex || abs(time - lastTime) > 0.1
-        {
-          return
-        }
-        lastTime = time
-        guard self._playbackIntent, !self._disposed, !self._hasFailed, self._recoveryTask == nil else {
-          return
-        }
-        // Without the item, resume blindly: the player plays what it has and stalls again.
-        let item = self.underlyingPlayer()?.currentItem
-        if item?.status == .failed {
-          break
-        }
-        let buffered = item.map {
-          $0.status == .readyToPlay && ($0.isPlaybackLikelyToKeepUp || $0.isPlaybackBufferFull)
-        } ?? true
-        if buffered, self.playback.state != .playing, !AudioSession.shared.isInterrupted {
-          self._audioNavigator?.play()
-        }
-        try? await Task.sleep(nanoseconds: 500_000_000)
-      }
-      guard self._playbackIntent, !self._disposed, !self._hasFailed, self._recoveryTask == nil,
+      let outcome = await self.waitForStalledItem()
+      Log.navigator.debug("Stall check ended: \(outcome)")
+      guard outcome == .gaveUp, self.stallCheckStillApplies,
             !AudioSession.shared.isInterrupted, !Task.isCancelled,
             let href = (self.audioLocator ?? self._audioNavigator?.currentLocation)?.href
       else {
@@ -747,10 +727,59 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     }
   }
 
+  /// False once the stall is someone else's to handle: the user paused, the navigator was
+  /// disposed or failed, or a recovery is already running.
+  @MainActor
+  private var stallCheckStillApplies: Bool {
+    _playbackIntent && !_disposed && !_hasFailed && _recoveryTask == nil
+  }
+
+  /// Polls a stalled item until it plays again, and resumes it once it has buffered. The
+  /// item is usually healthy and still loading, and a rebuild would discard its buffer.
+  @MainActor
+  private func waitForStalledItem() async -> StallOutcome {
+    let startIndex = playback.resourceIndex
+    var lastTime = playback.time
+    let deadline = Date().addingTimeInterval(_recoveryPolicy.stallTimeoutSeconds)
+    while Date() < deadline, !Task.isCancelled {
+      let time = playback.time
+      if playbackMoved(
+        isPlaying: playback.state == .playing,
+        resourceChanged: playback.resourceIndex != startIndex,
+        time: time, lastTime: lastTime)
+      {
+        return .resumed
+      }
+      lastTime = time
+      guard stallCheckStillApplies else {
+        return .abandoned
+      }
+      switch stalledItemBufferState() {
+      case .failed:
+        return .gaveUp
+      case .buffering:
+        break
+      case .ready, .unknown:
+        // Unknown resumes blindly: the player plays what it has and stalls again.
+        if playback.state != .playing, !AudioSession.shared.isInterrupted {
+          _audioNavigator?.play()
+        }
+      }
+      try? await Task.sleep(nanoseconds: Self.stallPollIntervalNanoseconds)
+    }
+    return .gaveUp
+  }
+
   /// The toolkit keeps its `AVPlayer` private and never reports buffered ranges, so the
-  /// buffer state is read reflectively. Returns nil if the toolkit renames the property.
-  private func underlyingPlayer() -> AVPlayer? {
-    _audioNavigator.flatMap(readiumAVPlayer(in:))
+  /// buffer state is read reflectively. `unknown` if the toolkit renames the property.
+  private func stalledItemBufferState() -> StallBufferState {
+    guard let item = _audioNavigator.flatMap(readiumAVPlayer(in:))?.currentItem else {
+      return .unknown
+    }
+    return stallBufferState(
+      status: item.status,
+      isLikelyToKeepUp: item.isPlaybackLikelyToKeepUp,
+      isBufferFull: item.isPlaybackBufferFull)
   }
 
   /// Why the plugin started a recovery itself (stall, resource-loading timeout). A
@@ -1184,6 +1213,47 @@ func computeTotalProgressDuration(
   }
 
   return min(1.0, max(0.0, totalProgression)) * publicationDuration
+}
+
+/// How a stall check ended.
+enum StallOutcome {
+  /// Playback is moving again.
+  case resumed
+  /// The stall is no longer this check's to handle (pause, dispose, failure, recovery).
+  case abandoned
+  /// The item failed or did not resume in time. The caller starts recovery.
+  case gaveUp
+}
+
+/// What a stalled player item can do right now.
+enum StallBufferState {
+  /// Enough is buffered to resume.
+  case ready
+  case buffering
+  case failed
+  /// The item could not be read.
+  case unknown
+}
+
+func stallBufferState(
+  status: AVPlayerItem.Status, isLikelyToKeepUp: Bool, isBufferFull: Bool
+) -> StallBufferState {
+  switch status {
+  case .failed: return .failed
+  case .readyToPlay where isLikelyToKeepUp || isBufferFull: return .ready
+  default: return .buffering
+  }
+}
+
+/// Smallest change in playback time that counts as progress between two samples.
+let stallProgressThresholdSeconds: TimeInterval = 0.1
+
+/// True when a stalled player is playing again. Time is compared with the previous sample,
+/// not the stall position: after a seek, playback can be fine from an earlier time.
+func playbackMoved(
+  isPlaying: Bool, resourceChanged: Bool, time: TimeInterval, lastTime: TimeInterval
+) -> Bool {
+  isPlaying && (resourceChanged || abs(time - lastTime) > stallProgressThresholdSeconds)
 }
 
 /// Finds the private `AVPlayer` of a toolkit `AudioNavigator` by reflection.
