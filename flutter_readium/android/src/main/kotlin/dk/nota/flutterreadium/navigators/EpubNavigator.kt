@@ -351,21 +351,9 @@ class EpubNavigator :
     ) {
         visualListener.onPageChanged(pageIndex, totalPages, locator)
 
+        // No decoration clear on href change: the toolkit scopes decorations per resource href,
+        // and a clear racing with the re-apply in onPageLoaded wipes the new page's highlights.
         launch {
-            if (currentVisualLocator?.href != locator.href) {
-                // Since the visual href changed, we clear old decorations.
-                // This should remove stale decorations from the old file when switching back
-                // and forth between the files.
-                epubNavigator?.let { navigator ->
-                    currentDecorations.keys.forEach { group ->
-                        navigator.applyDecorations(
-                            listOf(),
-                            group,
-                        )
-                    }
-                }
-            }
-
             currentVisualLocator = locator
         }
     }
@@ -488,6 +476,12 @@ class EpubNavigator :
         withMainContext {
             PluginLog.d(TAG, "::applyDecorations: $decorations for group:$group")
 
+            // The toolkit diffs by id and emits an update only for the new href, so a decoration
+            // that keeps its id but moves to another resource (e.g. TTS) stays in the old one.
+            val previousHrefs = currentDecorations[group].orEmpty().associate { it.id to it.locator.href }
+            if (decorations.any { d -> previousHrefs[d.id]?.let { it != d.locator.href } == true }) {
+                navigator.applyDecorations(emptyList(), group)
+            }
             navigator.applyDecorations(decorations, group)
 
             if (decorations.isNotEmpty()) {

@@ -26,7 +26,7 @@ import { injectFlutterReadiumHelperScripts } from "../utils/iframeInjection";
 import { createLogger } from "../utils/ReadiumPluginLogger";
 import {
   FontFamilyDeclaration,
-  flutterAssetsUrl,
+  fontFaceUrls,
   injectFontFacesIntoWindow,
 } from "../fonts/FontFamilyDeclarations";
 import { tryBuildImageTapPayload } from "../utils/ImageTapDetector";
@@ -38,7 +38,9 @@ import {
 import {
   scrollVisibleIframes,
   handleExternalLocator,
-  buildTextSelectionPayload,
+  buildSelectionLocator,
+  findSelectionFrame,
+  SelectionHooks,
 } from "./navigatorUtils";
 
 const log = createLogger("EpubNav");
@@ -66,6 +68,7 @@ export class FlutterEpubNavigator {
     emitImageTapped?: (json: string) => void,
     onFrameLoaded?: (wnd: Window) => void,
     fontFamilyDeclarations: FontFamilyDeclaration[] = [],
+    selectionHooks?: SelectionHooks,
   ): Promise<FlutterEpubNavigator> {
     log.info("Initializing EpubNavigator");
     let positions = await publication.positionsFromManifest();
@@ -106,10 +109,10 @@ export class FlutterEpubNavigator {
     const configuration: EpubNavigatorConfiguration = {
       preferences,
       defaults,
-      // The frame CSP only allows the publication's origin, so injected @font-face rules need the app's asset directory.
+      // The frame CSP only allows the publication's origin, so each injected @font-face URL must be allowed explicitly.
       injectables: {
         rules: [],
-        allowedDomains: fontFamilyDeclarations.length ? [flutterAssetsUrl(document.baseURI)] : [],
+        allowedDomains: fontFamilyDeclarations.length ? fontFaceUrls(fontFamilyDeclarations, document.baseURI) : [],
       },
     };
 
@@ -164,6 +167,7 @@ export class FlutterEpubNavigator {
         p.observe(window);
       },
       positionChanged: (_locator: Locator): void => {
+        selectionHooks?.onViewChanged();
         emitTextLocatorDebounced(
           enrichWithTocHref(
             enrichWithTotalProgression(_locator, totalPositions),
@@ -183,10 +187,10 @@ export class FlutterEpubNavigator {
       contentProtection: function (_type: string, _data: any): void { },
       peripheral: function (_data: KeyboardPeripheralEventData): void { },
       contextMenu: function (_data: ContextMenuEvent): void { },
-      textSelected: function (_selection: BasicTextSelection): void {
-        window.onTextSelectedCallback?.(
-          buildTextSelectionPayload(nav.currentLocator, _selection)
-        );
+      textSelected: function (selection: BasicTextSelection): void {
+        const frame = findSelectionFrame(nav, selection.targetFrameSrc);
+        const locator = buildSelectionLocator(nav.currentLocator, selection, frame?.window);
+        selectionHooks?.onTextSelected(selection, locator, frame);
       },
       timelineItemChanged: function (item: TimelineItem | undefined): void {
         log.debug("timelineItemChanged", item);

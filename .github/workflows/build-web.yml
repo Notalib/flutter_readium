@@ -36,3 +36,10 @@ jobs:
       - name: Build web
         run: flutter build web
         working-directory: flutter_readium/example
+
+      # Safari 26.2+ and Firefox 147+ can now run Wasm builds. The flag fails the
+      # build if any package still uses dart:html, dart:js, dart:js_util or package:js.
+      # --web-content-hash renames asset files, so plugin assets must load via the asset manager.
+      - name: Build web (Wasm, content-hashed)
+        run: flutter build web --wasm --no-deprecated-js-interop --web-content-hash
+        working-directory: flutter_readium/example

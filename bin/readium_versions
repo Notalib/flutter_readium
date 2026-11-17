@@ -6,8 +6,8 @@ usage() {
 Usage: bin/readium_versions [--check]
 
   (no args)  Print the Readium toolkit version pins for every platform.
-  --check    Verify the iOS pins agree across podspec, Package.swift and the
-             example Podfile. Exits non-zero on a mismatch.
+  --check    Verify the iOS pins agree across the podspec and Package.swift.
+             Exits non-zero on a mismatch.
 USAGE
 }
 
@@ -16,21 +16,18 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 ANDROID_BUILD_GRADLE="$ROOT_DIR/flutter_readium/android/build.gradle"
 IOS_PODSPEC="$ROOT_DIR/flutter_readium/ios/flutter_readium.podspec"
 IOS_PACKAGE_SWIFT="$ROOT_DIR/flutter_readium/ios/flutter_readium/Package.swift"
-EXAMPLE_PODFILE="$ROOT_DIR/flutter_readium/example/ios/Podfile"
 WEB_PACKAGE_JSON="$ROOT_DIR/flutter_readium/package.json"
 
-# Drop whole-line comments first: deliberately disabled pins (ReadiumLCP in the
-# podspec, ReadiumZIPFoundation in the Podfile) must not read as active ones.
+# Drop whole-line comments first: a deliberately disabled pin (ReadiumLCP in the
+# podspec) must not read as an active one.
 uncommented() {
   grep -v '^[[:space:]]*#' "$1"
 }
 
-# Every active swift-toolkit pin in the three iOS files, as "<path> <version>".
+# Every active swift-toolkit pin in the two iOS files, as "<path> <version>".
 ios_pins() {
   uncommented "$IOS_PODSPEC" |
     sed -n "s|.*s\.dependency 'Readium[A-Za-z]*', '~> \([^']*\)'.*|flutter_readium/ios/flutter_readium.podspec \1|p"
-  uncommented "$EXAMPLE_PODFILE" |
-    sed -n "s|.*pod 'Readium[A-Za-z]*', '~> \([^']*\)'.*|flutter_readium/example/ios/Podfile \1|p"
   uncommented "$IOS_PACKAGE_SWIFT" |
     sed -n 's|.*swift-toolkit.*upToNextMinor(from: "\([^"]*\)").*|flutter_readium/ios/flutter_readium/Package.swift \1|p'
 }
@@ -78,7 +75,6 @@ check_ios_sync() {
   # A pin-syntax change would otherwise make this check pass by finding nothing.
   for expected_file in \
     flutter_readium/ios/flutter_readium.podspec \
-    flutter_readium/example/ios/Podfile \
     flutter_readium/ios/flutter_readium/Package.swift; do
     if ! grep -q "^$expected_file " <<<"$pins"; then
       echo "ERROR: found no swift-toolkit pin in $expected_file — has its syntax changed?" >&2

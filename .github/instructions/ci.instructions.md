@@ -23,17 +23,12 @@ Skip individual jobs, not the workflow. Include every CI job in `CI result`'s
 All workflows that build iOS or Android must include the relevant caches:
 
 - **Android**: Cache `~/.gradle/caches` and `~/.gradle/wrapper`, keyed on the relevant `build.gradle` files. Include a `restore-keys` prefix fallback. Restore with `actions/cache/restore` and save with `actions/cache/save` only on `refs/heads/main`: a PR can only read its own caches and `main`'s, so a PR that saves just stores another 1.15 GB copy.
-- **iOS (CocoaPods)**: Cache `flutter_readium/example/ios/Pods` and `~/.cocoapods`, keyed on `Podfile.lock`. `~/.cocoapods` is required — it holds the trunk spec repo used to resolve Flutter ecosystem pods (e.g. webview_flutter). Without it, a cold `pod install` fails even though Readium pods use explicit `podspec:` URLs.
-- **iOS (Xcode derived data)**: Cache `~/Library/Developer/Xcode/DerivedData`, keyed on `Podfile.lock`.
+- **iOS (Xcode derived data)**: Cache `~/Library/Developer/Xcode/DerivedData`, keyed on the example's `Package.resolved`. It also holds the resolved Swift packages (`SourcePackages/`). The example uses Swift Package Manager, so there is no CocoaPods cache.
 - **Android emulator AVD**: Do not cache it. See "Android emulator boot" below.
 
 Do not cache the Flutter SDK (`subosito/flutter-action` `cache: true`). Measured: it saved 30–45 s per Linux job and 5–10 s per macOS job, for 3.75 GB of the repo's 10 GB cache limit. A Flutter bump doubles that for up to 7 days while the old entries age out. `pub-cache: true` is small and stays.
 
 Cache keys must end with a trailing dash before the hash segment (e.g. `gradle-${{ runner.os }}-`) to prevent accidental prefix collisions between keys that share a common prefix.
-
-## CocoaPods `--repo-update`
-
-Only pass `--repo-update` when the CocoaPods cache is cold (cache miss). On a cache hit the spec repo is already in `~/.cocoapods` and the flag just wastes ~30s. Use the `cache-hit` output from the pods cache step.
 
 ## Permissions
 
@@ -96,5 +91,7 @@ The emulator cold boots every run (`-no-snapshot`). Do not bring back a cached A
 
 - A restored snapshot reports `sys.boot_completed=1` before its services are back. `reactivecircus/android-emulator-runner` presses the unlock key (`input keyevent 82`) at that moment, with no hook in between, and the keypress is killed before `script:` runs ([upstream #489](https://github.com/ReactiveCircus/android-emulator-runner/issues/489), fix unmerged). From 2026-10-07 this failed most API 24 jobs, often on both attempts.
 - It saves no time. Measured on API 24: restoring the 1.2 GB AVD cache took 30–50 s plus a 10–12 s snapshot boot, against a 38–40 s cold boot. Each cache miss also cost about 2.5 min to build the snapshot, and the API 24 and API 36 caches together used 4.1 GB of the repo's 10 GB cache limit.
+
+On API 24, `adb install` (run by `flutter test`) sometimes never returns, while a healthy install takes ~11 s. `run-tests.sh` kills an install that runs past 120 s, restarts adb, and re-runs the suite once. In run 43958195541 both attempts hung the same way: the device reserved space for the APK and then received nothing, and restarting adb did not help. The hung install was the streamed one (`cmd package install`), so on API 24 `run-tests.sh` now replaces the SDK's `adb` with a shim that adds `--no-streaming` to `install`. `flutter test` takes no install flags and calls adb by its SDK path, so a shim is the only hook. `run-tests.sh` appends the full logcat to `android-logcat-api<N>.txt` and prints the package-manager lines in the step log, because the artifact is uploaded only if the job fails. Each `flutter test` attempt is capped at 15 min, so the cap fires before the job's 30-minute limit and logcat is still captured.
 
 `Run integration tests` is `continue-on-error`, and retries once **only when `android-test-api<N>.log` is absent**: a missing log proves the suite never started. A real test failure always leaves its log, so it is never re-run. Both attempts call `.github/actions/run-android-integration-tests` so the two paths cannot drift.

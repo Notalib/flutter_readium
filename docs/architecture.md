@@ -64,7 +64,7 @@ After any TypeScript change run `bin/update_web_example` to rebuild and deploy t
 
 | Platform | Toolkit | Version |
 |----------|---------|---------|
-| iOS | swift-toolkit | 3.11.0 |
+| iOS | swift-toolkit | 3.11.1 |
 | Android | kotlin-toolkit | 3.4.0 |
 | Web | `@readium/*` npm packages | see `flutter_readium/package.json` |
 

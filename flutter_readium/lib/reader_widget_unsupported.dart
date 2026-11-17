@@ -1,10 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'flutter_readium.dart';
 
 class ReadiumReaderWidget extends StatelessWidget {
   const ReadiumReaderWidget({
     required this.publication,
-    this.loadingWidget = const Center(child: CircularProgressIndicator()),
+    this.loadingWidget,
     this.initialLocator,
     this.shouldShowControls,
     this.onExternalLinkActivated,
@@ -21,11 +21,12 @@ class ReadiumReaderWidget extends StatelessWidget {
     this.toggleShowControlsSemanticLabel = 'Toggle show controls',
     this.verticalScroll = false,
     this.disablePageTurnsWhileScrolling = false,
+    this.allowScreenReaderNavigation = false,
     super.key,
   });
 
   final Publication publication;
-  final Widget loadingWidget;
+  final Widget? loadingWidget;
   final Locator? initialLocator;
   final ValueNotifier<bool>? shouldShowControls;
   final Function(String)? onExternalLinkActivated;
@@ -42,6 +43,7 @@ class ReadiumReaderWidget extends StatelessWidget {
   final String toggleShowControlsSemanticLabel;
   final bool verticalScroll;
   final bool disablePageTurnsWhileScrolling;
+  final bool allowScreenReaderNavigation;
 
   @override
   Widget build(final BuildContext context) => Center(child: Text('ReaderWidget is not available on this platform.'));

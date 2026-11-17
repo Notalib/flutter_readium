@@ -3,10 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart' as mq show Orientation;
-import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'flutter_readium.dart';
@@ -37,6 +36,7 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.preloadPreviousPositionCount = 2,
     this.preloadNextPositionCount = 6,
     this.disablePageTurnsWhileScrolling = false,
+    this.allowScreenReaderNavigation = false,
     super.key,
   });
 
@@ -83,7 +83,8 @@ class ReadiumReaderWidget extends StatefulWidget {
   ///
   /// On Android, these replace the system menu. On iOS, they appear first and
   /// the system items follow. To show only these on iOS too, pass
-  /// `allowedDefaultActions: const {}`.
+  /// `allowedDefaultActions: const {}`. On web, they appear in a floating toolbar
+  /// next to the selection, since the browser's menu cannot be extended.
   final List<SelectionAction> selectionActions;
 
   /// Static font families whose faces are bundled as Flutter assets.
@@ -97,6 +98,8 @@ class ReadiumReaderWidget extends StatefulWidget {
   ///
   /// Note: [DefaultSelectionAction.translate] is iOS-only; [DefaultSelectionAction.selectAll]
   /// is Android-only. Unsupported values for a platform are silently ignored.
+  ///
+  /// Not supported on web: the browser's selection menu is not customisable, so this is ignored.
   final Set<DefaultSelectionAction>? allowedDefaultActions;
 
   /// Accessibility label for the backward navigation semantic region.
@@ -128,6 +131,15 @@ class ReadiumReaderWidget extends StatefulWidget {
   /// [FlutterReadium.goBackward], or table-of-contents navigation.
   final bool disablePageTurnsWhileScrolling;
 
+  /// Whether screen readers can reach the publication content.
+  ///
+  /// When `false` (the default) the content is hidden from screen readers and only the three
+  /// navigation regions are exposed. When `true` the content is reachable, which a braille
+  /// display needs to show the text.
+  ///
+  /// Read when the native view is created: pass a new widget `key` to change it.
+  final bool allowScreenReaderNavigation;
+
   @override
   State<StatefulWidget> createState() => _ReadiumReaderWidgetState();
 }
@@ -143,7 +155,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   final _readium = FlutterReadiumPlatform.instance;
 
-  mq.Orientation? _lastOrientation;
+  Orientation? _lastOrientation;
   late Widget _readerWidget;
   late final ReaderPointerTracker _pointerTracker = ReaderPointerTracker(
     onDeliberateDrag: _hideControls,
@@ -235,6 +247,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
           ),
         ),
         ExcludeSemantics(
+          excluding: !widget.allowScreenReaderNavigation,
           // Observe interactions without competing with the native reader in
           // Flutter's gesture arena.
           child: Listener(
@@ -309,6 +322,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       'preloadPreviousPositionCount': widget.preloadPreviousPositionCount,
       'preloadNextPositionCount': widget.preloadNextPositionCount,
       'disablePageTurnsWhileScrolling': widget.disablePageTurnsWhileScrolling,
+      'allowScreenReaderNavigation': widget.allowScreenReaderNavigation,
       'fontFamilyDeclarations': widget.fontFamilyDeclarations.map((font) => font.toMap()).toList(),
       if (widget.selectionActions.isNotEmpty)
         'selectionActions': widget.selectionActions.map((a) => a.toJson()).toList(),
@@ -431,7 +445,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   /// TODO: Remove this workaround, if the underlying issue is completely fixed in Readium.
   ///
   /// If orientation changes, fix page alignment, so it doesn't stay on a weird-looking page 5½.
-  void _onOrientationChangeWorkaround(final mq.Orientation orientation) async {
+  void _onOrientationChangeWorkaround(final Orientation orientation) async {
     if (_lastOrientation == null) {
       _lastOrientation = orientation;
 
@@ -525,7 +539,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     container: true,
     label: label,
     onTap: () => toNextPage ? _channel?.goForward() : _channel?.goBackward(),
-    child: Container(color: Colors.transparent),
+    child: Container(color: const Color(0x00000000)),
   );
 
   Widget _buildSemanticsToggleFullScreen({required final String label}) => Semantics(
@@ -534,6 +548,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     container: true,
     label: label,
     onTap: _toggleControls,
-    child: Container(color: Colors.transparent),
+    child: Container(color: const Color(0x00000000)),
   );
 }

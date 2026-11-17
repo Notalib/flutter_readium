@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/painting.dart';
 
 extension ReadiumColorExtension on Color {
   String toCSS({final bool leadingHashSign = true}) {
