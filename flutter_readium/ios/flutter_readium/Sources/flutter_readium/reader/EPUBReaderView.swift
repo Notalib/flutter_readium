@@ -31,6 +31,9 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   private var hasSentReady = false
   var isJumpingToLocator = false
   private var lastHrefLocation: String?
+  /// Each location change enriches its locator with a JS round-trip before emitting. A slow
+  /// round-trip can finish after a later change, so only the newest one may emit. Main thread only.
+  private var pageChangeGeneration = 0
   var isMOActive = false
   var shouldPreventColumnBreaks: Bool { isMOActive && (preferences?.preventMOColumnBreaks ?? true) }
   var preferences: FlutterEPUBPreferences?
@@ -459,6 +462,8 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
   private func emitOnPageChanged(locator: Locator) -> Void {
     Log.reader.debug("emitOnPageChanged, locator: \(locator)")
+    pageChangeGeneration += 1
+    let generation = pageChangeGeneration
 
     Task.detached(priority: .high) { [locator] in
       /// Enrich Locator with PageInformation and ToC — bounded, because upstream's
@@ -483,6 +488,10 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       /// Immutable ref, so that we can use it on the main thread
       let finalLocator = enriched ?? locator
       await MainActor.run() {
+        guard generation == self.pageChangeGeneration else {
+          Log.reader.debug("emitOnPageChanged: dropped stale \(finalLocator.href), a newer location arrived")
+          return
+        }
         self.channel.onPageChanged(locator: finalLocator)
         do {
           FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(try finalLocator.jsonString())
