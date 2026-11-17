@@ -4,6 +4,10 @@ import android.app.Activity
 import android.app.Application
 import android.content.Context
 import android.content.ContextWrapper
+import android.view.ViewGroup
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.commitNow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -100,6 +104,37 @@ fun unwrapToApplication(context: Context?): Application? {
         throw IllegalStateException("Application not found. $context")
     }
     return ctx
+}
+
+/**
+ * Removes this fragment from its manager, skipping the cases where removal would throw.
+ *
+ * Flutter disposes platform views from its fragment's `onDetach`, which runs inside
+ * `FragmentManager.dispatchDestroy` when the host activity is destroyed. At that point the manager
+ * is mid-transaction and tears its fragments down itself, and a fragment it already detached has no
+ * manager. State loss is allowed because the fragment is going away and is not restored.
+ */
+fun Fragment.removeFromParentFragmentManager() {
+    if (!isAdded) return
+    val fragmentManager = parentFragmentManager
+    if (fragmentManager.isDestroyed) return
+    fragmentManager.commitNow(allowStateLoss = true) { remove(this@removeFromParentFragmentManager) }
+}
+
+/**
+ * Adds a navigator fragment to [container], unless this manager has been destroyed.
+ *
+ * Navigators attach once the publication has loaded, which can be after the user has left the app.
+ * The activity has then saved its state, and a plain commit throws. State loss is allowed because
+ * [ReadiumReaderWidget] removes a restored navigator fragment and attaches a new one.
+ */
+fun FragmentManager.addNavigatorFragment(
+    container: ViewGroup,
+    fragment: Fragment,
+    tag: String,
+) {
+    if (isDestroyed) return
+    commitNow(allowStateLoss = true) { add(container, fragment, tag) }
 }
 
 /**
