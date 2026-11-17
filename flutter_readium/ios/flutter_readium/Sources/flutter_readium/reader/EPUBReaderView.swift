@@ -94,12 +94,12 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     frame: CGRect,
     viewIdentifier viewId: Int64,
     arguments args: Any?,
-    registrar: FlutterPluginRegistrar
+    registrar: FlutterPluginRegistrar,
+    publication: Publication
   ) {
     Log.reader.info("init")
     let creationParams = args as! Dictionary<String, Any?>
 
-    let publication = FlutterReadiumPlugin.instance!.getCurrentPublication()!
     self.publication = publication
     self.publicationIdentifier = publication.metadata.identifier
 
