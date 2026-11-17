@@ -140,12 +140,13 @@ void main() {
         bool isWatchdogRetry(ReadiumError error) => isRetry(error) && error.message.contains('Resource loading');
 
         if (defaultTargetPlatform == TargetPlatform.iOS) {
-          // AVPlayer runs without automatic stall waiting, so once the offset stops moving
-          // the plugin's stall handler starts recovery. The fixture never serves the rest of
-          // the track, so that recovery ends in the terminal network error.
+          // AVPlayer runs without automatic stall waiting, so the plugin's stall handler
+          // waits stallTimeout for the item to buffer and then starts recovery. The fixture
+          // never serves the rest of the track, so that recovery ends in the terminal
+          // network error.
           await waitUntil(
             () => errors.any((error) => isRetry(error) && error.message.contains('stalled')),
-            timeout: fixtureAudio + const Duration(seconds: 6),
+            timeout: fixtureAudio + stallTimeout + const Duration(seconds: 6),
             reason: 'The mid-resource stall did not start stall recovery',
           );
           await waitUntil(
