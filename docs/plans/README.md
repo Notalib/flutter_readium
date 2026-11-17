@@ -50,7 +50,7 @@ This directory holds implementation plans, parity audits, and retained reference
 - **[comic-manual-zoom-plan.md](comic-manual-zoom-plan.md)** — native comic manual zoom/pan behavior.
 - **[ios-audio-error-recovery-plan.md](ios-audio-error-recovery-plan.md)** — audio streaming failure recovery plan that has since landed locally.
 - **[resource-loading-watchdog.md](resource-loading-watchdog.md)** — one-shot audiobook
-	resource-loading watchdog with opt-in navigator rebuild recovery.
+	resource-loading watchdog with navigator rebuild recovery (on by default since 2026-11-17).
 - **[native-divina-sync-plan.md](native-divina-sync-plan.md)** — implemented shared narration-sync/manual-mode slice; remaining comic framing work was split out.
 - **[android-webpub-head-storm.md](android-webpub-head-storm.md)** — opening a streamed WebPub no longer HEAD-probes every HTML chapter on Android **or** iOS; bare-manifest (resource-asset) EPUB-profile publications use `PerResourcePositionsService`, and Android script/style injection derives its filename from the container URL instead of a `properties()` HEAD. *(Performance)*
 

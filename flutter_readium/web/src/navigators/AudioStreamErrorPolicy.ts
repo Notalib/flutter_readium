@@ -90,7 +90,7 @@ export function classifyAudioStreamError(error: unknown): AudioStreamErrorAction
  *
  * Consumer-configurable via `FlutterReadium().setAudioRecoveryPolicy(...)`
  * (see `flutter_readium_platform_interface`'s `AudioRecoveryPolicy`). Explicit
- * player errors recover by default; loading-timeout recovery is opt-in.
+ * player errors and resource-loading timeouts both recover by default.
  */
 export class AudioRecoveryPolicy {
   constructor(
@@ -99,15 +99,15 @@ export class AudioRecoveryPolicy {
     /**
      * How long a resource-loading attempt may wait for initial playback progress.
      */
-    public readonly stallTimeoutSeconds: number = 20.0,
+    public readonly stallTimeoutSeconds: number = 30.0,
     /**
      * How long, in seconds, a single recovery attempt may spend rebuilding the
      * player / reconnecting before that attempt is abandoned and the loop moves
      * on. Bounds a stalled connect so a dead network can't hang recovery.
      */
-    public readonly connectionTimeoutSeconds: number = 10.0,
+    public readonly connectionTimeoutSeconds: number = 20.0,
     /** Whether a resource-loading timeout starts the recovery loop. */
-    public readonly recoverOnResourceLoadingTimeout: boolean = false
+    public readonly recoverOnResourceLoadingTimeout: boolean = true
   ) {}
 
   delayMillis(forAttempt: number): number {
@@ -125,13 +125,13 @@ export class AudioRecoveryPolicy {
     const backoffBaseSeconds =
       typeof json.backoffBaseSeconds === "number" ? json.backoffBaseSeconds : 1.0;
     const stallTimeoutSeconds =
-      typeof json.stallTimeoutSeconds === "number" ? json.stallTimeoutSeconds : 20.0;
+      typeof json.stallTimeoutSeconds === "number" ? json.stallTimeoutSeconds : 30.0;
     const connectionTimeoutSeconds =
-      typeof json.connectionTimeoutSeconds === "number" ? json.connectionTimeoutSeconds : 10.0;
+      typeof json.connectionTimeoutSeconds === "number" ? json.connectionTimeoutSeconds : 20.0;
     const recoverOnResourceLoadingTimeout =
       typeof json.recoverOnResourceLoadingTimeout === "boolean"
         ? json.recoverOnResourceLoadingTimeout
-        : false;
+        : true;
     return new AudioRecoveryPolicy(
       maxAttempts,
       backoffBaseSeconds,

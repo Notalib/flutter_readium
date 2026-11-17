@@ -2,6 +2,10 @@
 
 > **✅ Implemented (2026-09-07).** Supersedes the progress-based watchdog work
 > in PR #223.
+>
+> **Update (2026-11-17).** `recoverOnResourceLoadingTimeout` now defaults to `true`, with
+> `stallTimeoutSeconds` raised to 30 and `connectionTimeoutSeconds` to 20. A player item that fails
+> without reporting an error otherwise stays silent until the user acts (NOTA-13449).
 
 ## Goal
 

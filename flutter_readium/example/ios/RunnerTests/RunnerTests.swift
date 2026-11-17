@@ -214,15 +214,15 @@ final class AudioRecoveryPolicyTests: XCTestCase {
   func testExponentialBackoffDelays() {
     let policy = AudioRecoveryPolicy()
     XCTAssertEqual(policy.maxAttempts, 3)
-    XCTAssertFalse(policy.recoverOnResourceLoadingTimeout)
+    XCTAssertTrue(policy.recoverOnResourceLoadingTimeout)
     XCTAssertEqual(policy.delay(forAttempt: 1), 1.0)
     XCTAssertEqual(policy.delay(forAttempt: 2), 2.0)
     XCTAssertEqual(policy.delay(forAttempt: 3), 4.0)
   }
 
-  func testLoadingTimeoutRecoveryOptInParsesAndInvalidValueDefaultsFalse() {
-    XCTAssertTrue(AudioRecoveryPolicy.fromMap(["recoverOnResourceLoadingTimeout": true]).recoverOnResourceLoadingTimeout)
-    XCTAssertFalse(AudioRecoveryPolicy.fromMap(["recoverOnResourceLoadingTimeout": "true"]).recoverOnResourceLoadingTimeout)
+  func testLoadingTimeoutRecoveryParsesAndInvalidValueDefaultsTrue() {
+    XCTAssertFalse(AudioRecoveryPolicy.fromMap(["recoverOnResourceLoadingTimeout": false]).recoverOnResourceLoadingTimeout)
+    XCTAssertTrue(AudioRecoveryPolicy.fromMap(["recoverOnResourceLoadingTimeout": "false"]).recoverOnResourceLoadingTimeout)
   }
 }
 
