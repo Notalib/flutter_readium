@@ -121,7 +121,7 @@ class ReadiumReaderWidget(
     override fun dispose() {
         PluginLog.d(TAG, "::dispose")
         navigatorReady.cancel()
-        ReadiumReader.visualClose()
+        ReadiumReader.visualClose(this)
 
         ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Closed)
         hasSentReady = false
