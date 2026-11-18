@@ -34,6 +34,19 @@ internal class PublicationErrorTest {
     }
 
     @Test
+    fun `custom restriction error keeps its wire code and data`() {
+        val error = PublicationError.Custom(FlutterReadiumCustomError("lcpExpired", "expired", mapOf("end" to "x")))
+
+        assertEquals("lcpExpired", error.wireCode)
+        assertEquals(mapOf("end" to "x"), error.toMethodChannelDetails())
+    }
+
+    @Test
+    fun `plain restriction maps to forbidden`() {
+        assertEquals("forbidden", PublicationError.Restricted(null).wireCode)
+    }
+
+    @Test
     fun `401 opening error maps to incorrectCredentials with httpStatus`() {
         val readError = ReadError.Access(HttpError.ErrorResponse(status = HttpStatus(401)))
         val error = PublicationError.Reading(readError)
