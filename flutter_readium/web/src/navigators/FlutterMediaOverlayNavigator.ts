@@ -323,11 +323,11 @@ export class MediaOverlaySession implements StreamingTimeline {
     if (!store) return;
     const merged = store.items();
     if (merged.length <= this.items.length) return;
-    const audioLocator = this.nav?.currentLocator;
-    const wasPlaying = this.playbackWasActive;
     this.rebuild = (async () => {
       try {
         const built = await this._resolveAndEnrich(merged);
+        const audioLocator = this.nav?.currentLocator;
+        const wasPlaying = this.playbackWasActive;
         await this._createNavigator(built, audioLocator, wasPlaying);
       } finally {
         this.rebuild = undefined;

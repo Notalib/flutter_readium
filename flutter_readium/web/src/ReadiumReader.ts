@@ -344,7 +344,9 @@ class _ReadiumReader {
     if (this._audioNav && this._syncItems.length > 0) {
       // Streaming: a target outside the loaded window needs its segment
       // fetched (and the playlist extended) before text→audio mapping works.
-      await this._mediaOverlaySession?.ensureWindowForText(locator.href);
+      const session = this._mediaOverlaySession;
+      await session?.ensureWindowForText(locator.href);
+      if (this._mediaOverlaySession !== session || !this._audioNav) return;
       // Only fall back to the resource's first cue when this ToC/bookmark tap
       // crosses into a *different* resource than the one currently playing —
       // an uncued anchor within the current chapter must not rewind audio to

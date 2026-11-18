@@ -148,12 +148,7 @@ export class SyncTimelineStore {
     if (cached) return Promise.resolve(cached);
     const href = link.href;
     const inflight = this.inFlight.get(href);
-    if (inflight) {
-      return inflight.then((items) => {
-        if (items) this.loaded.set(roIndex, items);
-        return items;
-      });
-    }
+    if (inflight) return inflight;
     if ((this.failures.get(href) ?? 0) >= MAX_SEGMENT_FAILURES) {
       return Promise.resolve(null);
     }

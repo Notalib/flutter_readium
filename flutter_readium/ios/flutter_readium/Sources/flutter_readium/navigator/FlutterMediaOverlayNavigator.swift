@@ -388,7 +388,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     // in the window are picked up by the lookups without a rebuild hiccup.
     guard newTrack || takeover else { return }
     guard applyAudioWindow(extended) else { return }
-    var target = takeover ? firstNewTrackLocator(loadedBefore: previous) ?? resumeAt : resumeAt
+    var target = takeover ? firstNewTrackLocator(loadedBefore: previous) ?? resumeAt : (audioLocator ?? resumeAt)
     if let seekText, let mapped = mapTextLocatorToMediaOverlayAudioLocator(seekText) {
       target = mapped
     }
