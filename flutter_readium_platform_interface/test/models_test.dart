@@ -128,6 +128,28 @@ void main() {
       expect(updated.href, '/ch.xhtml');
       expect(updated.title, 'Updated');
     });
+
+    test('toTextLocator() without a css id selector clears fragments', () {
+      final locator = Locator(
+        href: '/audio.mp3',
+        type: 'audio/mpeg',
+        locations: Locations(fragments: ['t=12']),
+      );
+
+      final textLocator = locator.toTextLocator();
+
+      expect(textLocator.locations?.fragments, isEmpty);
+    });
+
+    test('toTextLocator() keeps a css id selector as the only fragment', () {
+      final locator = Locator(
+        href: '/ch.xhtml',
+        type: 'application/xhtml+xml',
+        locations: Locations(fragments: ['t=12'], cssSelector: '#p1'),
+      );
+
+      expect(locator.toTextLocator().locations?.fragments, ['p1']);
+    });
   });
 
   group('Publication URI templates', () {

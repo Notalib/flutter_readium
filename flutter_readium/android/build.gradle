@@ -91,6 +91,8 @@ dependencies {
   implementation "org.readium.kotlin-toolkit:readium-streamer:$readium_version"
   implementation "org.readium.kotlin-toolkit:readium-opds:$readium_version"
   implementation "org.readium.kotlin-toolkit:readium-navigator:$readium_version"
+  // PhotoView (bundled in readium-navigator) extends AppCompatImageView; readium-navigator provides appcompat at runtime.
+  compileOnly 'androidx.appcompat:appcompat:1.8.0'
   implementation "org.readium.kotlin-toolkit:readium-navigator-media-common:$readium_version"
   implementation "org.readium.kotlin-toolkit:readium-navigator-media-tts:$readium_version"
   implementation "org.readium.kotlin-toolkit:readium-navigator-media-audio:$readium_version"

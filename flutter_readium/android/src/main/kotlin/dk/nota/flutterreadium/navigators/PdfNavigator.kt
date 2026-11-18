@@ -4,11 +4,12 @@ import android.os.Bundle
 import android.util.Log
 import android.view.ViewGroup
 import androidx.fragment.app.FragmentManager
-import androidx.fragment.app.commitNow
 import dk.nota.flutterreadium.FlutterPdfPreferences
 import dk.nota.flutterreadium.ReadiumReaderWidget.Companion.NAVIGATOR_FRAGMENT_TAG
+import dk.nota.flutterreadium.addNavigatorFragment
 import dk.nota.flutterreadium.fragments.PdfReaderFragment
 import dk.nota.flutterreadium.models.PdfReaderViewModel
+import dk.nota.flutterreadium.removeFromParentFragmentManager
 import dk.nota.flutterreadium.throttleLatest
 import dk.nota.flutterreadium.withMainContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -96,9 +97,7 @@ class PdfNavigator :
     ) {
         val navigator = pdfNavigator ?: return
         launch {
-            fragmentManager.commitNow {
-                add(viewGroup, navigator, NAVIGATOR_FRAGMENT_TAG)
-            }
+            fragmentManager.addNavigatorFragment(viewGroup, navigator, NAVIGATOR_FRAGMENT_TAG)
         }
     }
 
@@ -255,9 +254,8 @@ class PdfNavigator :
     override fun dispose() {
         super.dispose()
         launch {
-            // A newer reader widget may already have removed the fragment by tag.
-            pdfNavigator?.takeIf { it.isAdded }?.let { fragment ->
-                fragment.parentFragmentManager.commitNow { remove(fragment) }
+            pdfNavigator?.let { fragment ->
+                fragment.removeFromParentFragmentManager()
             }
             coroutineContext.cancelChildren()
             pdfNavigator = null
