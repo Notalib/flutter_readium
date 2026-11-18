@@ -58,8 +58,10 @@ import org.readium.r2.shared.publication.services.PerResourcePositionsService
 import org.readium.r2.shared.publication.services.content.DefaultContentService
 import org.readium.r2.shared.publication.services.content.content
 import org.readium.r2.shared.publication.services.content.contentServiceFactory
+import org.readium.r2.shared.publication.services.isRestricted
 import org.readium.r2.shared.publication.services.positionsByReadingOrder
 import org.readium.r2.shared.publication.services.positionsServiceFactory
+import org.readium.r2.shared.publication.services.protectionError
 import org.readium.r2.shared.publication.services.search.SearchService
 import org.readium.r2.shared.publication.services.search.search
 import org.readium.r2.shared.util.AbsoluteUrl
@@ -781,6 +783,15 @@ object ReadiumReader :
                 pubUrl,
                 transformingContainerFactory,
             ).getOrElse { e -> return failure(e) }
+
+        // A DRM-protected publication that no ContentProtection unlocked can't be read. Reject it
+        // here so it fails like on iOS, where the navigators throw for it.
+        if (pub.isRestricted) {
+            val cause = pub.protectionError ?: DebugError("No content protection unlocked the publication")
+            PluginLog.e(TAG, "::openPublication - restricted publication: ${cause.message}")
+            pub.close()
+            return failure(PublicationError.Restricted(cause))
+        }
 
         _currentPublication = pub
         currentPublicationUrl = pubUrl.toString()

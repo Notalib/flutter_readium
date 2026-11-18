@@ -84,7 +84,7 @@ class FlutterReadiumPlugin :
         val files: MutableList<String> = ArrayList()
         try {
             val paths = c.assets.list(rootPath)
-            if (paths!!.isNotEmpty()) {
+            if (!paths.isNullOrEmpty()) {
                 // This is a folder
                 for (filePath in paths) {
                     val path = "$rootPath/$filePath"

@@ -3,6 +3,7 @@ package dk.nota.flutterreadium
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import org.readium.r2.shared.util.DebugError
 import org.readium.r2.shared.util.Error
 import org.readium.r2.shared.util.data.ReadError
 import org.readium.r2.shared.util.http.HttpError
@@ -109,6 +110,14 @@ internal class PublicationErrorTest {
             "NoPublication",
             PublicationError.NoPublicationOpened().errorCode.wireValue,
         )
+    }
+
+    @Test
+    fun `Restricted maps to forbidden with the protection error as details message like iOS`() {
+        val error = PublicationError.Restricted(DebugError("LCP not supported"))
+
+        assertEquals("forbidden", error.errorCode.wireValue)
+        assertEquals(mapOf("message" to "LCP not supported"), error.toMethodChannelDetails())
     }
 
     @Test

@@ -81,7 +81,7 @@ class EpubReaderFragment :
          * Called when an external link is activated.
          */
         fun onExternalLinkActivated(url: AbsoluteUrl)
-        
+
         /**
          * Called when an internal link is about to be followed. `from` is the position before the jump.
          */
@@ -791,7 +791,7 @@ class EpubReaderFragment :
 
         val preferences = model.preferences ?: FlutterEpubPreferences()
         model.preferences = preferences
-        val navigatorFactory = model.navigatorFactory!!
+        val navigatorFactory = model.navigatorFactory ?: return
 
         // App-supplied assets (font faces, setCssInjections/setJavaScriptInjections) must be served
         // to the WebView. Missing files are skipped: serving them crashes Readium's WebViewServer.
