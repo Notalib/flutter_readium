@@ -1,7 +1,7 @@
 import "./style.css";
 
 import { AudioNavigator, EpubNavigator, WebPubNavigator } from "@readium/navigator";
-import { getTime, Link, Locator, Publication } from "@readium/shared";
+import { getTime, Link, Locator, LocatorLocations, Publication } from "@readium/shared";
 
 // Bridge
 import { ReadiumBridge } from "./bridge/ReadiumBridge";
@@ -41,6 +41,7 @@ import {
   ComicRegion,
   SyncNarrationItem,
   detectSyncNarration,
+  findCueStepTarget,
   findItemByAudioTime,
   normalizeHref,
   textLocatorForItem,
@@ -183,6 +184,8 @@ class _ReadiumReader {
   // Deduplication key for Media Overlay decoration: "<href><fragment>".
   // Avoids redundant applyDecorations calls when the poll fires during the same cue.
   private _lastMediaOverlayLocatorKey: string | null = null;
+  /** Tail of the queued Media Overlay cue steps. */
+  private _cueStepChain: Promise<void> = Promise.resolve();
 
   // Set to true once we've confirmed that any iframe in the current publication
   // is a comic-book page. Used to skip nav.go() for all subsequent cues.
@@ -696,8 +699,10 @@ class _ReadiumReader {
    *
    * Does NOT forward to `_comicNav.setAutoPan` — the public `setNarrationSyncEnabled`
    * handles that so the comic navigator remains the authority for panel state.
+   * `notify = false` skips the `updateNarrationSync(true)` emission for callers
+   * whose own follow-up emits it.
    */
-  private _setNarrationSyncEnabled(enabled: boolean, reason: string): void {
+  private _setNarrationSyncEnabled(enabled: boolean, reason: string, notify = true): void {
     const wasEnabled = this._narrationSyncEnabled;
     this._narrationSyncEnabled = enabled;
     log.debug(`_setNarrationSyncEnabled(${enabled}) via ${reason}`);
@@ -716,7 +721,7 @@ class _ReadiumReader {
         this._lastMediaOverlayLocatorKey = null;
         this._syncVisualToMediaOverlayLocator(deferredLocator, `MediaOverlay (resume sync via ${reason})`, deferredDurationMs);
       }
-      window.updateNarrationSync?.(true);
+      if (notify) window.updateNarrationSync?.(true);
     } else if (wasEnabled && !enabled) {
       window.updateNarrationSync?.(false);
     }
@@ -1128,13 +1133,70 @@ class _ReadiumReader {
   public next(): void {
     log.debug("next");
     if (this._ttsEngine) { this._ttsEngine.next(); return; }
+    if (this._audioNav && this._syncItems.length > 0) { this._queueCueStep(1); return; }
     this._audioNav?.goForward(false, () => {});
   }
 
   public previous(): void {
     log.debug("previous");
     if (this._ttsEngine) { this._ttsEngine.previous(); return; }
+    if (this._audioNav && this._syncItems.length > 0) { this._queueCueStep(-1); return; }
     this._audioNav?.goBackward(false, () => {});
+  }
+
+  /** Runs cue steps one at a time so a quick second tap sees the position the first one landed on. */
+  private _queueCueStep(direction: 1 | -1): void {
+    this._cueStepChain = this._cueStepChain
+      .then(() => this._stepCue(direction))
+      .catch((err) => log.warn("cue step failed", err));
+  }
+
+  /**
+   * Media Overlay `next`/`previous`: moves one cue, keeping the play state. The view
+   * moves to the cue even while paused, and a step out of manual mode re-enables sync.
+   */
+  private async _stepCue(direction: 1 | -1): Promise<void> {
+    const nav = this._audioNav;
+    if (!nav || this._syncItems.length === 0) return;
+    const useSyncNarrationLookup = !!this._audioNavPublication &&
+      detectSyncNarration(this._audioNavPublication) && !detectGuidedNavigation(this._audioNavPublication);
+    const current = nav.currentLocator;
+    // While playing, `currentLocator` lags by up to one position poll, so it can still name the
+    // previous cue. When paused it is exact (seek and `seeked` both set it).
+    const time = isPlayingOrResuming(nav) ? nav.currentTime : (getTime(current.locations) ?? nav.currentTime);
+    const target = findCueStepTarget(this._syncItems, current.href, time, direction, useSyncNarrationLookup);
+    if (!target || target.audioStart === null) return;
+
+    const audioLocator = new Locator({
+      href: target.audioHref,
+      type: "audio/mpeg",
+      locations: new LocatorLocations({ fragments: [`t=${target.audioStart}`] }),
+    });
+    await this._seekAudioAndResume(audioLocator, isPlayingOrResuming(nav));
+    if (this._audioNav !== nav) return;
+
+    // The view is moved here rather than via the audio navigator's emission, which is not
+    // guaranteed while paused. That later emission of the same cue is deduplicated.
+    const textLocator = textLocatorForItem(target);
+    const durationMs = target.audioEnd !== null ? (target.audioEnd - target.audioStart) * 1000 : undefined;
+    const comic = this._comicNav;
+    const readerManual = !this._narrationSyncEnabled;
+    const comicManual = comic?.manuallyOverridden ?? false;
+    if (readerManual || comicManual) {
+      // Make any deferred replay (and the dedup key) point at the target, not the old cue.
+      this._lastDeferredSyncLocator = textLocator;
+      this._lastDeferredSyncDurationMs = durationMs;
+      this._lastMediaOverlayLocatorKey = null;
+    }
+    // A comic override emits its own updateNarrationSync(true) when it clears below.
+    if (readerManual) this._setNarrationSyncEnabled(true, "cue step", !comicManual);
+    this._routeNarrationCue(textLocator, "cue step", durationMs);
+    if (comic && (readerManual || comicManual)) {
+      // The route above recorded the target region, so clearing the override pans there,
+      // not to the old panel. The explicit pan covers auto-pan that was switched off.
+      comic.setAutoPan(true);
+      comic.panToRegion((textLocator.locations?.otherLocations?.get("comicRegion") ?? null) as ComicRegion | null);
+    }
   }
 
   /** Relative seek by seconds. Applies to AudioNavigator (audiobook / Media Overlay). */

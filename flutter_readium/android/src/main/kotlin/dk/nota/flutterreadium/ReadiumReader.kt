@@ -39,6 +39,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.readium.adapter.pdfium.document.PdfiumDocumentFactory
 import org.readium.navigator.media.tts.android.AndroidTtsEngine
@@ -198,6 +200,8 @@ object ReadiumReader :
         MutableStateFlow(ReadiumTimebasedState.none())
 
     private val currentTextLocator = MutableStateFlow<Locator?>(null)
+
+    private val cueStepMutex = Mutex()
 
     private var defaultHttpHeaders = mutableMapOf<String, String>()
 
@@ -1503,14 +1507,33 @@ object ReadiumReader :
      * Skip backwards.
      */
     suspend fun previous() {
-        timebasedNavigator?.goBackward()
+        if (!stepMediaOverlayCue(forward = false)) timebasedNavigator?.goBackward()
     }
 
     /**
      * Skip forwards.
      */
     suspend fun next() {
-        timebasedNavigator?.goForward()
+        if (!stepMediaOverlayCue(forward = true)) timebasedNavigator?.goForward()
+    }
+
+    /**
+     * With media overlays, next/previous step one cue instead of seeking by the seek interval.
+     * A step leaves manual mode, so the view follows the cue the user just chose.
+     *
+     * @return false when the active navigator is not a [SyncAudiobookNavigator], so the caller
+     * falls back to its seek. True when it handled the call, even if there was no cue to step to.
+     */
+    private suspend fun stepMediaOverlayCue(forward: Boolean): Boolean {
+        val navigator = syncAudiobookNavigator ?: return false
+        if (timebasedNavigator !== navigator) return false
+        // Method calls run concurrently, and each step must start from where the previous one landed.
+        cueStepMutex.withLock {
+            if (navigator.skipToCue(forward) && !narrationSyncEnabled) {
+                setNarrationSyncEnabled(true)
+            }
+        }
+        return true
     }
 
     /**

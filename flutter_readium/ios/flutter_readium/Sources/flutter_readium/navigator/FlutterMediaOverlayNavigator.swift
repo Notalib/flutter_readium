@@ -139,6 +139,36 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     return navigated
   }
   
+  /// Steps one cue forward or back across the whole publication, keeping the play state.
+  /// Returns the cue landed on, or nil when nothing moved (e.g. `forward` on the last cue).
+  ///
+  /// Lock-screen next/previous keep using the seek-interval `seekForward()/seekBackward()`;
+  /// only the method-channel next/previous come through here.
+  @MainActor
+  internal func skipToCue(forward: Bool) async -> (locator: Locator, segmentDuration: TimeInterval?)? {
+    guard let navigator = _audioNavigator, let current = audioLocator else {
+      Log.navigator.warn("skipToCue - No current audio locator")
+      return nil
+    }
+    // A locator without a time fragment is treated as the start of its resource, as on Android.
+    let time = MediaTimeFragment.seconds(from: current.locations.fragments) ?? 0
+    guard let target = mediaOverlays.cueStepTarget(audioHref: current.href.string, time: time, forward: forward),
+          let audioLocator = target.asAudioLocator,
+          let textLocator = target.asTextLocator else {
+      return nil
+    }
+    let wasPlaying = navigator.state == .playing || navigator.state == .loading
+    guard await goBounded(to: audioLocator) else { return nil }
+    // Go will sometimes result in a pause, if buffering was necessary.
+    if wasPlaying {
+      navigator.play()
+    }
+    // The landed time can fall just inside the previous cue, so report the target explicitly.
+    // That sets the sync key and makes the later emission of the target a no-op.
+    reportCueReached(target, textLocator: textLocator)
+    return (textLocator, target.audioDuration)
+  }
+
   public override func seek(toProgression: Double) async -> Bool {
     guard let navigator = _audioNavigator,
           let locator = audioLocator?.copyWithProgressionLocations(progression: toProgression) else {
@@ -182,16 +212,21 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     if let mediaOverlayItem = mediaOverlayItemFromAudioLocator(location),
        let textLocator = mediaOverlayItem.asTextLocator {
       
-      let syncKey = textLocator.href.string + (textLocator.locations.cssSelector ?? "")
-      if syncKey != lastTextSyncKey {
-        lastTextSyncKey = syncKey
-        self.listener?.timebasedNavigator(self, reachedLocator: textLocator, segmentDuration: mediaOverlayItem.audioDuration, isWordRange: false)
-      }
-      
-      self.listener?.timebasedNavigator(self, requestsHighlightAt: textLocator, withWordLocator: nil)
+      reportCueReached(mediaOverlayItem, textLocator: textLocator)
     } else {
       Log.navigator.warn("Did not find MediaOverlay matching audio Locator: \(location)")
     }
+  }
+
+  /// Syncs the viewer to a cue (once per cue) and refreshes its highlight.
+  private func reportCueReached(_ item: FlutterMediaOverlayItem, textLocator: Locator) {
+    let syncKey = textLocator.href.string + (textLocator.locations.cssSelector ?? "")
+    if syncKey != lastTextSyncKey {
+      lastTextSyncKey = syncKey
+      self.listener?.timebasedNavigator(self, reachedLocator: textLocator, segmentDuration: item.audioDuration, isWordRange: false)
+    }
+
+    self.listener?.timebasedNavigator(self, requestsHighlightAt: textLocator, withWordLocator: nil)
   }
   
   internal override func submitTimebasedPlayerStateToListener(info: MediaPlaybackInfo, location: Locator?, bufferedInterval: TimeInterval? = nil) {
