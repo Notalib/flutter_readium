@@ -1,0 +1,2 @@
+**Reopening a book while the previous reader is still closing no longer crashes or leaves the reader unresponsive.**
+When a new `ReadiumReaderWidget` mounted before the old one was disposed, Android crashed with `Can't change container ID of fragment`, and on Android and iOS `goForward`, preferences and decorations stopped reaching the new reader. The newest reader now owns the navigator, and an older reader's dispose leaves it alone.

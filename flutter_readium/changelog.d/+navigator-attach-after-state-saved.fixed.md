@@ -1,0 +1,2 @@
+**Android: leaving the app while a publication was opening crashed with "Can not perform this action after onSaveInstanceState".**
+Navigators attach their fragment once the publication has loaded, which can be after the activity has saved its state. The attach now allows state loss and is skipped when the fragment manager is destroyed. The reader widget removes a restored navigator fragment and attaches a new one, so nothing is lost.

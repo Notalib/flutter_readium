@@ -9,21 +9,34 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 # different output than CI (which always runs pub get before dart format).
 # cd, not --directory: flutter_tools reads pubspec flutter config from the cwd.
 
+# Formats the tracked and untracked-but-not-ignored Dart files under $1.
+# Passing the directory itself would also format gitignored build output, such
+# as the copies of Dart sources that an iOS SwiftPM build leaves in build/.
+format_dir() (
+  cd "$1"
+  git ls-files -z --cached --others --exclude-standard -- '*.dart' |
+    while IFS= read -r -d '' file; do
+      # The index still lists a file that was deleted but not yet staged.
+      [ -f "$file" ] && printf '%s\0' "$file"
+    done |
+    xargs -0 dart format --set-exit-if-changed
+)
+
 echo "Formatting flutter_readium_platform_interface..."
 ( cd "$REPO_ROOT/flutter_readium_platform_interface" && flutter pub get > /dev/null )
-dart format --set-exit-if-changed "$REPO_ROOT/flutter_readium_platform_interface"
+format_dir "$REPO_ROOT/flutter_readium_platform_interface"
 
 echo "Formatting flutter_readium..."
 ( cd "$REPO_ROOT/flutter_readium" && flutter pub get > /dev/null )
-dart format --set-exit-if-changed "$REPO_ROOT/flutter_readium"
+format_dir "$REPO_ROOT/flutter_readium"
 
 echo "Formatting example app..."
 ( cd "$REPO_ROOT/flutter_readium/example" && flutter pub get > /dev/null )
-dart format --set-exit-if-changed "$REPO_ROOT/flutter_readium/example"
+format_dir "$REPO_ROOT/flutter_readium/example"
 
 echo "Formatting test app..."
 ( cd "$REPO_ROOT/flutter_readium/test" && flutter pub get > /dev/null )
-dart format --set-exit-if-changed "$REPO_ROOT/flutter_readium/test"
+format_dir "$REPO_ROOT/flutter_readium/test"
 
 ## Run flutter analyze on all packages in the repo.
 flutter analyze --fatal-infos --fatal-warnings $REPO_ROOT/flutter_readium

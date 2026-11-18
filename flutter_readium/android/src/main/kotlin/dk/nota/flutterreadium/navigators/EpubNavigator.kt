@@ -3,14 +3,15 @@ package dk.nota.flutterreadium.navigators
 import android.os.Bundle
 import android.view.ViewGroup
 import androidx.fragment.app.FragmentManager
-import androidx.fragment.app.commitNow
 import dk.nota.flutterreadium.FlutterEpubPreferences
 import dk.nota.flutterreadium.PluginLog
 import dk.nota.flutterreadium.ReaderFontFamily
 import dk.nota.flutterreadium.ReadiumReader
 import dk.nota.flutterreadium.ReadiumReaderWidget.Companion.NAVIGATOR_FRAGMENT_TAG
+import dk.nota.flutterreadium.addNavigatorFragment
 import dk.nota.flutterreadium.fragments.EpubReaderFragment
 import dk.nota.flutterreadium.models.EpubReaderViewModel
+import dk.nota.flutterreadium.removeFromParentFragmentManager
 import dk.nota.flutterreadium.throttleLatest
 import dk.nota.flutterreadium.withMainContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -178,9 +179,7 @@ class EpubNavigator :
     ) {
         val navigator = epubNavigator ?: return
         launch {
-            fragmentManager.commitNow {
-                add(viewGroup, navigator, NAVIGATOR_FRAGMENT_TAG)
-            }
+            fragmentManager.addNavigatorFragment(viewGroup, navigator, NAVIGATOR_FRAGMENT_TAG)
         }
     }
 
@@ -382,7 +381,7 @@ class EpubNavigator :
 
         launch {
             epubNavigator?.let { fragment ->
-                fragment.parentFragmentManager.commitNow { remove(fragment) }
+                fragment.removeFromParentFragmentManager()
             }
 
             coroutineContext.cancelChildren()

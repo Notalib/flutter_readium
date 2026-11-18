@@ -117,6 +117,8 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   Widget build(
     final BuildContext context,
   ) => BlocBuilder<PublicationBloc, PublicationState>(
+    // A page animating out must not switch to the next publication, or it mounts a second reader.
+    buildWhen: (_, _) => ModalRoute.of(context)?.isActive ?? true,
     builder: (final context, final pubState) {
       final isAudioBook = pubState.publication?.conformsToReadiumAudiobook ?? false;
       // DiViNa (comics/image-based) publications have no text content — the
@@ -136,10 +138,12 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
           // "Looking up a deactivated widget's ancestor is unsafe". The bloc is
           // app-scoped (provided in main.dart), so it outlives this page.
           final publicationBloc = context.read<PublicationBloc>();
+          final publication = publicationBloc.state.publication;
           // Put some delay to ensure that the closePublication is called after navigating back visually.
+          // The bloc ignores it if another publication was opened in the meantime.
           const delay = Duration(milliseconds: 400);
           Future.delayed(delay, () {
-            publicationBloc.add(ClosePublication());
+            publicationBloc.add(ClosePublication(publication));
           });
         },
         child: Scaffold(
