@@ -1,5 +1,7 @@
 # Highlight Modes — Implementation Plan
 
+> **Status (2026-11): partly done.** `highlight`, `underline` and `spotlight` exist in the Dart `DecorationStyle` enum and have native and web handling. `ruler` does not exist anywhere in the repo, so Phase C (the ruler template) is still open, along with the enum entry from Phase A.
+
 Target: four TTS/MediaOverlay decoration styles on iOS, Android, and Web.
 
 ## Modes
