@@ -30,6 +30,7 @@ This directory holds implementation plans, parity audits, and retained reference
 	*(Maintainability / L)*
 - **[todo/highlight-modes.md](todo/highlight-modes.md)** — `highlight`, `underline` and `spotlight`
 	decoration styles exist; the `ruler` style does not. *(Feature / M)*
+- **[todo/margin-marker-decorations.md](todo/margin-marker-decorations.md)** — a built-in `marginMarker` decoration style (text label or icon in the page margin) on iOS, Android and web, with page-number and bookmarked-highlight recipes. *(Feature / M)*
 
 ## Upstream plans (`upstream/`)
 
