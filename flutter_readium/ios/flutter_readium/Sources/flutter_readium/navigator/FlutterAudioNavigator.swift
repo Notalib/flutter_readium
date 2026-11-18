@@ -94,6 +94,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
         self?._playbackIntent ?? false
       })
     )
+    waitOnStall(in: navigator)
     navigator.delegate = self
     return navigator
   }
@@ -181,7 +182,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     if _disposed {
       return
     }
-    if _rebuildOnNextPlay {
+    // A failed item never plays again, so both cases need the rebuild in play(fromLocator:).
+    if _hasFailed || _rebuildOnNextPlay {
       await play(fromLocator: nil)
       return
     }
@@ -1274,6 +1276,14 @@ func playbackMoved(
   isPlaying: Bool, resourceChanged: Bool, time: TimeInterval, lastTime: TimeInterval
 ) -> Bool {
   isPlaying && (resourceChanged || abs(time - lastTime) > playbackProgressThresholdSeconds)
+}
+
+/// Makes the toolkit's player wait and resume by itself after a buffer underrun. Toolkit
+/// 3.11 turns this off and has no option for it; remove this once the toolkit sets it.
+/// The player is created lazily, and `pause()` creates it without loading anything.
+func waitOnStall(in navigator: AudioNavigator) {
+  navigator.pause()
+  readiumAVPlayer(in: navigator)?.automaticallyWaitsToMinimizeStalling = true
 }
 
 /// Finds the private `AVPlayer` of a toolkit `AudioNavigator` by reflection.

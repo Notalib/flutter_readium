@@ -278,6 +278,14 @@ final class ReadiumAVPlayerLookupTests: XCTestCase {
     navigator.pause()
     XCTAssertNotNil(readiumAVPlayer(in: navigator))
   }
+
+  func testWaitOnStallTurnsOnWaitingForTheToolkitPlayer() {
+    let navigator = AudioNavigator(publication: Publication(manifest: Manifest(
+      metadata: Metadata(title: "Audiobook"),
+      readingOrder: [Link(href: "track1.mp3", mediaType: .mp3)])))
+    waitOnStall(in: navigator)
+    XCTAssertEqual(readiumAVPlayer(in: navigator)?.automaticallyWaitsToMinimizeStalling, true)
+  }
 }
 
 final class AudioResourceLoadingWatchdogTests: XCTestCase {
