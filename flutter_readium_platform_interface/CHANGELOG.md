@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 <!-- towncrier release notes start -->
 
+## [0.10.0] - 2026-11-18
+
+### Changed
+
+- **`AudioRecoveryPolicy` defaults changed.**
+  `stallTimeoutSeconds` is now 30 (was 20), `connectionTimeoutSeconds` 20 (was 10) and `recoverOnResourceLoadingTimeout` `true` (was `false`). A missing or invalid `recoverOnResourceLoadingTimeout` in `fromJson` now parses as `true`.
+
+### Fixed
+
+- **`Locator.toTextLocator()` threw `type 'List<dynamic>' is not a subtype of type 'List<String>'` for locators without a CSS id selector.**
+  This crashed the reader's orientation-change workaround on audio and media-overlay locators. The empty fragment list is now typed.
+
 ## [0.9.1] - 2026-11-09
 
 No significant changes.

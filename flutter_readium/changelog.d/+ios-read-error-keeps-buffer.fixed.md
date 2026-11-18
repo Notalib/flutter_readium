@@ -1,2 +1,0 @@
-**iOS: a network read error during audio playback no longer reloads the whole track at once.**
-The navigator was rebuilt on every retryable read error, which discarded the buffered audio and could leave playback silent in the background while the reload hung. The item is now left in place while it still plays or a stall check is watching it, and is rebuilt only if it fails or does not resume within `stallTimeoutSeconds`.

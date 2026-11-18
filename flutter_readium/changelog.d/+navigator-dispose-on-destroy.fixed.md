@@ -1,2 +1,0 @@
-**Android: closing the reader while the host activity was destroyed threw `IllegalStateException` from the navigator's `dispose()`.**
-Flutter disposes platform views inside `FragmentManager.dispatchDestroy`, so removing the navigator fragment failed with "FragmentManager is already executing transactions" or "FragmentManager has been destroyed". Dispose now skips the removal when the fragment is already detached or its manager is destroyed, and allows state loss otherwise.

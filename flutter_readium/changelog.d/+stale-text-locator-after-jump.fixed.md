@@ -1,2 +1,0 @@
-**Android and iOS: `onTextLocatorChanged` could report the previous EPUB position as the latest one after a jump.**
-Each page change emits only after a JavaScript page-info lookup, and a slow lookup for the old page could finish after the new page had been reported. A `goToLocator` right after opening a book at a saved position could then end with the saved position. Results from a superseded page change are now dropped.
