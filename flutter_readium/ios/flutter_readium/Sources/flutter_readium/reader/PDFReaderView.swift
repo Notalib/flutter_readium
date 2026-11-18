@@ -38,17 +38,18 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
     frame: CGRect,
     viewIdentifier viewId: Int64,
     arguments args: Any?,
-    registrar: FlutterPluginRegistrar
+    registrar: FlutterPluginRegistrar,
+    publication: Publication
   ) {
     Log.reader.info("init")
     let creationParams = args as! Dictionary<String, Any?>
 
-    let publication = FlutterReadiumPlugin.instance!.getCurrentPublication()!
     self.publication = publication
     self.publicationIdentifier = publication.metadata.identifier
 
     let locatorStr = creationParams["initialLocator"] as? String
-    let locator = locatorStr == nil ? nil : try! Locator(legacyJSONString: locatorStr!)
+    // `try?`: a malformed persisted locator opens at the start instead of crashing.
+    let locator = locatorStr.flatMap { try? Locator(legacyJSONString: $0) }
     Log.reader.debug("publication = \(publication)")
 
     channel = ReadiumReaderChannel(
