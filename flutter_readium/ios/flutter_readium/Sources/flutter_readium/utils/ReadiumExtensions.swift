@@ -4,7 +4,7 @@ import ReadiumNavigator
 import ReadiumShared
 import ReadiumInternal
 
-private func resolvedTemplateLink(
+internal func resolvedTemplateLink(
   _ link: Link,
   parameters: [String: String]
 ) -> Link? {
@@ -130,7 +130,7 @@ extension Publication {
   /// Enriches a list of overlays with title and tocHref from the publication's table of contents.
   /// Uses a sliding-window approach: items that don't match a ToC entry directly inherit the last
   /// matched entry when they share the same text file.
-  private func enrichOverlaysWithToc(_ overlays: [FlutterMediaOverlay]) -> [FlutterMediaOverlay] {
+  internal func enrichOverlaysWithToc(_ overlays: [FlutterMediaOverlay]) -> [FlutterMediaOverlay] {
     let toc = getFlattenedToC()
     var lastTocMatch: Link? = nil
     return overlays.map { overlay in
@@ -172,32 +172,57 @@ extension Publication {
       return (position: position, resource: resourceLink, overlay: overlayLink)
     }
 
-    var narrationJson: [(position: Int, resource: Link, json: [String: Any])] = []
-    for entry in narrationLinks {
-      let parameters = LinkTemplateResolver.parameters(
-        for: entry.resource,
-        sidecarLink: entry.overlay
-      )
-      guard let resolved = resolvedTemplateLink(entry.overlay, parameters: parameters) else {
-        continue
+    // Fetch/parse the alternates concurrently; sequential awaits made startup
+    // scale linearly with the chapter count (matches Android's concurrency cap).
+    let maxConcurrentFetches = 6
+    let rawOverlays = await withTaskGroup(
+      of: (Int, FlutterMediaOverlay?).self,
+      returning: [FlutterMediaOverlay].self
+    ) { group in
+      var next = 0
+      // AsyncTaskGroup exposes no `count`; track in-flight tasks ourselves.
+      var outstanding = 0
+      func enqueueNext() {
+        while next < narrationLinks.count, outstanding < maxConcurrentFetches {
+          let entry = narrationLinks[next]
+          next += 1
+          outstanding += 1
+          group.addTask {
+            let parameters = LinkTemplateResolver.parameters(
+              for: entry.resource,
+              sidecarLink: entry.overlay
+            )
+            guard let resolved = resolvedTemplateLink(
+              entry.overlay, parameters: parameters
+            ) else {
+              return (entry.position, nil)
+            }
+            guard let json = try? await self.get(resolved)?.read().asJSONObject().get() else {
+              return (entry.position, nil)
+            }
+            // Templated optional sidecars can be unresolved; only parsed overlays are returned.
+            return (
+              entry.position,
+              FlutterMediaOverlay.fromJson(
+                json,
+                atPosition: entry.position,
+                atTocHref: nil,
+                readingOrderDuration: entry.resource.duration,
+                tocHrefs: toc.map { $0.href }
+              )
+            )
+          }
+        }
       }
-      guard let json = try? await self.get(resolved)?.read().asJSONObject().get() else {
-        continue
+      enqueueNext()
+      var results: [(Int, FlutterMediaOverlay?)] = []
+      while let result = await group.next() {
+        outstanding -= 1
+        results.append(result)
+        enqueueNext()
       }
-      narrationJson.append((position: entry.position, resource: entry.resource, json: json))
+      return results.sorted { $0.0 < $1.0 }.compactMap { $0.1 }
     }
-    let rawOverlays = narrationJson.compactMap { entry -> FlutterMediaOverlay? in
-      return FlutterMediaOverlay.fromJson(
-        entry.json,
-        atPosition: entry.position,
-        atTocHref: nil,
-        readingOrderDuration: entry.resource.duration,
-        tocHrefs: toc.map { $0.href }
-      )
-    }
-
-    // Templated optional sidecars can be unresolved; only parsed overlays are returned.
-    assert(rawOverlays.count <= narrationLinks.count)
 
     return rawOverlays.map { $0.withTocTitles(toc) }
   }

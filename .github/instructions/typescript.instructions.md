@@ -23,3 +23,5 @@ Do **not** hand-edit the compiled JS in `example/web/`. Edit TS sources in `flut
 ```bash
 cd flutter_readium && npm run lint
 ```
+
+**Run it after every change to `web/src` TypeScript, before considering the work done** — from `flutter_readium/`. The `@typescript-eslint/no-shadow` rule (with `builtinGlobals`) catches shadowing of browser globals (`document`, `name`, …) and enclosing-scope identifiers that a typecheck passes: Terser mangles a shadowing local and the global it shadows to the same name, so the minified bundle reads the wrong variable. Do not rely on `tsc`/`npm test` alone; neither runs ESLint. If the bare `npm run lint` output points at files outside `web/src/**/*.ts` (transpiled `lib/`, `assets/`, `build/`), those are gitignored build artifacts from `bin/install`, not your change — the eslint config ignores `**/*.js` globally.
