@@ -6,11 +6,12 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.core.view.ViewCompat
 import androidx.fragment.app.FragmentManager
-import androidx.fragment.app.commitNow
 import androidx.viewpager.widget.ViewPager
 import com.github.chrisbanes.photoview.PhotoView
 import dk.nota.flutterreadium.PluginLog
 import dk.nota.flutterreadium.ReadiumReaderWidget.Companion.NAVIGATOR_FRAGMENT_TAG
+import dk.nota.flutterreadium.addNavigatorFragment
+import dk.nota.flutterreadium.removeFromParentFragmentManager
 import dk.nota.flutterreadium.throttleLatest
 import dk.nota.flutterreadium.withMainContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -113,9 +114,7 @@ class ComicNavigator :
             // Add by ViewGroup reference, not container id: the plugin's platform-view
             // container has no id resolvable by this FragmentManager, so the id-based add()
             // form fails with "No view found for id". Matches PdfNavigator.attachNavigator.
-            fragmentManager.commitNow {
-                add(viewGroup, navigator, NAVIGATOR_FRAGMENT_TAG)
-            }
+            fragmentManager.addNavigatorFragment(viewGroup, navigator, NAVIGATOR_FRAGMENT_TAG)
             // ImageNavigatorFragment's root (a KeyInterceptorView) is added with default
             // wrap_content layout params, which collapses its match_parent descendants
             // (R2ViewPager / PhotoView) to 0x0 and renders nothing. Force the root to fill
@@ -443,7 +442,7 @@ class ComicNavigator :
         super.dispose()
         launch {
             imageNavigator?.let { fragment ->
-                fragment.parentFragmentManager.commitNow { remove(fragment) }
+                fragment.removeFromParentFragmentManager()
             }
             coroutineContext.cancelChildren()
             imageNavigator = null
