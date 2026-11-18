@@ -115,9 +115,9 @@ internal class AudioStreamErrorPolicyTest {
     }
 
     @Test
-    fun `recovery policy defaults stallTimeoutSeconds to 20`() {
-        assertEquals(20.0, AudioRecoveryPolicy().stallTimeoutSeconds, 0.0)
-        assertFalse(AudioRecoveryPolicy().recoverOnResourceLoadingTimeout)
+    fun `recovery policy defaults stallTimeoutSeconds to 30 and recovers on a loading timeout`() {
+        assertEquals(30.0, AudioRecoveryPolicy().stallTimeoutSeconds, 0.0)
+        assertTrue(AudioRecoveryPolicy().recoverOnResourceLoadingTimeout)
     }
 
     @Test
@@ -160,10 +160,10 @@ internal class AudioStreamErrorPolicyTest {
     }
 
     @Test
-    fun `fromMap defaults invalid loading timeout recovery to false`() {
-        assertFalse(
+    fun `fromMap defaults invalid loading timeout recovery to true`() {
+        assertTrue(
             AudioRecoveryPolicy
-                .fromMap(mapOf("recoverOnResourceLoadingTimeout" to "true"))
+                .fromMap(mapOf("recoverOnResourceLoadingTimeout" to "false"))
                 .recoverOnResourceLoadingTimeout,
         )
     }

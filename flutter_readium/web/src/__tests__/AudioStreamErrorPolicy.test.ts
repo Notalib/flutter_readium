@@ -78,9 +78,9 @@ describe("AudioRecoveryPolicy", () => {
     expect(policy.maxAttempts).toBe(5);
   });
 
-  it("defaults stallTimeoutSeconds to 20", () => {
-    expect(new AudioRecoveryPolicy().stallTimeoutSeconds).toBe(20.0);
-    expect(new AudioRecoveryPolicy().recoverOnResourceLoadingTimeout).toBe(false);
+  it("defaults stallTimeoutSeconds to 30 and recovers on a loading timeout", () => {
+    expect(new AudioRecoveryPolicy().stallTimeoutSeconds).toBe(30.0);
+    expect(new AudioRecoveryPolicy().recoverOnResourceLoadingTimeout).toBe(true);
   });
 
   it("honors a custom backoffBaseSeconds", () => {
@@ -103,11 +103,11 @@ describe("AudioRecoveryPolicy", () => {
     expect(policy.recoverOnResourceLoadingTimeout).toBe(true);
   });
 
-  it("fromJson defaults invalid loading-timeout recovery to false", () => {
+  it("fromJson defaults invalid loading-timeout recovery to true", () => {
     expect(
-      AudioRecoveryPolicy.fromJson({ recoverOnResourceLoadingTimeout: "true" })
+      AudioRecoveryPolicy.fromJson({ recoverOnResourceLoadingTimeout: "false" })
         .recoverOnResourceLoadingTimeout
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("fromJson falls back to defaults for missing/null input", () => {

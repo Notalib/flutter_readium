@@ -11,26 +11,26 @@ import '../utils/constants.dart';
 /// `FlutterReadium().setAudioRecoveryPolicy(...)` before opening a publication.
 /// Existing audio navigators keep the policy captured at construction time.
 ///
-/// Explicit player errors recover automatically by default. Resource-loading
-/// timeouts only report loading unless the application opts into rebuilding.
+/// Explicit player errors and resource-loading timeouts both recover
+/// automatically by default.
 @immutable
 class AudioRecoveryPolicy with Equatable {
   const AudioRecoveryPolicy({
     this.maxAttempts = 3,
     this.backoffBaseSeconds = 1.0,
-    this.stallTimeoutSeconds = 20.0,
-    this.connectionTimeoutSeconds = 10.0,
-    this.recoverOnResourceLoadingTimeout = false,
+    this.stallTimeoutSeconds = 30.0,
+    this.connectionTimeoutSeconds = 20.0,
+    this.recoverOnResourceLoadingTimeout = true,
   });
 
   factory AudioRecoveryPolicy.fromJson(Map<String, dynamic> json) => AudioRecoveryPolicy(
     maxAttempts: (json['maxAttempts'] as num?)?.toInt() ?? 3,
     backoffBaseSeconds: (json['backoffBaseSeconds'] as num?)?.toDouble() ?? 1.0,
-    stallTimeoutSeconds: (json['stallTimeoutSeconds'] as num?)?.toDouble() ?? 20.0,
-    connectionTimeoutSeconds: (json['connectionTimeoutSeconds'] as num?)?.toDouble() ?? 10.0,
+    stallTimeoutSeconds: (json['stallTimeoutSeconds'] as num?)?.toDouble() ?? 30.0,
+    connectionTimeoutSeconds: (json['connectionTimeoutSeconds'] as num?)?.toDouble() ?? 20.0,
     recoverOnResourceLoadingTimeout: json['recoverOnResourceLoadingTimeout'] is bool
         ? json['recoverOnResourceLoadingTimeout'] as bool
-        : false,
+        : true,
   );
 
   /// Maximum number of automatic recovery attempts before entering a
@@ -44,18 +44,18 @@ class AudioRecoveryPolicy with Equatable {
 
   /// How long, in seconds, a resource-loading attempt may wait for its first
   /// forward playback progress before reporting a loading stall.
-  /// Defaults to `20.0`.
+  /// Defaults to `30.0`.
   final double stallTimeoutSeconds;
 
   /// How long, in seconds, a single recovery attempt may spend rebuilding the
   /// player / (re)connecting before that attempt is abandoned and the loop
   /// moves on (to the next attempt, or to terminal failure). Bounds a stalled
   /// connect so a dead network can't hang recovery indefinitely. Defaults to
-  /// `10.0`.
+  /// `20.0`.
   final double connectionTimeoutSeconds;
 
   /// Whether a resource-loading timeout starts automatic recovery.
-  /// When false, the timeout only reports a loading state. Defaults to `false`.
+  /// When false, the timeout only reports a loading state. Defaults to `true`.
   final bool recoverOnResourceLoadingTimeout;
 
   Map<String, Object?> toJson() => {

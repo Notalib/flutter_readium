@@ -87,19 +87,19 @@ extension ReadError {
 ///
 /// Consumer-configurable via `FlutterReadium().setAudioRecoveryPolicy(...)`
 /// (see `flutter_readium_platform_interface`'s `AudioRecoveryPolicy`). Explicit
-/// player errors recover by default; loading-timeout recovery is opt-in.
+/// player errors and resource-loading timeouts both recover by default.
 struct AudioRecoveryPolicy {
   var maxAttempts: Int = 3
   var backoffBaseSeconds: TimeInterval = 1.0
   /// How long a resource-loading attempt may wait for initial playback progress.
-  var stallTimeoutSeconds: TimeInterval = 20.0
+  var stallTimeoutSeconds: TimeInterval = 30.0
   /// How long, in seconds, a single recovery attempt has to prove playback
   /// advanced after rebuilding the player, before that attempt is abandoned and
   /// the loop moves on to the next one. Mirrors Android's/web's usage of the
   /// same field name.
-  var connectionTimeoutSeconds: TimeInterval = 10.0
+  var connectionTimeoutSeconds: TimeInterval = 20.0
   /// Whether a resource-loading timeout starts the recovery loop.
-  var recoverOnResourceLoadingTimeout: Bool = false
+  var recoverOnResourceLoadingTimeout: Bool = true
 
   func delay(forAttempt attempt: Int) -> TimeInterval {
     backoffBaseSeconds * pow(2.0, Double(max(attempt, 1) - 1))
@@ -117,9 +117,9 @@ struct AudioRecoveryPolicy {
     return AudioRecoveryPolicy(
       maxAttempts: (map["maxAttempts"] as? NSNumber)?.intValue ?? 3,
       backoffBaseSeconds: (map["backoffBaseSeconds"] as? NSNumber)?.doubleValue ?? 1.0,
-      stallTimeoutSeconds: (map["stallTimeoutSeconds"] as? NSNumber)?.doubleValue ?? 20.0,
-      connectionTimeoutSeconds: (map["connectionTimeoutSeconds"] as? NSNumber)?.doubleValue ?? 10.0,
-      recoverOnResourceLoadingTimeout: map["recoverOnResourceLoadingTimeout"] as? Bool ?? false
+      stallTimeoutSeconds: (map["stallTimeoutSeconds"] as? NSNumber)?.doubleValue ?? 30.0,
+      connectionTimeoutSeconds: (map["connectionTimeoutSeconds"] as? NSNumber)?.doubleValue ?? 20.0,
+      recoverOnResourceLoadingTimeout: map["recoverOnResourceLoadingTimeout"] as? Bool ?? true
     )
   }
 }

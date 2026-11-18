@@ -879,13 +879,13 @@ void main() {
   // AudioRecoveryPolicy
   // ---------------------------------------------------------------------------
   group('AudioRecoveryPolicy', () {
-    test('defaults recover explicit errors without rebuilding on loading timeout', () {
+    test('defaults recover explicit errors and loading timeouts', () {
       const policy = AudioRecoveryPolicy();
       expect(policy.maxAttempts, 3);
       expect(policy.backoffBaseSeconds, 1.0);
-      expect(policy.stallTimeoutSeconds, 20.0);
-      expect(policy.connectionTimeoutSeconds, 10.0);
-      expect(policy.recoverOnResourceLoadingTimeout, isFalse);
+      expect(policy.stallTimeoutSeconds, 30.0);
+      expect(policy.connectionTimeoutSeconds, 20.0);
+      expect(policy.recoverOnResourceLoadingTimeout, isTrue);
     });
 
     test('toJson emits a flat map (not nested/JSON-encoded)', () {
@@ -922,13 +922,13 @@ void main() {
       expect(policy, const AudioRecoveryPolicy());
     });
 
-    test('fromJson defaults missing or invalid loading-timeout recovery to false', () {
-      expect(AudioRecoveryPolicy.fromJson({}).recoverOnResourceLoadingTimeout, isFalse);
+    test('fromJson defaults missing or invalid loading-timeout recovery to true', () {
+      expect(AudioRecoveryPolicy.fromJson({}).recoverOnResourceLoadingTimeout, isTrue);
       expect(
         AudioRecoveryPolicy.fromJson({
-          'recoverOnResourceLoadingTimeout': 'true',
+          'recoverOnResourceLoadingTimeout': 'false',
         }).recoverOnResourceLoadingTimeout,
-        isFalse,
+        isTrue,
       );
     });
 
@@ -938,7 +938,7 @@ void main() {
       expect(updated.maxAttempts, 3);
       expect(updated.backoffBaseSeconds, 1.0);
       expect(updated.stallTimeoutSeconds, 10.0);
-      expect(updated.recoverOnResourceLoadingTimeout, isFalse);
+      expect(updated.recoverOnResourceLoadingTimeout, isTrue);
     });
 
     test('copyWith() with no args preserves all fields', () {
