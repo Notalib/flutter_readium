@@ -54,13 +54,13 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     )
     self._initialLocator = resolveLocator(initialLocator)
 
-    // Upstream disables automatic stall waiting and does not observe stalls, so an underrun
-    // leaves the player paused; see handlePlaybackStalled. The notification is posted on the
+    // Upstream observes neither stalls nor an item that fails mid-playback, and both leave
+    // the player stopped; see handlePlaybackStalled. The notifications are posted on the
     // item and only one audio player exists at a time, so object: nil is fine.
-    _playbackStalledObserver = NotificationCenter.default.addObserver(
-      forName: .AVPlayerItemPlaybackStalled, object: nil, queue: .main
-    ) { [weak self] _ in
-      Task { @MainActor [weak self] in self?.handlePlaybackStalled() }
+    _playbackStoppedObservers = [.AVPlayerItemPlaybackStalled, .AVPlayerItemFailedToPlayToEndTime].map {
+      NotificationCenter.default.addObserver(forName: $0, object: nil, queue: .main) { [weak self] _ in
+        Task { @MainActor [weak self] in self?.handlePlaybackStalled() }
+      }
     }
   }
 
@@ -125,10 +125,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     _resourceLoadingWatchdog.reset()
     _stallCheckTask?.cancel()
     _stallCheckTask = nil
-    if let observer = _playbackStalledObserver {
-      NotificationCenter.default.removeObserver(observer)
-      _playbackStalledObserver = nil
-    }
+    _playbackStoppedObservers.forEach(NotificationCenter.default.removeObserver)
+    _playbackStoppedObservers = []
     if (self._audioNavigator != nil) {
       self._audioNavigator?.pause()
       self._audioNavigator?.delegate = nil
@@ -161,7 +159,9 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     setUpNowPlaying()
   }
 
+  /// Once only: setupCommandCenterControls adds remote-command targets without removing old ones.
   private func setUpNowPlaying() {
+    guard !_nowPlayingSetUp else { return }
     _nowPlayingSetUp = true
     _nowPlayingUpdater.setupNowPlayingInfo()
     _nowPlayingUpdater.setupCommandCenterControls(
@@ -191,10 +191,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     _audioNavigator?.play()
     armResourceLoadingWatchdog()
     // Playback can start here without play(fromLocator:), and the lock screen needs this too.
-    // Once only: setupCommandCenterControls adds remote-command targets without removing old ones.
-    if !_nowPlayingSetUp {
-      setUpNowPlaying()
-    }
+    setUpNowPlaying()
   }
 
   public func togglePlayPause() async -> Void {
@@ -601,7 +598,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   /// Keeps the app alive in the background while the player is stopped between tracks,
   /// stalled or recovering. Released once playback is audible again, or on pause.
   private let _backgroundHold = BackgroundPlaybackHold()
-  private var _playbackStalledObserver: NSObjectProtocol?
+  private var _playbackStoppedObservers: [NSObjectProtocol] = []
   /// The running stall check; see `handlePlaybackStalled`. At most one at a time.
   private var _stallCheckTask: Task<Void, Never>?
   /// How often the stall check and the recovery check sample playback.
@@ -763,7 +760,10 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       {
         return .resumed
       }
-      lastTime = time
+      // Only while not playing, so slow playback adds up across samples.
+      if playback.state != .playing {
+        lastTime = time
+      }
       guard stallCheckStillApplies else {
         return .abandoned
       }
@@ -1270,8 +1270,9 @@ func readErrorCanWaitForStallCheck(
   stallCheckRunning || (isPlaying && bufferState != .failed)
 }
 
-/// True when a stalled player is playing again. Time is compared with the previous sample,
-/// not the stall position: after a seek, playback can be fine from an earlier time.
+/// True when a stalled player is playing again. Time is compared with the last sample taken
+/// while not playing, not the stall position: after a seek, playback can be fine from an
+/// earlier time.
 func playbackMoved(
   isPlaying: Bool, resourceChanged: Bool, time: TimeInterval, lastTime: TimeInterval
 ) -> Bool {
