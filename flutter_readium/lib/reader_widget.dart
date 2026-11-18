@@ -365,7 +365,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       color: const Color(0xffff00ff),
       child: Center(
         child: Text(
-          'TODO — Implement ReadiumReaderWidget on ${Platform.operatingSystem}.',
+          'ReadiumReaderWidget is not supported on ${Platform.operatingSystem}.',
         ),
       ),
     );
