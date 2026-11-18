@@ -30,6 +30,10 @@ echo "Formatting flutter_readium..."
 ( cd "$REPO_ROOT/flutter_readium" && flutter pub get > /dev/null )
 format_dir "$REPO_ROOT/flutter_readium"
 
+echo "Formatting flutter_readium_lcp..."
+( cd "$REPO_ROOT/flutter_readium_lcp" && flutter pub get > /dev/null )
+dart format --set-exit-if-changed "$REPO_ROOT/flutter_readium_lcp"
+
 echo "Formatting example app..."
 ( cd "$REPO_ROOT/flutter_readium/example" && flutter pub get > /dev/null )
 format_dir "$REPO_ROOT/flutter_readium/example"
@@ -41,3 +45,4 @@ format_dir "$REPO_ROOT/flutter_readium/test"
 ## Run flutter analyze on all packages in the repo.
 flutter analyze --fatal-infos --fatal-warnings $REPO_ROOT/flutter_readium
 flutter analyze --fatal-infos --fatal-warnings $REPO_ROOT/flutter_readium_platform_interface
+flutter analyze --fatal-infos --fatal-warnings $REPO_ROOT/flutter_readium_lcp

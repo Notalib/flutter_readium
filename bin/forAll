@@ -12,6 +12,7 @@ fi
 dir=(
 	"$REPO_ROOT/flutter_readium"
 	"$REPO_ROOT/flutter_readium_platform_interface"
+	"$REPO_ROOT/flutter_readium_lcp"
 )
 for i in "${dir[@]}"; do
 	echo -e "\033[35;1m=== $@ $i ===\033[0m"

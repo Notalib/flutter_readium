@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The LCP toolkit fetches the certificate revocation list over plain HTTP. -->
+<network-security-config>
+  <domain-config cleartextTrafficPermitted="true">
+    <domain includeSubdomains="false">crl.edrlab.telesec.de</domain>
+  </domain-config>
+</network-security-config>

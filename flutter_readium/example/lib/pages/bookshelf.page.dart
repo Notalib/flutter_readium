@@ -7,6 +7,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
+import 'package:flutter_readium_lcp/flutter_readium_lcp.dart';
 import 'package:logging/logging.dart';
 
 import '../state/index.dart';
@@ -205,6 +206,7 @@ class BookshelfPageState extends State<BookshelfPage> {
                           ),
                         ),
                 ),
+                if (!kIsWeb) _buildLcpCard(context),
                 if (!kIsWeb) _buildAddBookCard(context),
               ],
             ),
@@ -289,6 +291,65 @@ class BookshelfPageState extends State<BookshelfPage> {
       _log.severe('Error picking publication: $e');
       _toast('Error picking file: $e');
     }
+  }
+
+  /// Opens an LCP fixture (see bin/build_lcp_test_fixtures). Opening it asks Dart for the passphrase.
+  Future<void> _openLcpFixture(final String fileName) async {
+    final pubPath = await PublicationUtils.lcpFixturePath(fileName);
+    if (pubPath == null) {
+      _toast('Missing $fileName. Run bin/build_lcp_test_fixtures, then restart the app.');
+      return;
+    }
+    await _openLcpPublication(pubPath);
+  }
+
+  /// Acquires the publication the bundled license document points to, then opens it.
+  /// The document's download URL is local: serve the fixtures folder first (see docs/guides/lcp.md).
+  Future<void> _acquireLcpFixture() async {
+    const fileName = 'lcp_acquire_peter_rabbit.lcpl';
+    final lcplPath = await PublicationUtils.lcpFixturePath(fileName);
+    if (lcplPath == null) {
+      _toast('Missing $fileName. Run bin/build_lcp_test_fixtures, then restart the app.');
+      return;
+    }
+    try {
+      var lastTenth = -1;
+      final acquired = await FlutterReadiumLcp().acquirePublication(
+        lcplPath,
+        onProgress: (final progress) {
+          final tenth = (progress * 10).floor();
+          if (tenth == lastTenth) return;
+          lastTenth = tenth;
+          _log.info('LCP acquisition ${(progress * 100).round()}%');
+        },
+      );
+      _log.info('LCP acquired ${acquired.fileName} (${acquired.mediaType}) at ${acquired.path}');
+      _toast('Acquired ${acquired.fileName}');
+      await _openLcpPublication(acquired.path);
+    } on LcpException catch (e) {
+      _log.warning('LCP acquisition failed: ${e.runtimeType} ${e.cause.code} ${e.message}');
+      _toast('LCP failure: ${e.runtimeType}');
+    } on ReadiumException catch (e) {
+      _log.warning('LCP acquisition failed: ${e.code} ${e.message}');
+      _toast('Acquisition failed: ${e.code}');
+    }
+  }
+
+  Future<void> _openLcpPublication(final String pubPath) async {
+    try {
+      // Opens for reading, so the passphrase prompt and the typed LCP errors surface here, before the player.
+      await _flutterReadiumPlugin.openPublication(pubPath);
+    } on ReadiumException catch (e) {
+      final lcp = LcpException.fromReadiumException(e);
+      _log.warning('LCP open failed: ${lcp.runtimeType} ${e.code} ${e.message}');
+      _toast(lcp == null ? 'Open failed: ${e.code}' : 'LCP failure: ${lcp.runtimeType}');
+      return;
+    }
+    if (!mounted) return;
+    PublicationUtils.markLcp(pubPath);
+    context.read<PlayerControlsBloc>().resetCurrentLocator();
+    context.read<PublicationBloc>().add(OpenPublication(publicationUrl: pubPath));
+    Navigator.restorablePushNamed(context, '/player');
   }
 
   void _sortPublicationsInPlace() {
@@ -479,6 +540,43 @@ class BookshelfPageState extends State<BookshelfPage> {
                 ),
             ],
           ),
+        ),
+      ),
+    ),
+  );
+
+  Widget _buildLcpCard(final BuildContext context) => Container(
+    padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 0),
+    child: Wrap(
+      alignment: WrapAlignment.center,
+      children: [
+        _lcpButton('open_lcp_epub', 'Open LCP test book', Icons.lock, () => _openLcpFixture('lcp_peter_rabbit.epub')),
+        _lcpButton(
+          'open_lcp_audiobook',
+          'Open LCP audiobook',
+          Icons.headphones,
+          () => _openLcpFixture('lcp_38533.lcpa'),
+        ),
+        _lcpButton('open_lcp_pdf', 'Open LCP PDF', Icons.picture_as_pdf, () => _openLcpFixture('lcp_pdf_test.lcpdf')),
+        _lcpButton('acquire_lcp_epub', 'Acquire LCP book', Icons.download, _acquireLcpFixture),
+      ],
+    ),
+  );
+
+  Widget _lcpButton(final String key, final String label, final IconData icon, final VoidCallback onTap) => InkWell(
+    key: ValueKey(key),
+    onTap: onTap,
+    child: Card(
+      color: Colors.amber[200],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 5.0),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20),
+            const SizedBox(width: 4),
+            Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+          ],
         ),
       ),
     ),

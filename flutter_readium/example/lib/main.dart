@@ -3,6 +3,7 @@ import 'package:logging/logging.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
+import 'package:flutter_readium_lcp/flutter_readium_lcp.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:marionette_flutter/marionette_flutter.dart';
 import 'package:marionette_logging/marionette_logging.dart';
@@ -11,7 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'pages/index.dart';
 import 'state/index.dart';
 import 'utils/agent_extensions.dart';
-import 'utils/navigator_key.dart';
+import 'utils/index.dart';
 
 Future<void> main() async {
   // Initialize Marionette only in debug mode
@@ -37,6 +38,12 @@ Future<void> main() async {
 
   // Modify log level for the entire plugin here. The default is LogLevel.info.
   FlutterReadium().setLogLevel(LogLevel.debug);
+
+  // Answers the native LCP toolkit's passphrase requests with a dialog.
+  FlutterReadiumLcp().setPassphraseProvider((final request) async {
+    final context = navigatorKey.currentContext;
+    return context == null ? null : showLcpPassphraseDialog(context, request);
+  });
 
   runApp(
     MultiBlocProvider(
