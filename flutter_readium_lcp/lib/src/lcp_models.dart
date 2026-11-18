@@ -75,6 +75,9 @@ class LcpLicenseInfo {
     this.state,
     this.statusMessage,
     this.statusUpdated,
+    this.canRenewLoan = false,
+    this.maxRenewDate,
+    this.canReturnPublication = false,
   });
 
   factory LcpLicenseInfo.fromJson(final Map<Object?, Object?> json) => LcpLicenseInfo(
@@ -91,6 +94,9 @@ class LcpLicenseInfo {
     state: LcpLicenseState.fromWire(json['state'] as String?),
     statusMessage: json['statusMessage'] as String?,
     statusUpdated: _date(json['statusUpdated']),
+    canRenewLoan: json['canRenewLoan'] as bool? ?? false,
+    maxRenewDate: _date(json['maxRenewDate']),
+    canReturnPublication: json['canReturnPublication'] as bool? ?? false,
   );
 
   /// Identifier of the license.
@@ -132,6 +138,15 @@ class LcpLicenseInfo {
   /// When the status document was last updated.
   final DateTime? statusUpdated;
 
+  /// Whether the status document offers a renew link. Renew may still fail on the server.
+  final bool canRenewLoan;
+
+  /// The latest end date a renewal can reach, from the status document. Null when it does not say.
+  final DateTime? maxRenewDate;
+
+  /// Whether the status document offers a return link.
+  final bool canReturnPublication;
+
   Map<String, Object?> toJson() => {
     'licenseId': licenseId,
     'provider': provider,
@@ -146,6 +161,9 @@ class LcpLicenseInfo {
     'state': state?.name,
     'statusMessage': statusMessage,
     'statusUpdated': statusUpdated?.toIso8601String(),
+    'canRenewLoan': canRenewLoan,
+    'maxRenewDate': maxRenewDate?.toIso8601String(),
+    'canReturnPublication': canReturnPublication,
   };
 
   static DateTime? _date(final Object? value) => value is String ? DateTime.tryParse(value) : null;

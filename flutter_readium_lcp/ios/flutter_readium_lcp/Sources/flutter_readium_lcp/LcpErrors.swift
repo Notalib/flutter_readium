@@ -12,6 +12,18 @@ enum LcpErrors {
     return FlutterError(code: custom.code, message: custom.message, details: custom.data)
   }
 
+  /// Like `flutterError`, for a failed renew or return call.
+  static func loanFlutterError(_ error: Error) -> FlutterError {
+    let custom = mapLoan(error)
+    return FlutterError(code: custom.code, message: custom.message, details: custom.data)
+  }
+
+  /// The failure of the renew web page callback: the plugin cannot show the page, so the app gets the URL.
+  static func renewWebPage(_ url: String) -> FlutterError {
+    FlutterError(
+      code: "lcpRenewWebPage", message: "The server renews this loan through a web page.", details: ["url": url])
+  }
+
   /// `error` is nil when the user cancelled the passphrase prompt: the toolkit hides that case.
   static func map(_ error: Error?) -> FlutterReadiumCustomError {
     guard let error else { return passphraseRequired("A passphrase is required to open this publication.") }
@@ -44,6 +56,42 @@ enum LcpErrors {
     default:
       return unexpected(error)
     }
+  }
+
+  private static func mapLoan(_ error: Error) -> FlutterReadiumCustomError {
+    guard let lcpError = error as? LCPError else { return map(error) }
+    switch lcpError {
+    case .licenseInteractionNotAvailable:
+      return FlutterReadiumCustomError(code: "lcpLoanNotAvailable", message: "The license does not offer this loan action.")
+    case .licenseRenew(let renewError):
+      switch renewError {
+      case .renewFailed:
+        return loanFailed(reason: "rejected", message: "The server rejected the renewal.")
+      case .invalidRenewalPeriod(let maxRenewDate):
+        var data: [String: Any] = [:]
+        if let maxRenewDate { data["maxRenewDate"] = iso(maxRenewDate) }
+        return FlutterReadiumCustomError(
+          code: "lcpRenewPeriod", message: "The requested end date is not allowed.", data: data)
+      case .unexpectedServerError:
+        return loanFailed(reason: "server", message: "The license server failed to renew the loan.")
+      }
+    case .licenseReturn(let returnError):
+      switch returnError {
+      case .returnFailed:
+        return loanFailed(reason: "rejected", message: "The server rejected the return.")
+      case .alreadyReturnedOrExpired:
+        return FlutterReadiumCustomError(
+          code: "lcpAlreadyReturned", message: "The loan was already returned or has expired.")
+      case .unexpectedServerError:
+        return loanFailed(reason: "server", message: "The license server failed to return the loan.")
+      }
+    default:
+      return map(error)
+    }
+  }
+
+  private static func loanFailed(reason: String, message: String) -> FlutterReadiumCustomError {
+    FlutterReadiumCustomError(code: "lcpLoanFailed", message: message, data: ["reason": reason])
   }
 
   private static func passphraseRequired(_ message: String) -> FlutterReadiumCustomError {

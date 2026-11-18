@@ -70,6 +70,47 @@ void main() {
       expect(LcpException.fromReadiumException(_wire(LcpErrorCodes.unexpected)), isA<LcpUnexpectedException>());
     });
 
+    test('loan not available', () {
+      expect(
+        LcpException.fromReadiumException(_wire(LcpErrorCodes.loanNotAvailable)),
+        isA<LcpLoanNotAvailableException>(),
+      );
+    });
+
+    test('loan failed carries whether the server failed', () {
+      final rejected = LcpException.fromReadiumException(_wire(LcpErrorCodes.loanFailed, {'reason': 'rejected'}));
+      final server = LcpException.fromReadiumException(_wire(LcpErrorCodes.loanFailed, {'reason': 'server'}));
+      expect((rejected! as LcpLoanFailedException).isServerError, isFalse);
+      expect((server! as LcpLoanFailedException).isServerError, isTrue);
+    });
+
+    test('renew period carries the maximum date when known', () {
+      final known = LcpException.fromReadiumException(
+        _wire(LcpErrorCodes.renewPeriod, {'maxRenewDate': '2026-05-06T07:08:09Z'}),
+      );
+      final unknown = LcpException.fromReadiumException(_wire(LcpErrorCodes.renewPeriod));
+      expect((known! as LcpRenewPeriodException).maxRenewDate, DateTime.utc(2026, 5, 6, 7, 8, 9));
+      expect((unknown! as LcpRenewPeriodException).maxRenewDate, isNull);
+    });
+
+    test('already returned', () {
+      expect(
+        LcpException.fromReadiumException(_wire(LcpErrorCodes.alreadyReturned)),
+        isA<LcpAlreadyReturnedException>(),
+      );
+    });
+
+    test('renew web page carries the url', () {
+      final err = LcpException.fromReadiumException(
+        _wire(LcpErrorCodes.renewWebPage, {'url': 'https://provider.example/renew/1'}),
+      );
+      expect((err! as LcpRenewWebPageException).url, 'https://provider.example/renew/1');
+    });
+
+    test('renew web page without a url is unexpected', () {
+      expect(LcpException.fromReadiumException(_wire(LcpErrorCodes.renewWebPage)), isA<LcpUnexpectedException>());
+    });
+
     test('non-LCP codes return null', () {
       expect(LcpException.fromReadiumException(_wire('forbidden')), isNull);
       expect(LcpException.fromReadiumException(_wire('readingError')), isNull);

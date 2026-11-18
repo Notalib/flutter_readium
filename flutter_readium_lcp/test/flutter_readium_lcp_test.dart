@@ -95,5 +95,10 @@ void main() {
     test('getLicenseInfo throws UnsupportedError', () async {
       await expectLater(lcp.getLicenseInfo('/x.epub'), throwsUnsupportedError);
     });
+
+    test('renewLoan and returnPublication throw UnsupportedError', () async {
+      await expectLater(lcp.renewLoan('/x.epub'), throwsUnsupportedError);
+      await expectLater(lcp.returnPublication('/x.epub'), throwsUnsupportedError);
+    });
   });
 }

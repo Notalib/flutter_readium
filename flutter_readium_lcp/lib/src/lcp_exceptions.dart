@@ -9,6 +9,11 @@ abstract final class LcpErrorCodes {
   static const licenseStatus = 'lcpLicenseStatus';
   static const network = 'lcpNetwork';
   static const unexpected = 'lcpError';
+  static const loanNotAvailable = 'lcpLoanNotAvailable';
+  static const loanFailed = 'lcpLoanFailed';
+  static const renewPeriod = 'lcpRenewPeriod';
+  static const alreadyReturned = 'lcpAlreadyReturned';
+  static const renewWebPage = 'lcpRenewWebPage';
 }
 
 /// Why a license failed its integrity checks.
@@ -40,7 +45,7 @@ enum LcpLicenseStatus {
   static LcpLicenseStatus? fromWire(String? value) => LcpLicenseStatus.values.asNameMap()[value];
 }
 
-/// A typed LCP failure from opening a publication. Get one from [fromReadiumException].
+/// A typed LCP failure from opening a publication or managing its loan. Get one from [fromReadiumException].
 sealed class LcpException implements Exception {
   const LcpException(this.message, this.cause);
 
@@ -78,6 +83,18 @@ sealed class LcpException implements Exception {
         return LcpNetworkException._(message, exception, isCrl: details?['reason'] == 'crl');
       case LcpErrorCodes.unexpected:
         return LcpUnexpectedException._(message, exception);
+      case LcpErrorCodes.loanNotAvailable:
+        return LcpLoanNotAvailableException._(message, exception);
+      case LcpErrorCodes.loanFailed:
+        return LcpLoanFailedException._(message, exception, isServerError: details?['reason'] == 'server');
+      case LcpErrorCodes.renewPeriod:
+        return LcpRenewPeriodException._(message, exception, maxRenewDate: _date(details?['maxRenewDate']));
+      case LcpErrorCodes.alreadyReturned:
+        return LcpAlreadyReturnedException._(message, exception);
+      case LcpErrorCodes.renewWebPage:
+        final url = details?['url'] as String?;
+        if (url == null) return LcpUnexpectedException._(message, exception);
+        return LcpRenewWebPageException._(message, exception, url);
     }
     return null;
   }
@@ -139,4 +156,40 @@ final class LcpNetworkException extends LcpException {
 /// Any other LCP failure.
 final class LcpUnexpectedException extends LcpException {
   const LcpUnexpectedException._(super.message, super.cause);
+}
+
+/// The license has no renew link ([LcpLicenseInfo.canRenewLoan]) or no return link
+/// ([LcpLicenseInfo.canReturnPublication]), so the action is not offered.
+final class LcpLoanNotAvailableException extends LcpException {
+  const LcpLoanNotAvailableException._(super.message, super.cause);
+}
+
+/// The license server refused or failed the renew or return request.
+final class LcpLoanFailedException extends LcpException {
+  const LcpLoanFailedException._(super.message, super.cause, {required this.isServerError});
+
+  /// True when the server answered with an unexpected error or could not be reached. Both platforms
+  /// report these together. False when the server rejected the request as invalid.
+  final bool isServerError;
+}
+
+/// The server rejected the requested end date, so the loan was not renewed.
+final class LcpRenewPeriodException extends LcpException {
+  const LcpRenewPeriodException._(super.message, super.cause, {this.maxRenewDate});
+
+  /// The latest end date the license allows, when the toolkit knows it.
+  final DateTime? maxRenewDate;
+}
+
+/// The loan was already returned or has expired, so it cannot be returned.
+final class LcpAlreadyReturnedException extends LcpException {
+  const LcpAlreadyReturnedException._(super.message, super.cause);
+}
+
+/// The server renews loans through a web page, which the plugin cannot show. Open [url] in a
+/// browser instead; the plugin does not renew the loan then.
+final class LcpRenewWebPageException extends LcpException {
+  const LcpRenewWebPageException._(super.message, super.cause, this.url);
+
+  final String url;
 }

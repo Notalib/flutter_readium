@@ -25,10 +25,12 @@ import org.readium.r2.shared.publication.protection.ContentProtection
 import org.readium.r2.shared.publication.services.protectionError
 import org.readium.r2.shared.publication.services.protectionScheme
 import org.readium.r2.shared.util.Try
+import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.http.DefaultHttpClient
 import java.io.File
 import kotlin.coroutines.resume
+import kotlin.time.Instant
 
 private const val TAG = "FlutterReadiumLcp"
 private const val CHANNEL_NAME = "dk.nota/flutter_readium_lcp"
@@ -78,6 +80,8 @@ class FlutterReadiumLcpPlugin :
             "isAvailable" -> result.success(didRegisterWithCore)
             "acquirePublication" -> acquirePublication(call, result)
             "getLicenseInfo" -> getLicenseInfo(call, result)
+            "renewLoan" -> renewLoan(call, result)
+            "returnPublication" -> returnPublication(call, result)
             else -> result.notImplemented()
         }
     }
@@ -208,6 +212,40 @@ class FlutterReadiumLcpPlugin :
         result: MethodChannel.Result,
     ) = withLicense(call, result) { license -> result.success(licenseInfo(license)) }
 
+    private fun renewLoan(
+        call: MethodCall,
+        result: MethodChannel.Result,
+    ) {
+        val preferredEnd = call.argument<Number>("endMillis")?.let { Instant.fromEpochMilliseconds(it.toLong()) }
+        withLicense(call, result) { license ->
+            val listener = RenewListener(preferredEnd)
+            when (val renewed = license.renewLoan(listener, prefersWebPage = false)) {
+                is Try.Failure -> {
+                    val webPageUrl = listener.webPageUrl
+                    if (webPageUrl != null) {
+                        LcpErrors.reportRenewWebPage(result, webPageUrl)
+                    } else {
+                        LcpErrors.reportLoan(result, renewed.value)
+                    }
+                }
+
+                is Try.Success -> {
+                    result.success(licenseInfo(license))
+                }
+            }
+        }
+    }
+
+    private fun returnPublication(
+        call: MethodCall,
+        result: MethodChannel.Result,
+    ) = withLicense(call, result) { license ->
+        when (val returned = license.returnPublication()) {
+            is Try.Failure -> LcpErrors.reportLoan(result, returned.value)
+            is Try.Success -> result.success(true)
+        }
+    }
+
     private fun licenseInfo(lcpLicense: LcpLicense): Map<String, Any?> {
         val document = lcpLicense.license
         val rights = document.rights
@@ -226,6 +264,9 @@ class FlutterReadiumLcpPlugin :
             "state" to status?.status?.value,
             "statusMessage" to status?.message,
             "statusUpdated" to status?.statusUpdated?.toString(),
+            "canRenewLoan" to lcpLicense.canRenewLoan,
+            "maxRenewDate" to lcpLicense.maxRenewDate?.toString(),
+            "canReturnPublication" to lcpLicense.canReturnPublication,
         )
     }
 
@@ -290,6 +331,24 @@ class FlutterReadiumLcpPlugin :
                 Log.w(TAG, "::isLcpClientAvailable. The LCP client library failed to load: $e")
                 false
             }
+    }
+}
+
+/** Renew listener that never shows a web page: it records the URL and fails, so the app can open it. */
+private class RenewListener(
+    private val preferredEnd: Instant?,
+) : LcpLicense.RenewListener {
+    class WebPageNotSupportedException : Exception()
+
+    var webPageUrl: String? = null
+        private set
+
+    override suspend fun preferredEndDate(maximumDate: Instant?): Instant? =
+        preferredEnd?.let { if (maximumDate != null && maximumDate < it) maximumDate else it }
+
+    override suspend fun openWebPage(url: Url) {
+        webPageUrl = url.toString()
+        throw WebPageNotSupportedException()
     }
 }
 

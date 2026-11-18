@@ -5,11 +5,14 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 # from the unprotected fixtures in example/assets/pubs/, then verifies its own output.
 # Needs bin/fetch_test_resources to have run first; keys are throwaway and never stored.
 #
-# Usage: bin/build_lcp_test_fixtures [--verify] [--base-url URL]
+# Usage: bin/build_lcp_test_fixtures [--verify] [--base-url URL] [--lcp-server URL [--content-url-base URL]]
 #   (no flag)     generate, then verify
 #   --verify      only verify the existing outputs
 #   --base-url    where the acquisition .lcpl says the publication is served
 #                 (default: $LCP_ACQUIRE_BASE_URL or http://127.0.0.1:8765)
+#   --lcp-server  opt-in, replaces the normal run: create loan fixtures (lcp_loan_*) on a Readium
+#                 lcpserver you run, to test renew and return. Needs LCP_SERVER_USER and
+#                 LCP_SERVER_PASSWORD in the environment. See bin/build_lcp_test_fixtures.py.
 #
 # Outputs (gitignored): lcp_*.epub / .lcpa / .lcpdf, lcp_acquire_*.{epub,lcpl} and the
 # root CA certificate lcp_test_root_ca.{der,pem}. Details: bin/build_lcp_test_fixtures.py.

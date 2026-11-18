@@ -7,11 +7,12 @@ The optional `flutter_readium_lcp` package adds [Readium LCP](https://www.edrlab
 - Opening LCP publications through the normal `openPublication`, with a passphrase prompt driven from Dart.
 - Typed errors for a missing or wrong passphrase, an invalid license, a license status failure (expired, revoked, returned, cancelled, not started) and network failures.
 - Acquiring a publication from a `.lcpl` file, with download progress.
-- Read-only license info: provider, dates, rights, remaining copy and print allowance, status.
+- License info: provider, dates, rights, remaining copy and print allowance, status, and whether the loan can be renewed or returned.
+- Renewing and returning a loan through the license status server, with typed errors.
 
 ## What is not covered
 
-- Returning or renewing a loan. The plugin has no API for either.
+- Renewing a loan through a web page. The plugin always asks the toolkit for a programmatic renewal, and fails with `LcpRenewWebPageException` (carrying the URL) if the provider only offers a web page.
 - Web. The plugin has no web implementation. `FlutterReadiumLcp.isAvailable()` returns false there, and the other calls throw `UnsupportedError`.
 - Production use out of the box. LCP needs EDRLab's private client library, which this repository never contains or depends on (see below).
 - The embedded outline of an LCP PDF as table of contents on iOS. The plugin reads the table of contents from the publication manifest only (`getFlattenedToC` in `utils/ReadiumExtensions.swift`, which notes that it does not support LCP PDFs). Whether Android exposes it was not checked.
@@ -115,6 +116,12 @@ try {
       // integrity, signature, profileNotSupported or malformed.
     case LcpNetworkException(:final isCrl):
       // The CRL or another license request failed.
+    case LcpLoanNotAvailableException():
+    case LcpLoanFailedException():
+    case LcpRenewPeriodException():
+    case LcpAlreadyReturnedException():
+    case LcpRenewWebPageException():
+      // Loan failures: only renewLoan and returnPublication throw these (see below).
     case LcpUnexpectedException():
     case null:
       // Not an LCP failure: handle e as usual.
@@ -128,6 +135,15 @@ await FlutterReadium().openPublication(acquired.path);
 // Read license facts.
 final info = await lcp.getLicenseInfo(acquired.path);
 print('${info.provider} ${info.state} ${info.rightsEnd} ${info.charactersToCopyLeft}');
+
+// Renew or return a loan. renewLoan without an end date asks for the longest period the server allows.
+if (info.canRenewLoan) {
+  final renewed = await lcp.renewLoan(acquired.path, end: info.maxRenewDate);
+  print(renewed.rightsEnd);
+}
+if (info.canReturnPublication) {
+  await lcp.returnPublication(acquired.path);
+}
 ```
 
 Notes:
@@ -136,6 +152,8 @@ Notes:
 - The toolkit asks again with `LcpPassphraseReason.invalid` until the passphrase is right or the provider returns null. A provider that throws counts as cancelled.
 - `acquirePublication` stores the file in `flutter_readium_lcp/acquired/` inside the app's private storage (iOS Application Support, Android `filesDir`) and replaces an existing file for the same license. Move it if your library lives elsewhere.
 - `getLicenseInfo` works on the file whether or not the publication is open. It can ask for the passphrase and can contact the license status server. It throws the matching `LcpLicenseStatusException` when the license is restricted (for example returned or expired), on both platforms.
+- `renewLoan(path, {end})` returns the updated `LcpLicenseInfo`. The end date is clamped to `maxRenewDate`; without `end` the provider's default period applies. `rightsEnd` can show the new date only if the toolkit can fetch the updated license from the `license` link of the status document (see [Loans](#loans)).
+- `returnPublication(path)` returns nothing. After it, the license is restricted: `getLicenseInfo` and a fresh `openPublication` throw `LcpLicenseStatusException` with status `returned`.
 - `isAvailable()` tells whether the native side registered LCP.
 
 ### Errors
@@ -152,6 +170,22 @@ Which fields a `LcpLicenseStatusException` carries:
 | `notStarted` | none | both | none | none |
 
 The iOS toolkit reports a license that has not started yet as expired; the plugin maps it to `notStarted` when the start date is in the future.
+
+### Loans
+
+`renewLoan` and `returnPublication` use the license status server (LSD) the license points to. Their failures use these codes, identical on iOS and Android:
+
+| Code | Dart type | Meaning |
+|---|---|---|
+| `lcpLoanNotAvailable` | `LcpLoanNotAvailableException` | The license has no renew or return interaction (no status document or link). |
+| `lcpLoanFailed` | `LcpLoanFailedException(isServerError)` | The server rejected the request, or it failed. `isServerError` is true for server, network and unexpected-response failures. |
+| `lcpRenewPeriod` | `LcpRenewPeriodException(maxRenewDate)` | The requested end date is not allowed. |
+| `lcpAlreadyReturned` | `LcpAlreadyReturnedException` | The license was already returned or has expired. |
+| `lcpRenewWebPage` | `LcpRenewWebPageException(url)` | The provider only offers renewal on a web page, which the plugin does not open. |
+
+Both toolkits report an unreachable server as an unexpected server error, so connectivity failures also arrive as `LcpLoanFailedException` with `isServerError` true.
+
+After a successful renew or return, both toolkits try to fetch the updated license from the status document's `license` link. When the fetch works, `renewLoan` returns the new end date, and it is still there after reopening the book. When the link is unreachable, the renew still succeeds on the server, but the toolkit ignores the failed fetch and the app keeps the old end date. A fetched license without a `publication` link is rejected as malformed: the renew and later opens fail with `LcpLicenseInvalidException`.
 
 ## `loadPublication` and `openPublication`
 
@@ -178,6 +212,8 @@ cd flutter_readium/example/assets/pubs && python3 -m http.server 8765 --bind 127
 
 On an Android device, `127.0.0.1` is the phone itself: run `adb reverse tcp:8765 tcp:8765`. Debug builds of the example allow cleartext to `127.0.0.1` and `localhost` for this; release builds only allow the CRL host. To serve from another address, pass `--base-url` to the script.
 
+To try renew and return you need your own Readium `lcpserver` and `lsdserver`. `bin/build_lcp_test_fixtures --lcp-server http://127.0.0.1:8989` (with `LCP_SERVER_USER` and `LCP_SERVER_PASSWORD` in the environment) registers a throwaway publication on that server and writes `lcp_loan_peter_rabbit.epub` and `.lcpl`, a 3-day loan. The bookshelf button "Open LCP loan" opens it, and the license sheet in the player has the renew and return buttons. The license must also exist on the `lsdserver`; if your `lcpserver` does not notify it, register the license there yourself. The `lsdserver` must reach the `lcpserver` at the URL it has configured, or renew and return fail with a server error. The script is opt-in and not used by the normal run or by CI.
+
 The fixtures are generated and gitignored. They are also missing in CI, so the LCP integration test is not part of the aggregated CI entrypoint. Run it on its own, after resetting stored passphrases (iOS: `xcrun simctl keychain booted reset`; Android: `adb shell pm clear com.example.flutter_readium_example`):
 
 ```bash
@@ -189,7 +225,8 @@ It checks that `loadPublication` returns metadata without a prompt, that a cance
 
 ## Known limitations
 
-- No return or renew, and no web support (see above).
+- No web support and no web-page renewal (see above).
+- Renew and return were tested against a local Readium `lcpserver` and `lsdserver` only, with a local stand-in for the license gateway, not against a production provider (see [docs/plans/lcp-support.md](../plans/lcp-support.md)).
 - iOS does not show the embedded outline of an LCP PDF as table of contents (see above).
 - The iOS audio navigator ignores LCP navigator errors (`presentError` in `navigator/FlutterAudioNavigator.swift`), so a license that becomes unusable during audio playback is not reported to Dart.
 - Headers set with `setCustomHeaders` are not sent on LCP traffic in these places: on Android, on all LCP requests (CRL, license status server, license-linked downloads), and on iOS, on `acquirePublication` and `getLicenseInfo`, which use the add-on's own `DefaultHTTPClient`.

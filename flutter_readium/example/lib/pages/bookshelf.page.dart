@@ -559,6 +559,12 @@ class BookshelfPageState extends State<BookshelfPage> {
         ),
         _lcpButton('open_lcp_pdf', 'Open LCP PDF', Icons.picture_as_pdf, () => _openLcpFixture('lcp_pdf_test.lcpdf')),
         _lcpButton('acquire_lcp_epub', 'Acquire LCP book', Icons.download, _acquireLcpFixture),
+        _lcpButton(
+          'open_lcp_loan',
+          'Open LCP loan (needs lcpserver)',
+          Icons.timelapse,
+          () => _openLcpFixture('lcp_loan_peter_rabbit.epub'),
+        ),
       ],
     ),
   );

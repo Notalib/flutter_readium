@@ -70,6 +70,10 @@ public final class FlutterReadiumLcpPlugin: NSObject, FlutterPlugin {
       acquirePublication(call.arguments as? [String: Any], result)
     case "getLicenseInfo":
       getLicenseInfo(call.arguments as? [String: Any], result)
+    case "renewLoan":
+      renewLoan(call.arguments as? [String: Any], result)
+    case "returnPublication":
+      returnPublication(call.arguments as? [String: Any], result)
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -200,6 +204,34 @@ public final class FlutterReadiumLcpPlugin: NSObject, FlutterPlugin {
     withLicense(args, result) { license in result(await Self.licenseInfo(license)) }
   }
 
+  private func renewLoan(_ args: [String: Any]?, _ result: @escaping FlutterResult) {
+    let preferredEnd = (args?["endMillis"] as? Int).map { Date(timeIntervalSince1970: Double($0) / 1000) }
+    withLicense(args, result) { license in
+      let delegate = RenewDelegate(preferredEnd: preferredEnd)
+      switch await license.renewLoan(with: delegate, prefersWebPage: false) {
+      case .failure(let error):
+        if let url = delegate.webPageURL {
+          result(LcpErrors.renewWebPage(url))
+        } else {
+          result(LcpErrors.loanFlutterError(error))
+        }
+      case .success:
+        result(await Self.licenseInfo(license))
+      }
+    }
+  }
+
+  private func returnPublication(_ args: [String: Any]?, _ result: @escaping FlutterResult) {
+    withLicense(args, result) { license in
+      switch await license.returnPublication() {
+      case .failure(let error):
+        result(LcpErrors.loanFlutterError(error))
+      case .success:
+        result(true)
+      }
+    }
+  }
+
   private static func licenseInfo(_ license: LCPLicense) async -> [String: Any] {
     let document = license.license
     var wire: [String: Any] = [
@@ -207,7 +239,10 @@ public final class FlutterReadiumLcpPlugin: NSObject, FlutterPlugin {
       "provider": document.provider,
       "issued": iso(document.issued),
       "updated": iso(document.updated),
+      "canRenewLoan": license.canRenewLoan,
+      "canReturnPublication": license.canReturnPublication,
     ]
+    wire["maxRenewDate"] = license.maxRenewDate.map(iso)
     wire["rightsStart"] = document.rights.start.map(iso)
     wire["rightsEnd"] = document.rights.end.map(iso)
     wire["copyLimit"] = document.rights.copy
@@ -225,6 +260,28 @@ public final class FlutterReadiumLcpPlugin: NSObject, FlutterPlugin {
 
 /// The toolkit's suggested file name would land outside the acquired directory.
 private struct AcquiredPathError: Error {}
+
+/// Renew delegate that never shows a web page: it records the URL and fails, so the app can open it.
+private final class RenewDelegate: LCPRenewDelegate, @unchecked Sendable {
+  struct WebPageNotSupported: Error {}
+
+  let preferredEnd: Date?
+  private(set) var webPageURL: String?
+
+  init(preferredEnd: Date?) {
+    self.preferredEnd = preferredEnd
+  }
+
+  func preferredEndDate(maximum: Date?) async throws -> Date? {
+    guard let preferredEnd else { return nil }
+    return maximum.map { min(preferredEnd, $0) } ?? preferredEnd
+  }
+
+  func presentWebPage(url: HTTPURL) async throws {
+    webPageURL = url.string
+    throw WebPageNotSupported()
+  }
+}
 
 /// Asks Dart for the passphrase. A nil result (cancel, no provider, no engine) makes the toolkit give up.
 private struct DartAuthentication: LCPAuthenticating {

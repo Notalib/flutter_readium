@@ -16,6 +16,21 @@ internal object LcpErrors {
         result.error(custom.code, custom.message, custom.data)
     }
 
+    /** Like [report], for a failed renew or return call. */
+    fun reportLoan(
+        result: MethodChannel.Result,
+        error: Error,
+    ) {
+        val custom = mapLoan(error)
+        result.error(custom.code, custom.message, custom.data)
+    }
+
+    /** The failure of the renew web page callback: the plugin cannot show the page, so the app gets the URL. */
+    fun reportRenewWebPage(
+        result: MethodChannel.Result,
+        url: String,
+    ) = result.error("lcpRenewWebPage", "The server renews this loan through a web page.", mapOf("url" to url))
+
     /** [error] is null when the user cancelled the passphrase prompt: the toolkit hides that case. */
     fun map(error: Error?): FlutterReadiumCustomError =
         when (error) {
@@ -68,6 +83,50 @@ internal object LcpErrors {
                 FlutterReadiumCustomError("lcpError", "LCP failed: ${error.message}")
             }
         }
+
+    private fun mapLoan(error: Error): FlutterReadiumCustomError =
+        when (error) {
+            is LcpError.LicenseInteractionNotAvailable -> {
+                FlutterReadiumCustomError("lcpLoanNotAvailable", "The license does not offer this loan action.")
+            }
+
+            is LcpError.Renew.RenewFailed -> {
+                loanFailed("rejected", "The server rejected the renewal.")
+            }
+
+            is LcpError.Renew.InvalidRenewalPeriod -> {
+                FlutterReadiumCustomError(
+                    "lcpRenewPeriod",
+                    "The requested end date is not allowed.",
+                    listOfNotNull(error.maxRenewDate?.let { "maxRenewDate" to it.toString() }).toMap(),
+                )
+            }
+
+            is LcpError.Renew.UnexpectedServerError -> {
+                loanFailed("server", "The license server failed to renew the loan.")
+            }
+
+            is LcpError.Return.ReturnFailed -> {
+                loanFailed("rejected", "The server rejected the return.")
+            }
+
+            is LcpError.Return.AlreadyReturnedOrExpired -> {
+                FlutterReadiumCustomError("lcpAlreadyReturned", "The loan was already returned or has expired.")
+            }
+
+            is LcpError.Return.UnexpectedServerError -> {
+                loanFailed("server", "The license server failed to return the loan.")
+            }
+
+            else -> {
+                map(error)
+            }
+        }
+
+    private fun loanFailed(
+        reason: String,
+        message: String,
+    ) = FlutterReadiumCustomError("lcpLoanFailed", message, mapOf("reason" to reason))
 
     private fun licenseInvalid(
         reason: String,
