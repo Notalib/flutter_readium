@@ -149,6 +149,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   public override func play(fromLocator: Locator?) async {
     // Map the initial Text-based locator to Audio-based MediaOverlay Locator.
     var anchored = fromLocator
+    let origin = audioLocator
     if let fromLocator {
       await ensureWindowForSeek(textLocator: fromLocator)
       anchored = await anchorUncuedTextLocator(fromLocator)
@@ -157,7 +158,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
       settlePendingEdgeTakeover(seekSucceeded: false)
       return
     }
-    let audioFromLocator = mapTextLocatorToMediaOverlayAudioLocator(anchored)
+    let audioFromLocator = mapTextLocatorToMediaOverlayAudioLocator(anchored, playingAt: origin)
     if fromLocator != nil && audioFromLocator == nil {
       settlePendingEdgeTakeover(seekSucceeded: false)
       return
@@ -167,11 +168,12 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   }
   
   public override func seek(toLocator: Locator) async -> Bool {
+    let origin = audioLocator
     // A seek beyond the loaded window needs that segment's cues + audio track first.
     await ensureWindowForSeek(textLocator: toLocator)
     let toLocator = await anchorUncuedTextLocator(toLocator)
     guard let navigator = _audioNavigator,
-          let audioLocator = mapTextLocatorToMediaOverlayAudioLocator(toLocator) else {
+          let audioLocator = mapTextLocatorToMediaOverlayAudioLocator(toLocator, playingAt: origin) else {
       Log.navigator.warn("seekToLocator - Could not map to an Audio Locator for: \(toLocator)")
       settlePendingEdgeTakeover(seekSucceeded: false)
       return false
@@ -549,6 +551,13 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   }
 
   internal func mapTextLocatorToMediaOverlayAudioLocator(_ textLocator: Locator?) -> Locator? {
+    mapTextLocatorToMediaOverlayAudioLocator(textLocator, playingAt: audioLocator)
+  }
+
+  /// `playingAt` is the audio position the user is navigating away from. Seeks pass the
+  /// position captured before `ensureWindowForSeek`: a paused window rebuild already moves
+  /// `audioLocator` to the target, which would make a cross-chapter jump look same-chapter.
+  internal func mapTextLocatorToMediaOverlayAudioLocator(_ textLocator: Locator?, playingAt: Locator?) -> Locator? {
     guard let textLocator = textLocator else {
       Log.navigator.debug("mapTextLocatorToMediaOverlayAudioLocator - nil text locator")
       return nil
@@ -556,7 +565,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     // Only allow the imprecise resource-first fallback when tapping into a
     // *different* resource than the one currently playing — an uncued anchor
     // within the current chapter must not rewind audio. See issue #139.
-    let currentTextFile = audioLocator.flatMap { mediaOverlayItemFromAudioLocator($0)?.textFile }
+    let currentTextFile = playingAt.flatMap { mediaOverlayItemFromAudioLocator($0)?.textFile }
     let crossResource = currentTextFile == nil
       || currentTextFile != textLocator.href.string
     guard let matchingMediaOverlayItem = self.mediaOverlays.firstMap({ $0.itemFromLocator(textLocator, allowResourceFallback: crossResource) }),
