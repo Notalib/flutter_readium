@@ -14,8 +14,12 @@ struct MarginMarkerConfig: Hashable {
   var side: String
   var tint: UIColor?
 
-  /// Icon names the template can render. Keep in sync with `MarginMarkerIcon` on the Dart side.
-  static let knownIcons: Set<String> = ["bookmark"]
+  /// SVG path data (24x24 viewBox) by `MarginMarkerIcon` name. Keep in sync with Dart, Android and web.
+  static let iconPaths: [String: String] = [
+    "bookmark": "M6 2h12a1 1 0 0 1 1 1v19l-7-4-7 4V3a1 1 0 0 1 1-1z",
+    "note": "M4 3h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H9l-5 4v-4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM7 7v2h10V7zm0 4v2h7v-2z",
+    "star": "M12 2l2.9 6.9 7.1.6-5.4 4.7 1.6 7-6.2-3.8-6.2 3.8 1.6-7L2 9.5l7.1-.6z",
+  ]
 }
 
 /// Decoration application, decoration-interaction observation, the custom
@@ -126,8 +130,8 @@ extension EPUBReaderView {
         let content: String
         if let label = config.label {
           content = Self.escapeHtmlAttr(label)
-        } else if config.icon == "bookmark" {
-          content = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" width=\"1em\" height=\"1em\" fill=\"currentColor\" style=\"display: block;\"><path d=\"M6 2h12a1 1 0 0 1 1 1v19l-7-4-7 4V3a1 1 0 0 1 1-1z\"/></svg>"
+        } else if let path = config.icon.flatMap({ MarginMarkerConfig.iconPaths[$0] }) {
+          content = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" width=\"1em\" height=\"1em\" fill=\"currentColor\" fill-rule=\"evenodd\" style=\"display: block;\"><path d=\"\(path)\"/></svg>"
         } else {
           return "<div/>"
         }

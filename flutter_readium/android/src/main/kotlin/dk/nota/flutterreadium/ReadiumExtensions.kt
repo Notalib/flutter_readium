@@ -163,7 +163,7 @@ fun decorationStyleFromMap(decoMap: Map<*, *>?): Decoration.Style? {
                 "marginMarker" -> {
                     val marker = decoMap["marker"] as? Map<*, *>
                     val label = (marker?.get("label") as? String)?.takeIf { it.isNotEmpty() }
-                    val icon = (marker?.get("icon") as? String)?.takeIf { it in MarginMarkerStyle.KNOWN_ICONS }
+                    val icon = (marker?.get("icon") as? String)?.takeIf { it in MarginMarkerStyle.ICON_PATHS }
                     if (label == null && icon == null) {
                         // Without content the marker would render empty, so skip the decoration.
                         PluginLog.e(

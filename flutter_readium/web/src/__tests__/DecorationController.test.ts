@@ -177,6 +177,15 @@ describe("DecorationController", () => {
       expect(html).toContain("color: #2e7d32ff !important;");
     });
 
+    it.each(["bookmark", "note", "star"])("renders the built-in %s icon", (icon) => {
+      const { controller, nav } = setup();
+
+      controller.applyDecorations(nav as any, "highlight-markers", JSON.stringify([marker(icon, { marker: { icon } })]));
+
+      const [deco] = appliedTo(nav, "highlight-markers");
+      expect(deco.style.element(deco)).toMatch(/<path d="M[^"]+"\/><\/svg><\/span>/);
+    });
+
     it("puts the marker payload and tint in extras so a changed tint re-renders", () => {
       const { controller, nav } = setup();
 
@@ -209,13 +218,14 @@ describe("DecorationController", () => {
         JSON.stringify([
           marker("none", {}),
           marker("empty", { marker: { side: "end" } }),
-          marker("unknown-icon", { marker: { icon: "star" } }),
+          marker("unknown-icon", { marker: { icon: "rocket" } }),
+          marker("prototype-key", { marker: { icon: "constructor" } }),
           marker("ok", label("7")),
         ])
       );
 
       expect(appliedTo(nav, "page-list").map((d) => d.id)).toEqual(["ok"]);
-      expect(warn).toHaveBeenCalledTimes(3);
+      expect(warn).toHaveBeenCalledTimes(4);
       warn.mockRestore();
     });
 

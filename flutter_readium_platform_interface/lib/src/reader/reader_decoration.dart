@@ -65,7 +65,16 @@ class ReaderDecoration implements JSONable {
 }
 
 /// Built-in icons for [MarginMarker.icon]. Icons are a closed set so that Dart never supplies markup.
-enum MarginMarkerIcon { bookmark }
+enum MarginMarkerIcon {
+  /// A bookmark ribbon.
+  bookmark,
+
+  /// A speech bubble with text lines, for a highlight that carries a note.
+  note,
+
+  /// A star, for favourite or important passages.
+  star,
+}
 
 /// Which page margin a [MarginMarker] sits in. Logical: [start] is the left margin in LTR and the right margin in RTL.
 enum MarginSide { start, end }

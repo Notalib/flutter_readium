@@ -509,7 +509,7 @@ extension Decoration.Style {
       // A marker with neither a label nor a known icon would render nothing, so reject it.
       let marker = map["marker"] as? [String: Any]
       let label = (marker?["label"] as? String).flatMap { $0.isEmpty ? nil : $0 }
-      let icon = (marker?["icon"] as? String).flatMap { MarginMarkerConfig.knownIcons.contains($0) ? $0 : nil }
+      let icon = (marker?["icon"] as? String).flatMap { MarginMarkerConfig.iconPaths[$0] != nil ? $0 : nil }
       guard label != nil || icon != nil else {
         Log.readium.error("Decoration parse error: `marginMarker` needs a `marker` with a label or a known icon")
         throw JSONError.parsing(Self.self)

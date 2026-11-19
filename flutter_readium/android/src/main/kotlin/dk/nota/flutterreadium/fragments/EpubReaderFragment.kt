@@ -1072,8 +1072,8 @@ class EpubReaderFragment :
                                 style.label.escAttr()
                             }
 
-                            style.icon == "bookmark" -> {
-                                """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" style="display: block;"><path d="M6 2h12a1 1 0 0 1 1 1v19l-7-4-7 4V3a1 1 0 0 1 1-1z"/></svg>"""
+                            style.icon in MarginMarkerStyle.ICON_PATHS -> {
+                                """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" fill-rule="evenodd" style="display: block;"><path d="${MarginMarkerStyle.ICON_PATHS[style.icon]}"/></svg>"""
                             }
 
                             else -> {

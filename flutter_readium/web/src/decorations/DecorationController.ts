@@ -33,11 +33,19 @@ interface MarginMarker {
   side?: string;
 }
 
-/** Icon markup by `MarginMarkerIcon` name. Keep in sync with the iOS and Android templates. */
-const MARGIN_MARKER_ICONS: Record<string, string> = {
-  bookmark:
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" style="display: block;"><path d="M6 2h12a1 1 0 0 1 1 1v19l-7-4-7 4V3a1 1 0 0 1 1-1z"/></svg>',
-};
+/** SVG path data (24x24 viewBox) by `MarginMarkerIcon` name. Keep in sync with Dart, iOS and Android. */
+const MARGIN_MARKER_ICON_PATHS = new Map<string, string>([
+  ["bookmark", "M6 2h12a1 1 0 0 1 1 1v19l-7-4-7 4V3a1 1 0 0 1 1-1z"],
+  ["note", "M4 3h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H9l-5 4v-4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM7 7v2h10V7zm0 4v2h7v-2z"],
+  ["star", "M12 2l2.9 6.9 7.1.6-5.4 4.7 1.6 7-6.2-3.8-6.2 3.8 1.6-7L2 9.5l7.1-.6z"],
+]);
+
+function marginMarkerIconSvg(icon: string): string | undefined {
+  const path = MARGIN_MARKER_ICON_PATHS.get(icon);
+  return path === undefined
+    ? undefined
+    : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" fill-rule="evenodd" style="display: block;"><path d="${path}"/></svg>`;
+}
 
 function escapeHtml(s: string): string {
   return s
@@ -55,7 +63,7 @@ function marginMarkerHtml(marker: MarginMarker | undefined, tint: string | undef
   const content = marker?.label
     ? escapeHtml(marker.label)
     : marker?.icon !== undefined
-      ? MARGIN_MARKER_ICONS[marker.icon]
+      ? marginMarkerIconSvg(marker.icon)
       : undefined;
   if (!content) return null;
 
