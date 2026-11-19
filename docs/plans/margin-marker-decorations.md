@@ -139,7 +139,7 @@ Design decisions:
 
 ## Out of scope
 
-- A Dart-side API for app-defined templates (the possible follow-up described above).
+- App-supplied icons, CSS or templates. See [todo/margin-marker-custom-icons.md](todo/margin-marker-custom-icons.md).
 - Suppressing marker taps. Markers are additive; an app that doesn't want marker events ignores their group.
 - Vertical writing modes.
 - PDF (PDF navigators don't support decorations, and PDFs show their own page numbers).
