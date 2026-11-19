@@ -166,7 +166,7 @@ class FlutterReadium {
   ///
   /// The decorations will be identified by the given [id], which can be used to update or remove them later by calling this method again with the same [id].
   ///
-  /// A [DecorationStyle.marginMarker] decoration needs a [ReaderDecorationStyle.marker]; native platforms skip one without.
+  /// A [DecorationStyle.marginMarker] decoration needs a [ReaderDecorationStyle.marker]; all platforms skip one without.
   Future<void> applyDecorations(
     String id,
     List<ReaderDecoration> decorations,
