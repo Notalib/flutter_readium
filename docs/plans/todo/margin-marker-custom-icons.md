@@ -13,7 +13,7 @@
 - Android: `MarginMarkerStyle.ICON_PATHS` in `MarginMarkerStyle.kt`.
 - Web: `MARGIN_MARKER_ICON_PATHS` in `web/src/decorations/DecorationController.ts`.
 
-Each template wraps the path in the same element: `<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" fill-rule="evenodd"><path d="…"/></svg>`. Today a new icon needs a plugin release.
+Each template wraps the path in the same element: `<svg viewBox="0 0 24 24" width="1.3em" height="1.3em" fill="currentColor" fill-rule="evenodd"><path d="…"/></svg>`. Today a new icon needs a plugin release.
 
 ## Proposal: app-supplied SVG path
 

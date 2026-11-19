@@ -128,21 +128,21 @@ extension EPUBReaderView {
           return "<div/>"
         }
         let content: String
+        // Labels are muted like printed margin page numbers; icons keep the full colour.
+        var opacity = ""
         if let label = config.label {
           content = Self.escapeHtmlAttr(label)
+          opacity = " opacity: 0.6 !important;"
         } else if let path = config.icon.flatMap({ MarginMarkerConfig.iconPaths[$0] }) {
-          content = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" width=\"1em\" height=\"1em\" fill=\"currentColor\" fill-rule=\"evenodd\" style=\"display: block;\"><path d=\"\(path)\"/></svg>"
+          content = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" width=\"1.3em\" height=\"1.3em\" fill=\"currentColor\" fill-rule=\"evenodd\" style=\"display: block;\"><path d=\"\(path)\"/></svg>"
         } else {
           return "<div/>"
         }
         let physical = config.side == "end" ? "right" : "left"
         let logical = config.side == "end" ? "inline-end" : "inline-start"
         var css = "float: \(physical) !important; float: \(logical) !important;"
-        css += " margin: 0 2px !important; padding: 0 4px !important;"
-        css += " font-size: 0.75em !important; line-height: 1.4 !important;"
-        css += " border: 1px solid currentColor !important; border-radius: 3px !important;"
-        css += " background-color: var(--USER__backgroundColor, var(--RS__backgroundColor)) !important;"
-        css += " opacity: 0.85 !important;"
+        css += " margin: 0 2px !important; font-size: 0.75em !important; line-height: 1.4 !important;"
+        css += opacity
         if let tint = config.tint {
           css += " color: \(tint.cssValue()) !important;"
         }

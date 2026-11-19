@@ -44,7 +44,7 @@ function marginMarkerIconSvg(icon: string): string | undefined {
   const path = MARGIN_MARKER_ICON_PATHS.get(icon);
   return path === undefined
     ? undefined
-    : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" fill-rule="evenodd" style="display: block;"><path d="${path}"/></svg>`;
+    : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1.3em" height="1.3em" fill="currentColor" fill-rule="evenodd" style="display: block;"><path d="${path}"/></svg>`;
 }
 
 function escapeHtml(s: string): string {
@@ -70,11 +70,9 @@ function marginMarkerHtml(marker: MarginMarker | undefined, tint: string | undef
   const end = marker?.side === "end";
   let css =
     `float: ${end ? "right" : "left"} !important; float: ${end ? "inline-end" : "inline-start"} !important;` +
-    " margin: 0 2px !important; padding: 0 4px !important;" +
-    " font-size: 0.75em !important; line-height: 1.4 !important;" +
-    " border: 1px solid currentColor !important; border-radius: 3px !important;" +
-    " background-color: var(--USER__backgroundColor, var(--RS__backgroundColor)) !important;" +
-    " opacity: 0.85 !important;";
+    " margin: 0 2px !important; font-size: 0.75em !important; line-height: 1.4 !important;";
+  // Labels are muted like printed margin page numbers; icons keep the full colour.
+  if (marker?.label) css += " opacity: 0.6 !important;";
   if (tint) css += ` color: ${escapeHtml(tint)} !important;`;
   return `<div><span data-activable="1" style="${css}">${content}</span></div>`;
 }

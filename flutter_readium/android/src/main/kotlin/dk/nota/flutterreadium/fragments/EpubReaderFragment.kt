@@ -1073,7 +1073,7 @@ class EpubReaderFragment :
                             }
 
                             style.icon in MarginMarkerStyle.ICON_PATHS -> {
-                                """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" fill-rule="evenodd" style="display: block;"><path d="${MarginMarkerStyle.ICON_PATHS[style.icon]}"/></svg>"""
+                                """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1.3em" height="1.3em" fill="currentColor" fill-rule="evenodd" style="display: block;"><path d="${MarginMarkerStyle.ICON_PATHS[style.icon]}"/></svg>"""
                             }
 
                             else -> {
@@ -1094,13 +1094,12 @@ class EpubReaderFragment :
                                 val b = android.graphics.Color.blue(style.tint)
                                 " color: rgba($r, $g, $b, ${android.graphics.Color.alpha(style.tint) / 255.0}) !important;"
                             }
+                        // Labels are muted like printed margin page numbers; icons keep the full colour.
+                        val opacity = if (style.label != null) " opacity: 0.6 !important;" else ""
                         val css =
                             "float: $physical !important; float: $logical !important;" +
-                                " margin: 0 2px !important; padding: 0 4px !important;" +
-                                " font-size: 0.75em !important; line-height: 1.4 !important;" +
-                                " border: 1px solid currentColor !important; border-radius: 3px !important;" +
-                                " background-color: var(--USER__backgroundColor, var(--RS__backgroundColor)) !important;" +
-                                " opacity: 0.85 !important;" +
+                                " margin: 0 2px !important; font-size: 0.75em !important; line-height: 1.4 !important;" +
+                                opacity +
                                 color
                         """<div><span data-activable="1" style="$css">$content</span></div>"""
                     }

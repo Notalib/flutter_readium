@@ -146,7 +146,7 @@ describe("DecorationController", () => {
       expect(html).toContain('data-activable="1"');
       expect(html).toContain(">12</span>");
       expect(html).toContain("float: right !important; float: inline-end !important;");
-      expect(html).toContain("background-color: var(--USER__backgroundColor, var(--RS__backgroundColor)) !important;");
+      expect(html).toContain("opacity: 0.6 !important;");
       expect(html).not.toContain(" color:");
       expect(appliedTo(nav, "page-list__spotlight")).toEqual([]);
     });
@@ -172,7 +172,8 @@ describe("DecorationController", () => {
       const [deco] = appliedTo(nav, "highlight-markers");
       const html: string = deco.style.element(deco);
       expect(html).toContain("<svg");
-      expect(html).toContain('width="1em" height="1em" fill="currentColor"');
+      expect(html).toContain('width="1.3em" height="1.3em" fill="currentColor"');
+      expect(html).not.toContain("opacity");
       expect(html).toContain("float: left !important; float: inline-start !important;");
       expect(html).toContain("color: #2e7d32ff !important;");
     });

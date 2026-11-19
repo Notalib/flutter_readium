@@ -15,7 +15,7 @@ const MarginMarker.icon(MarginMarkerIcon.bookmark) // side defaults to MarginSid
 
 The fields are described in the [API reference](../api-reference/decorations.md#marginmarker).
 
-`tint` colours the marker's text, border and icon. Without a tint the marker uses the publication's text colour. `isActive` is ignored. The marker background follows the reader theme.
+`tint` colours the marker's label or icon. Without a tint the marker uses the publication's text colour, so it follows the reader theme. Labels are drawn slightly muted. `isActive` is ignored.
 
 A `marginMarker` decoration without a label or icon is skipped and logged. In debug builds, `applyDecorations` asserts that the marker is present.
 
