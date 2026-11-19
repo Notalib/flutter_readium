@@ -25,8 +25,9 @@ ReaderDecoration(
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `style` | `DecorationStyle` | `highlight` or `underline` |
+| `style` | `DecorationStyle` | `highlight`, `underline` or `marginMarker` |
 | `tint` | `Color` | Colour of the decoration |
+| `marker` | `MarginMarker?` | Label or icon to show. Required for `marginMarker` |
 
 ## DecorationStyle
 
@@ -34,6 +35,16 @@ ReaderDecoration(
 |-------|-----------|
 | `DecorationStyle.highlight` | Background colour fill over the text range |
 | `DecorationStyle.underline` | Underline beneath the text range |
+| `DecorationStyle.marginMarker` | Label or icon in the page margin, level with the first line of the range. See [Margin Markers](../guides/margin-markers.md) |
+
+## MarginMarker
+
+| Constructor | Description |
+|-------------|-------------|
+| `MarginMarker.label(String, {side})` | Text label, such as a page number |
+| `MarginMarker.icon(MarginMarkerIcon, {side})` | Built-in icon (`MarginMarkerIcon.bookmark`) |
+
+`side` is `MarginSide.start` (default) or `MarginSide.end`, and flips in right-to-left text.
 
 ## Applying decorations
 

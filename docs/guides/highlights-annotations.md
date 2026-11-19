@@ -42,6 +42,10 @@ await reader.applyDecorations('highlights', []);
 
 Colours use Flutter `Color` values. The JSON representation uses `rgba(r, g, b, a)` notation.
 
+## Margin markers
+
+To flag a highlight with an icon in the page margin, or to show page numbers, use the `marginMarker` style. See [Margin Markers](margin-markers.md).
+
 ## Typical group layout
 
 ```dart
