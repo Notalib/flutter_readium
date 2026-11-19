@@ -5,6 +5,9 @@ import 'package:flutter_readium/flutter_readium.dart';
 /// Decoration group that holds all user highlights in the reader.
 const highlightsGroup = 'user_highlights';
 
+/// Decoration group with one bookmark marker in the margin next to each highlight.
+const highlightMarkersGroup = 'highlight-markers';
+
 /// A user highlight: the decoration sent to the reader plus the selected text.
 ///
 /// The text is kept here because the selection locator's `text.highlight`
@@ -19,6 +22,19 @@ class Highlight {
   String get id => decoration.id;
 
   Color? get tint => decoration.style.tint;
+
+  /// A bookmark icon in the margin, level with the first line of the highlight.
+  ///
+  /// Green, as the marker colour is independent of the highlight's own tint.
+  ReaderDecoration get marker => ReaderDecoration(
+    id: '${id}_marker',
+    locator: decoration.locator,
+    style: const ReaderDecorationStyle(
+      style: DecorationStyle.marginMarker,
+      tint: Color(0xFF2E7D32),
+      marker: MarginMarker.icon(MarginMarkerIcon.bookmark),
+    ),
+  );
 
   Highlight withTint(Color tint) => Highlight(
     decoration: decoration.copyWith(style: decoration.style.copyWith(tint: tint)),
