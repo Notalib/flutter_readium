@@ -44,7 +44,7 @@ ReaderDecoration(
 | `MarginMarker.label(String, {side})` | Text label, such as a page number |
 | `MarginMarker.icon(MarginMarkerIcon, {side})` | Built-in icon (`MarginMarkerIcon.bookmark`) |
 
-`side` is `MarginSide.start` (default) or `MarginSide.end`, and flips in right-to-left text.
+`side` is `MarginSide.start` (default) or `MarginSide.end`, and flips in right-to-left text. Labels are HTML-escaped. Icons are a closed set: the plugin never renders app-supplied markup.
 
 ## Applying decorations
 

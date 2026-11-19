@@ -332,8 +332,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       // Explicitly set to nil when the arg is null — do NOT skip the assignment.
       // An `if let` guard would leave the previous style in place when null is
       // passed, which prevents the caller from clearing an active decoration.
-      ttsUtteranceDecorationStyle = (args[0] as? [String: Any]).flatMap { try? Decoration.Style(fromMap: $0) }
-      ttsRangeDecorationStyle = (args[1] as? [String: Any]).flatMap { try? Decoration.Style(fromMap: $0) }
+      ttsUtteranceDecorationStyle = (args[0] as? [String: Any]).flatMap(ttsDecorationStyle)
+      ttsRangeDecorationStyle = (args[1] as? [String: Any]).flatMap(ttsDecorationStyle)
       Task { @MainActor in
         self.timebasedNavigator?.decorationsUpdated()
       }
@@ -809,6 +809,16 @@ extension FlutterReadiumPlugin {
 
   func clearNowPlaying() {
     NowPlayingInfo.shared.clear()
+  }
+
+  /// Parses a TTS decoration style; an invalid one is logged and clears the decoration.
+  func ttsDecorationStyle(_ map: [String: Any]) -> Decoration.Style? {
+    do {
+      return try Decoration.Style(fromMap: map)
+    } catch {
+      Log.reader.error("setDecorationStyle: ignoring unparsable style: \(error)")
+      return nil
+    }
   }
 
   @MainActor

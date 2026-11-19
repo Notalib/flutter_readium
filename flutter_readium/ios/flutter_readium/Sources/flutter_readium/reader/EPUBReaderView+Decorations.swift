@@ -112,14 +112,8 @@ extension EPUBReaderView {
     )
   }
 
-  /// Margin marker: a small label or icon floated into the page margin, level with the
-  /// first line of the range.
-  ///
-  /// `.bounds` + `.page` makes the row span the page, so the span can float into either
-  /// margin. The styles are inline and `!important` because Readium CSS theme rules force
-  /// backgrounds to transparent and colours to inherit, and they beat class rules.
-  /// `data-activable` limits the tap area to the span, so taps on the text still reach
-  /// the highlight underneath. Keep the markup identical to the Android and web templates.
+  /// Margin marker floated into the page margin. Keep the markup identical to the Android and web
+  /// templates; the design is in docs/plans/margin-marker-decorations.md.
   static func marginMarkerDecorationTemplate() -> HTMLDecorationTemplate {
     HTMLDecorationTemplate(
       layout: .bounds,

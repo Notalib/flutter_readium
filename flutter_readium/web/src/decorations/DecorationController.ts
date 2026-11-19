@@ -48,12 +48,8 @@ function escapeHtml(s: string): string {
 }
 
 /**
- * Builds the margin marker element, or `null` when there is nothing to show.
- *
- * The styles are inline and `!important` because the decoration renders in a shadow root where
- * document stylesheets don't apply, and Readium CSS theme rules beat class rules. `data-activable`
- * limits the tap area to the span, so taps on the text still reach the highlight underneath.
- * Keep the markup identical to the iOS and Android templates.
+ * Builds the margin marker element, or `null` when there is nothing to show. Keep the markup identical
+ * to the iOS and Android templates; the design is in docs/plans/margin-marker-decorations.md.
  */
 function marginMarkerHtml(marker: MarginMarker | undefined, tint: string | undefined): string | null {
   const content = marker?.label

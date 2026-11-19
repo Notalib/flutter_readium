@@ -1,5 +1,7 @@
 # Margin Marker Decorations
 
+> **✅ Implemented.** The `marginMarker` style landed on iOS, Android and web, with both recipes in the example app. Usage: [guides/margin-markers.md](../guides/margin-markers.md).
+
 **Type:** Feature
 **Platforms affected:** iOS, Android, Web
 **Estimated effort:** M
@@ -17,7 +19,7 @@ Both upstream toolkits do page numbers in their test apps with a custom decorati
 - kotlin-toolkit: `test-app/src/main/java/org/readium/r2/testapp/reader/EpubReaderFragment.kt` (`DecorationStylePageNumber`, `pageNumberTemplate()`).
 - kotlin-toolkit `demos/navigator/.../decorations/CustomDecorationStyles.kt` shows `data-activable="1"`, which limits a template's tap area to the marked child element.
 
-As of swift-toolkit 3.11.1 / 4.0.0-alpha.3 and kotlin-toolkit 3.4.0 this is still the recommended approach; neither toolkit has a first-class margin-marker feature. ts-toolkit's Decorator also accepts `HTMLDecorationTemplate` styles (`type: "template"`). Its sanitiser allows SVG "for icon-style decorations (e.g. sidemarks)". The versions already pinned in `flutter_readium/package.json` (`@readium/navigator` 2.13.2, injectables 2.9.1) include all of this.
+As of swift-toolkit 3.11.1 / 4.0.0-alpha.3 and kotlin-toolkit 3.4.0 this is still the recommended approach; neither toolkit has a first-class margin-marker feature. ts-toolkit's Decorator also accepts `HTMLDecorationTemplate` styles (`type: "template"`). Its sanitiser allows SVG "for icon-style decorations (e.g. sidemarks)". The versions already pinned in `flutter_readium/package.json` (`@readium/navigator` 2.15.0, injectables 2.10.1) include all of this.
 
 ## Why a built-in style, not docs-only recipes
 
@@ -103,7 +105,7 @@ Design decisions:
 
 - `DecorationController.ts`: type the raw style with optional `tint` and `marker`. For `marginMarker` decorations, push `{ type: DecorationStyleType.Template, layout: DecorationLayout.Bounds, width: DecorationWidth.Page, element: () => html }` in the decoration's own group, using the same markup and SVG as native. Skip and log a `marginMarker` without a `marker`.
 - Put the marker payload and tint in the decoration's `extras`. ts-toolkit's `stylesEqual` ignores a Template's `element`, so without this a changed label, icon, side or tint under the same decoration id is never re-rendered; `decorationsEqual` does compare `extras`.
-- Check against the pinned `@readium/navigator` 2.13.2 typings that `element` is a function at the navigator level (it is a string in injectables) and that `extras` is available.
+- Check against the pinned `@readium/navigator` 2.15.0 typings that `element` is a function at the navigator level (it is a string in injectables) and that `extras` is available.
 - Add cases to `web/src/__tests__/DecorationController.test.ts`, including a re-apply with a changed tint. Run the web gates in `flutter_readium/web/AGENTS.md`, including `bin/update_web_example`.
 
 ### 5. Example app (the two recipes)

@@ -1,6 +1,5 @@
 package dk.nota.flutterreadium
 
-import android.os.Parcelable
 import androidx.annotation.ColorInt
 import kotlinx.parcelize.Parcelize
 import org.readium.r2.navigator.Decoration

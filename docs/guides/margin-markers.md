@@ -13,11 +13,7 @@ const MarginMarker.label('12', side: MarginSide.end)
 const MarginMarker.icon(MarginMarkerIcon.bookmark) // side defaults to MarginSide.start
 ```
 
-| Field | Description |
-|-------|-------------|
-| `label` | Short text, such as a page number. Escaped before rendering |
-| `icon` | One of the built-in icons (`MarginMarkerIcon.bookmark`). The set is closed: the plugin never renders app-supplied markup |
-| `side` | `MarginSide.start` or `MarginSide.end`. Logical, so `start` is the left margin in left-to-right text and the right margin in right-to-left text |
+The fields are described in the [API reference](../api-reference/decorations.md#marginmarker).
 
 `tint` colours the marker's text, border and icon. Without a tint the marker uses the publication's text colour. `isActive` is ignored. The marker background follows the reader theme.
 
@@ -29,18 +25,22 @@ Print-equivalent EPUBs carry a `pageList` navigation document. Map each entry to
 
 ```dart
 Future<void> showPageNumbers(Publication publication) {
-  final decorations = <ReaderDecoration>[
-    for (final (index, link) in publication.pageList.indexed)
-      if (link.title != null && publication.locatorFromLink(link) != null)
-        ReaderDecoration(
-          id: 'page_$index',
-          locator: publication.locatorFromLink(link)!,
-          style: ReaderDecorationStyle(
-            style: DecorationStyle.marginMarker,
-            marker: MarginMarker.label(link.title!, side: MarginSide.end),
-          ),
+  final decorations = <ReaderDecoration>[];
+  for (final (index, link) in publication.pageList.indexed) {
+    final title = link.title;
+    final locator = publication.locatorFromLink(link);
+    if (title == null || locator == null) continue;
+    decorations.add(
+      ReaderDecoration(
+        id: 'page_$index',
+        locator: locator,
+        style: ReaderDecorationStyle(
+          style: DecorationStyle.marginMarker,
+          marker: MarginMarker.label(title, side: MarginSide.end),
         ),
-  ];
+      ),
+    );
+  }
   return FlutterReadium().applyDecorations('page-list', decorations);
 }
 
