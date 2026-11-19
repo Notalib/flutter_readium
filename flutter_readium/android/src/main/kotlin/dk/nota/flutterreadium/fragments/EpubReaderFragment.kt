@@ -10,6 +10,7 @@ import androidx.lifecycle.lifecycleScope
 import dk.nota.flutterreadium.EpubImageTapBridge
 import dk.nota.flutterreadium.EpubSameDocumentLinkBridge
 import dk.nota.flutterreadium.FlutterEpubPreferences
+import dk.nota.flutterreadium.MarginMarkerStyle
 import dk.nota.flutterreadium.NarrationSyncInterface
 import dk.nota.flutterreadium.PluginLog
 import dk.nota.flutterreadium.R
@@ -81,7 +82,7 @@ class EpubReaderFragment :
          * Called when an external link is activated.
          */
         fun onExternalLinkActivated(url: AbsoluteUrl)
-        
+
         /**
          * Called when an internal link is about to be followed. `from` is the position before the jump.
          */
@@ -830,6 +831,7 @@ class EpubReaderFragment :
                                 experimentalPositioning = true,
                             ).also { templates ->
                                 templates[SpotlightStyle::class] = spotlightDecorationTemplate()
+                                templates[MarginMarkerStyle::class] = marginMarkerDecorationTemplate()
                             },
                     // Only register the callback if custom selectionActions are added.
                     selectionActionModeCallback =
@@ -996,6 +998,12 @@ class EpubReaderFragment :
     companion object {
         private const val NAVIGATOR_FRAGMENT_TAG = "READIUM_EPUB_READER_FRAGMENT"
 
+        private fun String.escAttr() =
+            replace("&", "&amp;")
+                .replace("\"", "&quot;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+
         /**
          * Spotlight: semi-transparent tinted box over the active range, one per text line.
          *
@@ -1037,15 +1045,71 @@ class EpubReaderFragment :
                             "rgba($r,$g,$b,0.5)"
                         }
 
-                    fun String.escAttr() =
-                        replace("&", "&amp;")
-                            .replace("\"", "&quot;")
-                            .replace("<", "&lt;")
-                            .replace(">", "&gt;")
                     val sel = (decoration.locator.locations.cssSelector ?: "").escAttr()
                     val hl = (decoration.locator.text.highlight ?: "").escAttr()
                     val bef = (decoration.locator.text.before ?: "").escAttr()
                     """<div class="flutter-readium-spotlight" data-css-selector="$sel" data-text-highlight="$hl" data-text-before="$bef" data-tint="$bgColor" style="z-index: -1; box-sizing: border-box;"/>"""
+                },
+            )
+
+        /**
+         * Margin marker: a small label or icon floated into the page margin, level with the
+         * first line of the range.
+         *
+         * BOUNDS + PAGE makes the row span the page, so the span can float into either margin.
+         * The styles are inline and `!important` because Readium CSS theme rules force
+         * backgrounds to transparent and colours to inherit, and they beat class rules.
+         * `data-activable` limits the tap area to the span, so taps on the text still reach
+         * the highlight underneath. Keep the markup identical to the iOS and web templates.
+         */
+        private fun marginMarkerDecorationTemplate(): HtmlDecorationTemplate =
+            HtmlDecorationTemplate(
+                layout = HtmlDecorationTemplate.Layout.BOUNDS,
+                width = HtmlDecorationTemplate.Width.PAGE,
+                element = { decoration ->
+                    val style = decoration.style as? MarginMarkerStyle
+                    val content =
+                        when {
+                            style == null -> {
+                                null
+                            }
+
+                            style.label != null -> {
+                                style.label.escAttr()
+                            }
+
+                            style.icon == "bookmark" -> {
+                                """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" style="display: block;"><path d="M6 2h12a1 1 0 0 1 1 1v19l-7-4-7 4V3a1 1 0 0 1 1-1z"/></svg>"""
+                            }
+
+                            else -> {
+                                null
+                            }
+                        }
+                    if (style == null || content == null) {
+                        "<div/>"
+                    } else {
+                        val physical = if (style.side == "end") "right" else "left"
+                        val logical = if (style.side == "end") "inline-end" else "inline-start"
+                        val color =
+                            if (android.graphics.Color.alpha(style.tint) == 0) {
+                                ""
+                            } else {
+                                val r = android.graphics.Color.red(style.tint)
+                                val g = android.graphics.Color.green(style.tint)
+                                val b = android.graphics.Color.blue(style.tint)
+                                " color: rgba($r, $g, $b, ${android.graphics.Color.alpha(style.tint) / 255.0}) !important;"
+                            }
+                        val css =
+                            "float: $physical !important; float: $logical !important;" +
+                                " margin: 0 2px !important; padding: 0 4px !important;" +
+                                " font-size: 0.75em !important; line-height: 1.4 !important;" +
+                                " border: 1px solid currentColor !important; border-radius: 3px !important;" +
+                                " background-color: var(--USER__backgroundColor, var(--RS__backgroundColor)) !important;" +
+                                " opacity: 0.85 !important;" +
+                                color
+                        """<div><span data-activable="1" style="$css">$content</span></div>"""
+                    }
                 },
             )
     }
