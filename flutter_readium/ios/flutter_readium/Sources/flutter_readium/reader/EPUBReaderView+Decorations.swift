@@ -1,10 +1,26 @@
 import Foundation
 import ReadiumNavigator
 import ReadiumShared
+import UIKit
+
+extension Decoration.Style.Id {
+  static let marginMarker: Decoration.Style.Id = "marginMarker"
+}
+
+/// Payload of a `marginMarker` decoration style. `side` is "start" or "end".
+struct MarginMarkerConfig: Hashable {
+  var label: String?
+  var icon: String?
+  var side: String
+  var tint: UIColor?
+
+  /// Icon names the template can render. Keep in sync with `MarginMarkerIcon` on the Dart side.
+  static let knownIcons: Set<String> = ["bookmark"]
+}
 
 /// Decoration application, decoration-interaction observation, the custom
-/// "highlight current selection" editing action, and the spotlight decoration
-/// template used for TTS utterance highlighting.
+/// "highlight current selection" editing action, and the spotlight and margin
+/// marker decoration templates.
 extension EPUBReaderView {
 
   public func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String) {
@@ -92,6 +108,47 @@ extension EPUBReaderView {
         let hl  = Self.escapeHtmlAttr(decoration.locator.text.highlight ?? "")
         let bef = Self.escapeHtmlAttr(decoration.locator.text.before ?? "")
         return "<div class=\"flutter-readium-spotlight\" data-css-selector=\"\(sel)\" data-text-highlight=\"\(hl)\" data-text-before=\"\(bef)\" data-tint=\"\(bgColor)\" style=\"z-index: -1; box-sizing: border-box;\"/>"
+      }
+    )
+  }
+
+  /// Margin marker: a small label or icon floated into the page margin, level with the
+  /// first line of the range.
+  ///
+  /// `.bounds` + `.page` makes the row span the page, so the span can float into either
+  /// margin. The styles are inline and `!important` because Readium CSS theme rules force
+  /// backgrounds to transparent and colours to inherit, and they beat class rules.
+  /// `data-activable` limits the tap area to the span, so taps on the text still reach
+  /// the highlight underneath. Keep the markup identical to the Android and web templates.
+  static func marginMarkerDecorationTemplate() -> HTMLDecorationTemplate {
+    HTMLDecorationTemplate(
+      layout: .bounds,
+      width: .page,
+      element: { decoration in
+        guard let config = decoration.style.config as? MarginMarkerConfig else {
+          Log.reader.error("marginMarkerDecorationTemplate: unexpected style config")
+          return "<div/>"
+        }
+        let content: String
+        if let label = config.label {
+          content = Self.escapeHtmlAttr(label)
+        } else if config.icon == "bookmark" {
+          content = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" width=\"1em\" height=\"1em\" fill=\"currentColor\" style=\"display: block;\"><path d=\"M6 2h12a1 1 0 0 1 1 1v19l-7-4-7 4V3a1 1 0 0 1 1-1z\"/></svg>"
+        } else {
+          return "<div/>"
+        }
+        let physical = config.side == "end" ? "right" : "left"
+        let logical = config.side == "end" ? "inline-end" : "inline-start"
+        var css = "float: \(physical) !important; float: \(logical) !important;"
+        css += " margin: 0 2px !important; padding: 0 4px !important;"
+        css += " font-size: 0.75em !important; line-height: 1.4 !important;"
+        css += " border: 1px solid currentColor !important; border-radius: 3px !important;"
+        css += " background-color: var(--USER__backgroundColor, var(--RS__backgroundColor)) !important;"
+        css += " opacity: 0.85 !important;"
+        if let tint = config.tint {
+          css += " color: \(tint.cssValue()) !important;"
+        }
+        return "<div><span data-activable=\"1\" style=\"\(css)\">\(content)</span></div>"
       }
     )
   }

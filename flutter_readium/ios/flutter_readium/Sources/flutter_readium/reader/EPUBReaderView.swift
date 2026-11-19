@@ -169,6 +169,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     // NOTE: Use experimentalPositioning. It places highlights on z-index -1 behind text, instead of on top.
     var decorationTemplates = HTMLDecorationTemplate.defaultTemplates(alpha: 1.0, experimentalPositioning: true)
     decorationTemplates[Decoration.Style.Id("spotlight")] = EPUBReaderView.spotlightDecorationTemplate()
+    decorationTemplates[.marginMarker] = EPUBReaderView.marginMarkerDecorationTemplate()
     config.decorationTemplates = decorationTemplates
 
     // TODO: This is a PoC for adding custom editing actions, like user highlights. It should be configurable from Flutter.
