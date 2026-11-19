@@ -130,7 +130,7 @@ class ReaderDecorationStyle implements JSONable {
 
   factory ReaderDecorationStyle.fromJson(final Map<String, dynamic> map) => ReaderDecorationStyle(
     style: DecorationStyle.fromString(map['style']),
-    tint: map['tint'] != null ? Color(map['tint'] as int) : null,
+    tint: map['tint'] is String ? ReadiumColorExtension.fromCSS(map['tint'] as String) : null,
     isActive: map['isActive'] as bool? ?? false,
     marker: map['marker'] is Map ? MarginMarker.fromJson(Map<String, dynamic>.from(map['marker'] as Map)) : null,
   );

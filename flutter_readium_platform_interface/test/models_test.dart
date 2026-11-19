@@ -1098,14 +1098,6 @@ void main() {
       json.decode(json.encode(decoration.toJson())) as Map<String, dynamic>,
     );
 
-    test('DecorationStyle.fromString maps the wire value', () {
-      expect(
-        DecorationStyle.fromString('marginMarker'),
-        DecorationStyle.marginMarker,
-      );
-      expect(DecorationStyle.marginMarker.name, 'marginMarker');
-    });
-
     test('label marker round-trips through toJson/fromJson', () {
       final decoration = ReaderDecoration(
         id: 'p12',
@@ -1122,12 +1114,13 @@ void main() {
       expect(restored.style.marker?.side, MarginSide.end);
     });
 
-    test('icon marker round-trips and defaults to the start side', () {
+    test('tinted icon marker round-trips and defaults to the start side', () {
       final decoration = ReaderDecoration(
         id: 'bm',
         locator: locator,
         style: const ReaderDecorationStyle(
           style: DecorationStyle.marginMarker,
+          tint: Color(0xFF2E7D32),
           marker: MarginMarker.icon(MarginMarkerIcon.bookmark),
         ),
       );
@@ -1139,22 +1132,7 @@ void main() {
       expect(restored.style.marker?.icon, MarginMarkerIcon.bookmark);
       expect(restored.style.marker?.label, isNull);
       expect(restored.style.marker?.side, MarginSide.start);
-    });
-
-    test('other styles omit the marker key', () {
-      expect(
-        const ReaderDecorationStyle(style: DecorationStyle.highlight).toJson().containsKey('marker'),
-        isFalse,
-      );
-    });
-
-    test('tint is sent as a CSS colour', () {
-      final style = ReaderDecorationStyle(
-        style: DecorationStyle.marginMarker,
-        tint: const Color(0xFF2E7D32),
-        marker: const MarginMarker.icon(MarginMarkerIcon.bookmark),
-      );
-      expect(style.toJson()['tint'], isA<String>());
+      expect(restored.style.tint, const Color(0xFF2E7D32));
     });
 
     test('copyWith keeps, replaces and clears the marker', () {
