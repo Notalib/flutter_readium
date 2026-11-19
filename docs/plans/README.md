@@ -28,6 +28,7 @@ This directory holds implementation plans, parity audits, and retained reference
 - **[todo/web-ts-refactor.md](todo/web-ts-refactor.md)** — structural refactor of the web TypeScript.
 	The `web/src/` rename landed; collapsing `ReadiumReader.ts` into a thin facade has not.
 	*(Maintainability / L)*
+- **[todo/margin-marker-custom-icons.md](todo/margin-marker-custom-icons.md)** — let apps pass their own single-path SVG icon to `marginMarker`; parked until a client asks. *(Feature / S)*
 - **[todo/highlight-modes.md](todo/highlight-modes.md)** — `highlight`, `underline` and `spotlight`
 	decoration styles exist; the `ruler` style does not. *(Feature / M)*
 
@@ -47,6 +48,7 @@ This directory holds implementation plans, parity audits, and retained reference
 - **[native-media-overlay-toc-context.md](native-media-overlay-toc-context.md)** — native ToC ownership, resource boundaries and anchored seeking, following [ADR 0001](../adr/0001-media-overlay-toc-ownership.md).
 
 - **[web-decorations.md](web-decorations.md)** — web decoration rendering and interaction.
+- **[margin-marker-decorations.md](margin-marker-decorations.md)** — built-in `marginMarker` decoration style (label or icon in the page margin).
 - **[web-goto-locator-precision.md](web-goto-locator-precision.md)** — full-locator web navigation.
 - **[web-error-event.md](web-error-event.md)** — web error event stream.
 - **[web-comic-support-plan.md](web-comic-support-plan.md)** — comic helper injection and web panel sync.

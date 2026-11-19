@@ -165,10 +165,18 @@ class FlutterReadium {
   /// Applies a list of decorations to the visual reader.
   ///
   /// The decorations will be identified by the given [id], which can be used to update or remove them later by calling this method again with the same [id].
+  ///
+  /// A [DecorationStyle.marginMarker] decoration needs a [ReaderDecorationStyle.marker]; all platforms skip one without.
   Future<void> applyDecorations(
     String id,
     List<ReaderDecoration> decorations,
-  ) => _readiumCall(() => _platform.applyDecorations(id, decorations));
+  ) {
+    assert(
+      decorations.every((d) => d.style.style != DecorationStyle.marginMarker || d.style.marker != null),
+      'A marginMarker decoration requires a marker.',
+    );
+    return _readiumCall(() => _platform.applyDecorations(id, decorations));
+  }
 
   /// Enables TTS (text-to-speech) for the currently opened publication, optionally applying the given [preferences].
   Future<void> ttsEnable(TTSPreferences? preferences) => _readiumCall(() => _platform.ttsEnable(preferences));

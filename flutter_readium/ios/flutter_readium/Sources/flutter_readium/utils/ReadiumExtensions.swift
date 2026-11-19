@@ -492,7 +492,8 @@ extension Decoration.Style {
   }
 
   // Accepts the flat style map produced by ReaderDecorationStyle.toJson() on the Dart side:
-  // { "style": "highlight", "tint": "#RRGGBB" (optional), "isActive": true/false }
+  // { "style": "highlight", "tint": "#RRGGBB" (optional), "isActive": true/false,
+  //   "marker": { "label"|"icon", "side" } (only for "marginMarker") }
   // `tint` is optional — when absent the decoration has no background colour.
   init(fromMap jsonMap: [String: Any]?) throws {
     guard let map = jsonMap,
@@ -503,6 +504,24 @@ extension Decoration.Style {
     }
     let isActive = map["isActive"] as? Bool ?? false
     let tintColor: Color? = (map["tint"] as? String).flatMap { Color(hex: $0) }
+
+    if styleStr == Decoration.Style.Id.marginMarker.rawValue {
+      // A marker with neither a label nor a known icon would render nothing, so reject it.
+      let marker = map["marker"] as? [String: Any]
+      let label = (marker?["label"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+      let icon = (marker?["icon"] as? String).flatMap { MarginMarkerConfig.iconPaths[$0] != nil ? $0 : nil }
+      guard label != nil || icon != nil else {
+        Log.readium.error("Decoration parse error: `marginMarker` needs a `marker` with a label or a known icon")
+        throw JSONError.parsing(Self.self)
+      }
+      let side = marker?["side"] as? String == "end" ? "end" : "start"
+      self.init(
+        id: .marginMarker,
+        config: MarginMarkerConfig(label: label, icon: icon, side: side, tint: tintColor?.uiColor)
+      )
+      return
+    }
+
     try self.init(withStyle: styleStr, tintColor: tintColor, isActive: isActive)
   }
 }

@@ -275,6 +275,7 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
   void _emitHighlights(final Emitter<PublicationState> emit, final Map<String, Highlight> highlights) {
     emit(state.copyWith(highlights: highlights));
     instance.applyDecorations(highlightsGroup, [for (final highlight in highlights.values) highlight.decoration]);
+    instance.applyDecorations(highlightMarkersGroup, [for (final highlight in highlights.values) highlight.marker]);
   }
 
   void _cancelSubscriptions() {

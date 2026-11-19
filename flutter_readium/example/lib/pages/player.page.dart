@@ -14,6 +14,9 @@ import '../widgets/index.dart';
 const Color _appBarColor = Colors.amber;
 const Color _playerControlsColor = Color.fromARGB(255, 240, 240, 240);
 
+/// Decoration group with one printed page number in the margin per page-list entry.
+const _pageListGroup = 'page-list';
+
 class PlayerPage extends StatefulWidget {
   const PlayerPage({super.key});
 
@@ -25,6 +28,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   final _slideDuration = const Duration(milliseconds: 350);
   final _shouldShowControls = ValueNotifier(true);
   StreamSubscription<ReadiumError>? _errorSub;
+  bool _showPageNumbers = false;
 
   @override
   void initState() {
@@ -103,6 +107,30 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
     );
   }
 
+  /// Shows the printed page numbers from the page list in the end margin, or clears them.
+  void _togglePageNumbers(final Publication publication) {
+    setState(() => _showPageNumbers = !_showPageNumbers);
+    final decorations = <ReaderDecoration>[];
+    if (_showPageNumbers) {
+      for (final (index, link) in publication.pageList.indexed) {
+        final title = link.title;
+        final locator = publication.locatorFromLink(link);
+        if (title == null || locator == null) continue;
+        decorations.add(
+          ReaderDecoration(
+            id: 'page_$index',
+            locator: locator,
+            style: ReaderDecorationStyle(
+              style: DecorationStyle.marginMarker,
+              marker: MarginMarker.label(title, side: MarginSide.end),
+            ),
+          ),
+        );
+      }
+    }
+    FlutterReadium().applyDecorations(_pageListGroup, decorations);
+  }
+
   Future<void> _deferWebGoToAfterRoutePop() async {
     if (!kIsWeb) {
       return;
@@ -156,7 +184,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
                 pubState.error != null ? 'Error' : pubState.publication?.metadata.title ?? 'Unknown',
               ),
             ),
-            actions: _buildActionButtons(isAudioBook, isDivina, isPdf),
+            actions: _buildActionButtons(isAudioBook, isDivina, isPdf, pubState.publication),
           ),
           body: Stack(
             children: [
@@ -216,7 +244,21 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
     },
   );
 
-  List<Widget> _buildActionButtons(final bool isAudioBook, final bool isDivina, final bool isPdf) => <Widget>[
+  List<Widget> _buildActionButtons(
+    final bool isAudioBook,
+    final bool isDivina,
+    final bool isPdf,
+    final Publication? publication,
+  ) => <Widget>[
+    // Margin markers are decorations on text content, so PDF and DiViNa are out; no page list, no toggle.
+    if (!isAudioBook && !isDivina && !isPdf && publication != null && publication.pageList.isNotEmpty)
+      IconButton(
+        key: const ValueKey('page_numbers_toggle'),
+        icon: const Icon(Icons.format_list_numbered),
+        isSelected: _showPageNumbers,
+        onPressed: () => _togglePageNumbers(publication),
+        tooltip: 'Page numbers in margin',
+      ),
     if (!isAudioBook && !isDivina)
       IconButton(
         key: const ValueKey('visual_settings_button'),
