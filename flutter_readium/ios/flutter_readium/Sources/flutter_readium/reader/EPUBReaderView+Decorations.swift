@@ -132,7 +132,7 @@ extension EPUBReaderView {
         var opacity = ""
         if let label = config.label {
           content = Self.escapeHtmlAttr(label)
-          opacity = " opacity: 0.6 !important;"
+          opacity = " opacity: 0.8 !important;"
         } else if let path = config.icon.flatMap({ MarginMarkerConfig.iconPaths[$0] }) {
           content = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" width=\"1.3em\" height=\"1.3em\" fill=\"currentColor\" fill-rule=\"evenodd\" style=\"display: block;\"><path d=\"\(path)\"/></svg>"
         } else {
@@ -141,7 +141,7 @@ extension EPUBReaderView {
         let physical = config.side == "end" ? "right" : "left"
         let logical = config.side == "end" ? "inline-end" : "inline-start"
         var css = "float: \(physical) !important; float: \(logical) !important;"
-        css += " margin: 0 2px !important; font-size: 0.75em !important; line-height: 1.4 !important;"
+        css += " margin: 0 max(4px, 1.5%) !important; font-size: 0.75em !important; line-height: 1.4 !important;"
         css += opacity
         if let tint = config.tint {
           css += " color: \(tint.cssValue()) !important;"

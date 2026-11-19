@@ -70,9 +70,9 @@ function marginMarkerHtml(marker: MarginMarker | undefined, tint: string | undef
   const end = marker?.side === "end";
   let css =
     `float: ${end ? "right" : "left"} !important; float: ${end ? "inline-end" : "inline-start"} !important;` +
-    " margin: 0 2px !important; font-size: 0.75em !important; line-height: 1.4 !important;";
+    " margin: 0 max(4px, 1.5%) !important; font-size: 0.75em !important; line-height: 1.4 !important;";
   // Labels are muted like printed margin page numbers; icons keep the full colour.
-  if (marker?.label) css += " opacity: 0.6 !important;";
+  if (marker?.label) css += " opacity: 0.8 !important;";
   if (tint) css += ` color: ${escapeHtml(tint)} !important;`;
   return `<div><span data-activable="1" style="${css}">${content}</span></div>`;
 }

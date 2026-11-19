@@ -146,7 +146,7 @@ describe("DecorationController", () => {
       expect(html).toContain('data-activable="1"');
       expect(html).toContain(">12</span>");
       expect(html).toContain("float: right !important; float: inline-end !important;");
-      expect(html).toContain("opacity: 0.6 !important;");
+      expect(html).toContain("opacity: 0.8 !important;");
       expect(html).not.toContain(" color:");
       expect(appliedTo(nav, "page-list__spotlight")).toEqual([]);
     });

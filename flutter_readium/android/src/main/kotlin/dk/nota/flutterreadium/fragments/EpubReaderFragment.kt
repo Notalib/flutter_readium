@@ -1095,10 +1095,10 @@ class EpubReaderFragment :
                                 " color: rgba($r, $g, $b, ${android.graphics.Color.alpha(style.tint) / 255.0}) !important;"
                             }
                         // Labels are muted like printed margin page numbers; icons keep the full colour.
-                        val opacity = if (style.label != null) " opacity: 0.6 !important;" else ""
+                        val opacity = if (style.label != null) " opacity: 0.8 !important;" else ""
                         val css =
                             "float: $physical !important; float: $logical !important;" +
-                                " margin: 0 2px !important; font-size: 0.75em !important; line-height: 1.4 !important;" +
+                                " margin: 0 max(4px, 1.5%) !important; font-size: 0.75em !important; line-height: 1.4 !important;" +
                                 opacity +
                                 color
                         """<div><span data-activable="1" style="$css">$content</span></div>"""
