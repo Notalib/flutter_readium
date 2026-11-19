@@ -7,6 +7,7 @@
 
 import {
   Decoration,
+  DecorationLayout,
   DecorationStyleType,
   DecorationWidth,
   EpubNavigator,
@@ -21,6 +22,58 @@ import {
 } from "./decorationFrameUtils";
 import { dartColorToCss } from "../utils/colors";
 import { ReadiumBridge } from "../bridge/ReadiumBridge";
+import { createLogger } from "../utils/ReadiumPluginLogger";
+
+const log = createLogger("DecorationController");
+
+/** Wire shape of `MarginMarker.toJson()` on the Dart side. */
+interface MarginMarker {
+  label?: string;
+  icon?: string;
+  side?: string;
+}
+
+/** Icon markup by `MarginMarkerIcon` name. Keep in sync with the iOS and Android templates. */
+const MARGIN_MARKER_ICONS: Record<string, string> = {
+  bookmark:
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" style="display: block;"><path d="M6 2h12a1 1 0 0 1 1 1v19l-7-4-7 4V3a1 1 0 0 1 1-1z"/></svg>',
+};
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/**
+ * Builds the margin marker element, or `null` when there is nothing to show.
+ *
+ * The styles are inline and `!important` because the decoration renders in a shadow root where
+ * document stylesheets don't apply, and Readium CSS theme rules beat class rules. `data-activable`
+ * limits the tap area to the span, so taps on the text still reach the highlight underneath.
+ * Keep the markup identical to the iOS and Android templates.
+ */
+function marginMarkerHtml(marker: MarginMarker | undefined, tint: string | undefined): string | null {
+  const content = marker?.label
+    ? escapeHtml(marker.label)
+    : marker?.icon !== undefined
+      ? MARGIN_MARKER_ICONS[marker.icon]
+      : undefined;
+  if (!content) return null;
+
+  const end = marker?.side === "end";
+  let css =
+    `float: ${end ? "right" : "left"} !important; float: ${end ? "inline-end" : "inline-start"} !important;` +
+    " margin: 0 2px !important; padding: 0 4px !important;" +
+    " font-size: 0.75em !important; line-height: 1.4 !important;" +
+    " border: 1px solid currentColor !important; border-radius: 3px !important;" +
+    " background-color: var(--USER__backgroundColor, var(--RS__backgroundColor)) !important;" +
+    " opacity: 0.85 !important;";
+  if (tint) css += ` color: ${escapeHtml(tint)} !important;`;
+  return `<div><span data-activable="1" style="${css}">${content}</span></div>`;
+}
 
 export interface ApplyDecorationsOptions {
   /**
@@ -68,7 +121,7 @@ export class DecorationController {
     const decorationsRaw: Array<{
       id: string;
       locator: object;
-      style: { style: string; tint: string };
+      style: { style: string; tint?: string; marker?: MarginMarker };
     }> = JSON.parse(decorationsJson);
 
     // Every subgroup gets a list, even an empty one, so that a subgroup the new
@@ -79,10 +132,33 @@ export class DecorationController {
     ]);
 
     for (const raw of decorationsRaw) {
+      if (raw.style.style === "marginMarker") {
+        const tint = raw.style.tint ? dartColorToCss(raw.style.tint) : undefined;
+        const html = marginMarkerHtml(raw.style.marker, tint);
+        if (html === null) {
+          log.warn(`applyDecorations: skipping marginMarker ${raw.id} without a label or known icon`);
+          continue;
+        }
+        bySubgroup.get(group)!.push({
+          id: raw.id,
+          locator: Locator.deserialize(raw.locator)!,
+          style: {
+            type: DecorationStyleType.Template,
+            layout: DecorationLayout.Bounds,
+            width: DecorationWidth.Page,
+            element: () => html,
+          },
+          // Upstream ignores a Template's element when diffing, so the payload goes into extras
+          // to make a changed label, icon, side or tint re-render under the same id.
+          extras: { marker: raw.style.marker, tint },
+        });
+        continue;
+      }
+
       const isSpotlight = raw.style.style === "spotlight";
       // Convert tints from Dart's AARRGGBB to CSS RRGGBBAA at the entry point so
       // upstream's Decorator and the spotlight CSS see CSS colors.
-      const tint = dartColorToCss(raw.style.tint);
+      const tint = raw.style.tint ? dartColorToCss(raw.style.tint) : undefined;
 
       bySubgroup.get(isSpotlight ? spotlightGroup : group)!.push({
         id: raw.id,

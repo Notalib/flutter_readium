@@ -129,6 +129,116 @@ describe("DecorationController", () => {
     });
   });
 
+  describe("margin markers", () => {
+    function marker(id: string, style: object) {
+      return { id, locator: locator.serialize(), style: { style: "marginMarker", ...style } };
+    }
+    const label = (text: string, side = "start") => ({ marker: { label: text, side } });
+
+    it("renders a label as a bounds/page template in the decoration's own group", () => {
+      const { controller, nav } = setup();
+
+      controller.applyDecorations(nav as any, "page-list", JSON.stringify([marker("p12", label("12", "end"))]));
+
+      const [deco] = appliedTo(nav, "page-list");
+      expect(deco.style).toEqual(expect.objectContaining({ type: "template", layout: "bounds", width: "page" }));
+      const html: string = deco.style.element(deco);
+      expect(html).toContain('data-activable="1"');
+      expect(html).toContain(">12</span>");
+      expect(html).toContain("float: right !important; float: inline-end !important;");
+      expect(html).toContain("background-color: var(--USER__backgroundColor, var(--RS__backgroundColor)) !important;");
+      expect(html).not.toContain(" color:");
+      expect(appliedTo(nav, "page-list__spotlight")).toEqual([]);
+    });
+
+    it("escapes the label", () => {
+      const { controller, nav } = setup();
+
+      controller.applyDecorations(nav as any, "page-list", JSON.stringify([marker("x", label('<b>"&'))]));
+
+      const [deco] = appliedTo(nav, "page-list");
+      expect(deco.style.element(deco)).toContain("&lt;b&gt;&quot;&amp;</span>");
+    });
+
+    it("renders the bookmark icon on the start side and applies the tint", () => {
+      const { controller, nav } = setup();
+
+      controller.applyDecorations(
+        nav as any,
+        "highlight-markers",
+        JSON.stringify([marker("b", { tint: "#ff2e7d32", marker: { icon: "bookmark", side: "start" } })])
+      );
+
+      const [deco] = appliedTo(nav, "highlight-markers");
+      const html: string = deco.style.element(deco);
+      expect(html).toContain("<svg");
+      expect(html).toContain('width="1em" height="1em" fill="currentColor"');
+      expect(html).toContain("float: left !important; float: inline-start !important;");
+      expect(html).toContain("color: #2e7d32ff !important;");
+    });
+
+    it("puts the marker payload and tint in extras so a changed tint re-renders", () => {
+      const { controller, nav } = setup();
+
+      controller.applyDecorations(
+        nav as any,
+        "page-list",
+        JSON.stringify([marker("p1", { tint: "#ffff0000", ...label("1") })])
+      );
+      controller.applyDecorations(
+        nav as any,
+        "page-list",
+        JSON.stringify([marker("p1", { tint: "#ff00ff00", ...label("1") })])
+      );
+
+      const [first, second] = nav.applyDecorations.mock.calls
+        .filter(([, g]) => g === "page-list")
+        .map(([list]) => list[0]);
+      expect(first.extras).toEqual({ marker: { label: "1", side: "start" }, tint: "#ff0000ff" });
+      expect(second.extras).toEqual({ marker: { label: "1", side: "start" }, tint: "#00ff00ff" });
+      expect(JSON.stringify(first.extras)).not.toEqual(JSON.stringify(second.extras));
+    });
+
+    it("skips a marker without a label or known icon and keeps the rest", () => {
+      const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+      const { controller, nav } = setup();
+
+      controller.applyDecorations(
+        nav as any,
+        "page-list",
+        JSON.stringify([
+          marker("none", {}),
+          marker("empty", { marker: { side: "end" } }),
+          marker("unknown-icon", { marker: { icon: "star" } }),
+          marker("ok", label("7")),
+        ])
+      );
+
+      expect(appliedTo(nav, "page-list").map((d) => d.id)).toEqual(["ok"]);
+      expect(warn).toHaveBeenCalledTimes(3);
+      warn.mockRestore();
+    });
+
+    it("reports a tap on a marker with the app's group name", () => {
+      const { bridge, controller, nav } = setup();
+      controller.applyDecorations(nav as any, "page-list", JSON.stringify([marker("p3", label("3"))]), {
+        tappable: true,
+      });
+      const observer = nav.registerDecorationObserver.mock.calls.find(([g]) => g === "page-list")![1];
+
+      observer.onDecorationActivated({
+        decoration: appliedTo(nav, "page-list")[0],
+        group: "page-list",
+        rect: { top: 0, left: 0, width: 1, height: 1 },
+        point: { x: 0, y: 0 },
+      });
+
+      expect(bridge.emitDecorationInteraction).toHaveBeenCalledWith(
+        expect.objectContaining({ decorationId: "p3", group: "page-list", type: "tap" })
+      );
+    });
+  });
+
   describe("decoration taps", () => {
     it("registers observers for the group and its subgroups only when tappable", () => {
       const { controller, nav } = setup();
