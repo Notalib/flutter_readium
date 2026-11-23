@@ -1192,7 +1192,7 @@ class _ReadiumReader {
    * Initialises (or re-initialises) the TTS engine without starting it, like
    * iOS and Android: callers start reading with `play()`. A `play()` without a
    * locator starts at `fromLocatorJson`, or at the first element visible in
-   * the reader. Requires an EPUB or WebPub visual navigator to already be
+   * the reader when `play()` runs. Requires an EPUB or WebPub visual navigator to already be
    * active.
    */
   public async ttsEnable(prefsJson: string, fromLocatorJson?: string): Promise<void> {
@@ -1207,8 +1207,7 @@ class _ReadiumReader {
     const fromLocator = fromLocatorJson
       ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
       : undefined;
-    // Undefined until the navigator has loaded its first resource.
-    const readerLocator: Locator | undefined = this._nav.currentLocator;
+    const nav = this._nav;
     this._ttsEngine = new FlutterTTSNavigator(
       this._nav,
       this._publication,
@@ -1217,8 +1216,12 @@ class _ReadiumReader {
       this._decorations.utteranceStyle,
       this._decorations.rangeStyle,
       (group, decorationsJson) => this._applyInternalDecorations(group, decorationsJson),
-      fromLocator ??
-        (readerLocator ? withFirstVisibleElement(readerLocator, navIframeWindows(this._nav)) : undefined)
+      () => {
+        if (fromLocator) return fromLocator;
+        // Undefined until the navigator has loaded its first resource.
+        const readerLocator: Locator | undefined = nav.currentLocator;
+        return readerLocator ? withFirstVisibleElement(readerLocator, navIframeWindows(nav)) : undefined;
+      }
     );
   }
 

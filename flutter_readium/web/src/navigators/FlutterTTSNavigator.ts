@@ -221,8 +221,11 @@ export class FlutterTTSNavigator {
   /** Localized "Page {label}" formatter for `pageBreakBehavior: "prefixLabel"`. */
   private readonly _pageLabel: ((label: string) => string) | null;
 
-  /** Where `play()` without a locator starts before anything has been spoken. */
-  private readonly _initialLocator: Locator | undefined;
+  /**
+   * Where `play()` without a locator starts before anything has been spoken.
+   * Called at that `play()`, so it can return the reader's position then.
+   */
+  private readonly _initialLocator: (() => Locator | undefined) | undefined;
 
   constructor(
     nav: AnyNavigator,
@@ -232,7 +235,7 @@ export class FlutterTTSNavigator {
     utteranceStyle: object | null = null,
     rangeStyle: object | null = null,
     onApplyDecorations: ((group: string, decorationsJson: string) => void) | null = null,
-    initialLocator?: Locator
+    initialLocator?: () => Locator | undefined
   ) {
     this._initialLocator = initialLocator;
     this._nav = nav;
@@ -303,7 +306,7 @@ export class FlutterTTSNavigator {
     this._lastDeferredSyncLocator = null;
     this._paused = false;
     this._startDeferred = false;
-    const startLocator = fromLocator ?? this._currentElement?.locator ?? this._initialLocator;
+    const startLocator = fromLocator ?? this._currentElement?.locator ?? this._initialLocator?.();
     log.info("play", fromLocator ? "(from locator)" : startLocator ? "(resume)" : "", {
       speaking: speechSynthesis.speaking,
       pending: speechSynthesis.pending,

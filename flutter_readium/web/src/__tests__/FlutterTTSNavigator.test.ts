@@ -123,7 +123,7 @@ function makeNavigator(
     null,
     null,
     null,
-    options.initialLocator
+    () => options.initialLocator
   );
   // The constructor hard-resets the engine; don't count that as recovery.
   synth.cancelCalls = 0;

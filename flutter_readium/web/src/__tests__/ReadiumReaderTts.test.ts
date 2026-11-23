@@ -44,9 +44,9 @@ function makeReader(): any {
   return reader;
 }
 
-/** The initial locator ttsEnable gave the engine. */
+/** Where the engine's first play() without a locator would start. */
 function initialLocatorOf(call: number): Locator | undefined {
-  return MockTTSNavigator.mock.calls[call][7];
+  return MockTTSNavigator.mock.calls[call][7]?.();
 }
 
 beforeEach(() => {
@@ -76,6 +76,15 @@ describe("ttsEnable", () => {
     const start = initialLocatorOf(0);
     expect(start?.href).toBe("chap2.html");
     expect(start?.locations.otherLocations?.get("cssSelector")).toBe("body > :nth-child(2)");
+  });
+
+  it("starts at the page shown when play() runs, not when TTS was enabled", async () => {
+    const reader = makeReader();
+    await reader.ttsEnable("{}");
+
+    reader._nav.currentLocator = new Locator({ href: "chap3.html", type: "application/xhtml+xml" });
+
+    expect(initialLocatorOf(0)?.href).toBe("chap3.html");
   });
 
   it("starts at the caller's locator when given one", async () => {
