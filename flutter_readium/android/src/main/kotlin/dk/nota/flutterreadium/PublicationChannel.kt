@@ -574,11 +574,11 @@ fun MethodChannel.Result.publicationError(
 ) {
     PluginLog.e(
         TAG,
-        "$method: PublicationError<${error.errorCode}>: ${error.message}, cause=${error.cause}",
+        "$method: PublicationError<${error.wireCode}>: ${error.message}, cause=${error.cause}",
     )
 
     this.error(
-        error.errorCode.wireValue,
+        error.wireCode,
         error.message,
         error.toMethodChannelDetails(),
     )
