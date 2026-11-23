@@ -165,6 +165,11 @@ class SyncAudiobookNavigator(
             PluginLog.w(TAG, "::skipToCue. Target cue has no audio or text locator: $target")
             return false
         }
+        // goToLocator only logs an href outside the reading order, so check here to report no move.
+        if (navigator.readingOrder.items.none { it.href == audioLocator.href }) {
+            PluginLog.w(TAG, "::skipToCue. Cue audio ${audioLocator.href} is not in the reading order.")
+            return false
+        }
 
         // `super` because this class's own goToLocator maps text locators to audio ones.
         super.goToLocator(audioLocator)

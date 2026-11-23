@@ -203,13 +203,47 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   /// would report is superseded by the settled state emitted once navigation completes.
   @MainActor private var _isNavigating = false
 
+  /// Last operation queued by `serialized(_:)`.
+  @MainActor private var navigationQueueTail: Task<Void, Never>?
+
+  /// Runs `operation` once every earlier queued operation has finished. Overlapping `go(to:)`
+  /// calls would clear `_isNavigating` while another is still running, and a cue step must start
+  /// from where the previous one landed. Inside `operation`, use `goBoundedUnqueued`, never
+  /// `goBounded`, which would wait for the operation itself.
+  @MainActor
+  internal func serialized<T>(_ operation: @escaping @MainActor () async -> T) async -> T {
+    let prior = navigationQueueTail
+    let task = Task { @MainActor in
+      await prior?.value
+      return await operation()
+    }
+    navigationQueueTail = Task { _ = await task.value }
+    return await task.value
+  }
+
+  @MainActor
+  internal func goBounded(to locator: Locator) async -> Bool {
+    await serialized { await self.goBoundedUnqueued(to: locator) }
+  }
+
+  /// The playhead as the player reports it now. `audioLocator` only moves on the delegate's
+  /// periodic tick, so it can trail this by one interval. Nil while a `go(to:)` is in flight,
+  /// where reading `playbackInfo` can deadlock (see `_isNavigating`).
+  @MainActor
+  internal func livePlayhead() -> (href: String, time: TimeInterval)? {
+    guard !_isNavigating, let navigator = _audioNavigator else { return nil }
+    let info = navigator.playbackInfo
+    guard publication.readingOrder.indices.contains(info.resourceIndex) else { return nil }
+    return (publication.readingOrder[info.resourceIndex].url().string, info.time)
+  }
+
   /// Upstream `AudioNavigator.go(to:)` also never returns if a delegate callback blocks it (see
   /// `_isNavigating`); the timeout is the backstop so the method-channel result always resolves.
   /// `@MainActor` so the `_isNavigating` write lands on the same actor the delegate callbacks read
   /// it from — the seek entry points are `@MainActor`, but this helper is not a protocol requirement
   /// and so would otherwise run off-main and race the guard.
   @MainActor
-  internal func goBounded(to locator: Locator) async -> Bool {
+  internal func goBoundedUnqueued(to locator: Locator) async -> Bool {
     guard let navigator = _audioNavigator else { return false }
     _isNavigating = true
     let result = await withTimeout(seconds: Self.goToLocatorTimeoutSeconds, {

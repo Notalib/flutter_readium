@@ -143,22 +143,31 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   /// Returns the cue landed on, or nil when nothing moved (e.g. `forward` on the last cue).
   ///
   /// Lock-screen next/previous keep using the seek-interval `seekForward()/seekBackward()`;
-  /// only the method-channel next/previous come through here.
+  /// only the method-channel next/previous come through here. Call it inside `serialized(_:)`.
   @MainActor
   internal func skipToCue(forward: Bool) async -> (locator: Locator, segmentDuration: TimeInterval?)? {
-    guard let navigator = _audioNavigator, let current = audioLocator else {
-      Log.navigator.warn("skipToCue - No current audio locator")
+    guard let navigator = _audioNavigator else {
+      Log.navigator.warn("skipToCue - Navigator not ready")
       return nil
     }
-    // A locator without a time fragment is treated as the start of its resource, as on Android.
-    let time = MediaTimeFragment.seconds(from: current.locations.fragments) ?? 0
-    guard let target = mediaOverlays.cueStepTarget(audioHref: current.href.string, time: time, forward: forward),
+    let href: String
+    let time: TimeInterval
+    if let live = livePlayhead() {
+      (href, time) = live
+    } else if let current = audioLocator {
+      // A locator without a time fragment is treated as the start of its resource, as on Android.
+      (href, time) = (current.href.string, MediaTimeFragment.seconds(from: current.locations.fragments) ?? 0)
+    } else {
+      Log.navigator.warn("skipToCue - No current audio position")
+      return nil
+    }
+    guard let target = mediaOverlays.cueStepTarget(audioHref: href, time: time, forward: forward),
           let audioLocator = target.asAudioLocator,
           let textLocator = target.asTextLocator else {
       return nil
     }
     let wasPlaying = navigator.state == .playing || navigator.state == .loading
-    guard await goBounded(to: audioLocator) else { return nil }
+    guard await goBoundedUnqueued(to: audioLocator) else { return nil }
     // Go will sometimes result in a pause, if buffering was necessary.
     if wasPlaying {
       navigator.play()
