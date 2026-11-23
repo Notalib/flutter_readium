@@ -31,6 +31,7 @@ import {
 } from "./navigators/FlutterAudioNavigator";
 import { AudioRecoveryPolicy, setCurrentAudioRecoveryPolicy } from "./navigators/AudioStreamErrorPolicy";
 import { FlutterTTSNavigator } from "./navigators/FlutterTTSNavigator";
+import { withFirstVisibleElement } from "./navigators/firstVisibleLocator";
 import { initializeMediaOverlayNavigator, initializeGuidedNavigationNavigator } from "./navigators/FlutterMediaOverlayNavigator";
 // Preferences
 import { setEpubPreferencesFromString, pluginPrefsFromJson } from "./preferences/FlutterEpubPreferences";
@@ -1188,8 +1189,11 @@ class _ReadiumReader {
   // ---------------------------------------------------------------------------
 
   /**
-   * Initialises (or re-initialises) the TTS engine and starts playback.
-   * Requires an EPUB or WebPub visual navigator to already be active.
+   * Initialises (or re-initialises) the TTS engine without starting it, like
+   * iOS and Android: callers start reading with `play()`. A `play()` without a
+   * locator starts at `fromLocatorJson`, or at the first element visible in
+   * the reader. Requires an EPUB or WebPub visual navigator to already be
+   * active.
    */
   public async ttsEnable(prefsJson: string, fromLocatorJson?: string): Promise<void> {
     log.info("ttsEnable");
@@ -1200,6 +1204,11 @@ class _ReadiumReader {
     // Destroy any previous TTS session.
     this._ttsEngine?.destroy();
     const prefs = ttsPreferencesFromJson(JSON.parse(prefsJson));
+    const fromLocator = fromLocatorJson
+      ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
+      : undefined;
+    // Undefined until the navigator has loaded its first resource.
+    const readerLocator: Locator | undefined = this._nav.currentLocator;
     this._ttsEngine = new FlutterTTSNavigator(
       this._nav,
       this._publication,
@@ -1207,12 +1216,10 @@ class _ReadiumReader {
       this._narrationSyncEnabled,
       this._decorations.utteranceStyle,
       this._decorations.rangeStyle,
-      (group, decorationsJson) => this._applyInternalDecorations(group, decorationsJson)
+      (group, decorationsJson) => this._applyInternalDecorations(group, decorationsJson),
+      fromLocator ??
+        (readerLocator ? withFirstVisibleElement(readerLocator, navIframeWindows(this._nav)) : undefined)
     );
-    const fromLocator = fromLocatorJson
-      ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
-      : undefined;
-    await this._ttsEngine.play(fromLocator);
   }
 
   /** Returns a JSON string containing available browser TTS voices. */

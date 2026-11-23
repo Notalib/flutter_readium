@@ -36,6 +36,8 @@ import {
   serializeVoices,
   ttsPreferencesFromJson,
 } from "../preferences/FlutterTTSPreferences";
+import { pickDefaultVoice } from "./defaultVoice";
+import { withQueryableCssSelector } from "./firstVisibleLocator";
 import { flattenToc, enrichWithTocHref } from "./locatorEnrich";
 import { ReadiumWebError, ReadiumWebErrorCode } from "../errors/ReadiumWebError";
 
@@ -215,6 +217,9 @@ export class FlutterTTSNavigator {
   /** Localized "Page {label}" formatter for `pageBreakBehavior: "prefixLabel"`. */
   private readonly _pageLabel: ((label: string) => string) | null;
 
+  /** Where `play()` without a locator starts before anything has been spoken. */
+  private readonly _initialLocator: Locator | undefined;
+
   constructor(
     nav: AnyNavigator,
     publication: ReadiumPublication,
@@ -222,8 +227,10 @@ export class FlutterTTSNavigator {
     syncEnabled: boolean = true,
     utteranceStyle: object | null = null,
     rangeStyle: object | null = null,
-    onApplyDecorations: ((group: string, decorationsJson: string) => void) | null = null
+    onApplyDecorations: ((group: string, decorationsJson: string) => void) | null = null,
+    initialLocator?: Locator
   ) {
+    this._initialLocator = initialLocator;
     this._nav = nav;
     this._publication = publication;
     this._prefs = prefs;
@@ -281,35 +288,42 @@ export class FlutterTTSNavigator {
   // Public API — mirrors the Dart TTS API contract
   // ---------------------------------------------------------------------------
 
+  /**
+   * Starts reading at `fromLocator`. Without one it resumes at the current
+   * utterance, or the initial locator if nothing has been spoken yet, like
+   * iOS. It never falls back to the start of the publication.
+   */
   async play(fromLocator?: Locator): Promise<void> {
     if (this._destroyed) return;
     this._invalidateCurrentUtterance();
     this._lastDeferredSyncLocator = null;
-    log.info("play", fromLocator ? "(from locator)" : "", {
+    const startLocator = fromLocator ?? this._currentElement?.locator ?? this._initialLocator;
+    log.info("play", fromLocator ? "(from locator)" : startLocator ? "(resume)" : "", {
       speaking: speechSynthesis.speaking,
       pending: speechSynthesis.pending,
       paused: speechSynthesis.paused,
       voices: speechSynthesis.getVoices().length,
     });
     this._clearDecorations();
+    // Stop earlier speech before priming, never after: Chrome reports the
+    // prime as pending, and cancelling it on a cold engine stalls the next
+    // speak() until the watchdog recovers it.
+    const wasActive = speechSynthesis.speaking || speechSynthesis.pending;
+    if (wasActive) {
+      speechSynthesis.cancel();
+    }
     // Prime the engine synchronously inside the user-gesture frame.
     // Chromium silently swallows the first async speak() if the gesture has
     // already expired by the time we call it (after awaiting hasNext()).
     // A zero-length utterance consumes the gesture and wakes the engine.
     log.debug("Priming speechSynthesis engine");
     speechSynthesis.speak(new SpeechSynthesisUtterance(""));
-    // Only cancel if there's something queued — cancel() on an idle engine
-    // can leave Chromium in a stalled state.
-    const wasActive = speechSynthesis.speaking || speechSynthesis.pending;
-    if (wasActive) {
-      speechSynthesis.cancel();
-    }
     this._iterator = new PublicationContentIterator(
       this._publication,
-      fromLocator,
+      startLocator,
       [
         (resource, locator) =>
-          new HTMLResourceContentIterator(resource, locator),
+          new HTMLResourceContentIterator(resource, withQueryableCssSelector(locator)),
       ]
     );
     // Give Chromium's TTS state machine a tick to settle after cancel().
@@ -513,11 +527,18 @@ export class FlutterTTSNavigator {
       : (this._selectedVoice ?? this._prefs.voice);
     if (voice) {
       utterance.voice = voice;
-    } else if (this._prefs.lang) {
-      utterance.lang = this._prefs.lang;
+    } else {
+      // Without a language the browser reads the text with its default voice,
+      // whatever language that voice speaks.
+      const utteranceLang = this._prefs.lang ?? lang;
+      if (utteranceLang) {
+        utterance.lang = utteranceLang;
+        const fallback = pickDefaultVoice(speechSynthesis.getVoices(), utteranceLang);
+        if (fallback) utterance.voice = fallback;
+      }
     }
     log.debug("_speakElement: utterance config", {
-      voice: voice?.name ?? "(default)",
+      voice: utterance.voice?.name ?? "(default)",
       lang: utterance.lang || "(none)",
       rate: utterance.rate,
       pitch: utterance.pitch,

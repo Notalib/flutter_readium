@@ -1,5 +1,6 @@
 /**
- * Unit tests for FlutterTTSNavigator's speechSynthesis stall watchdog.
+ * Unit tests for FlutterTTSNavigator: the speechSynthesis stall watchdog, where
+ * play() starts, and the utterance language.
  *
  * The stall itself is not reproducible on healthy hardware — measured start
  * latency is 1-500ms for local and Google network voices alike — so these tests
@@ -12,6 +13,21 @@ import { WebTTSPreferences } from "../preferences/FlutterTTSPreferences";
 
 const STALL_WATCHDOG_MS = 8000;
 const STALL_RECOVERY_DELAY_MS = 200;
+
+/** Start locator of every content iterator `play()` created. */
+const mockIteratorStarts: (Locator | undefined)[] = [];
+
+jest.mock("@readium/shared", () => {
+  const actual = jest.requireActual("@readium/shared");
+  return {
+    ...actual,
+    // An empty publication: play() records where it starts, then ends.
+    PublicationContentIterator: jest.fn().mockImplementation((_publication, start) => {
+      mockIteratorStarts.push(start);
+      return { hasNext: async () => false };
+    }),
+  };
+});
 
 // ---------------------------------------------------------------------------
 // Fakes
@@ -78,7 +94,9 @@ function makeElement(text: string, href = "chap1.html"): TextElement {
   } as unknown as TextElement;
 }
 
-function makeNavigator(): FlutterTTSNavigator {
+function makeNavigator(
+  options: { initialLocator?: Locator; lang?: string } = {}
+): FlutterTTSNavigator {
   const publication = {
     manifest: {
       toc: undefined,
@@ -87,11 +105,16 @@ function makeNavigator(): FlutterTTSNavigator {
     },
     metadata: { languages: ["da"] },
   };
-  const prefs = { rate: 1, pitch: 1 } as unknown as WebTTSPreferences;
+  const prefs = { rate: 1, pitch: 1, voice: null, lang: options.lang ?? null } as unknown as WebTTSPreferences;
   const nav = new FlutterTTSNavigator(
     { go: jest.fn() } as any,
     publication as any,
-    prefs
+    prefs,
+    true,
+    null,
+    null,
+    null,
+    options.initialLocator
   );
   // The constructor hard-resets the engine; don't count that as recovery.
   synth.cancelCalls = 0;
@@ -105,6 +128,7 @@ function speakElement(nav: FlutterTTSNavigator, element: TextElement): void {
 
 beforeEach(() => {
   jest.useFakeTimers();
+  mockIteratorStarts.length = 0;
   synth = new FakeSpeechSynthesis();
   states = [];
   (globalThis as any).speechSynthesis = synth;
@@ -232,5 +256,107 @@ describe("stall watchdog", () => {
     expect(spoken).toHaveLength(3);
     expect(spoken[2].text).toBe("Second");
     expect(synth.cancelCalls).toBe(1);
+  });
+});
+
+describe("play start position", () => {
+  const readerPosition = new Locator({ href: "chap3.html", type: "text/html" });
+
+  it("starts at the initial locator when nothing has been spoken", async () => {
+    const nav = makeNavigator({ initialLocator: readerPosition });
+
+    await nav.play();
+
+    expect(mockIteratorStarts).toEqual([readerPosition]);
+  });
+
+  it("resumes at the current utterance instead of the start of the publication", async () => {
+    const nav = makeNavigator({ initialLocator: readerPosition });
+    const spoken = makeElement("Hello", "chap5.html");
+    (nav as any)._currentElement = spoken;
+
+    await nav.play();
+
+    expect(mockIteratorStarts).toEqual([spoken.locator]);
+  });
+
+  it("starts at an explicit locator", async () => {
+    const nav = makeNavigator({ initialLocator: readerPosition });
+    const target = new Locator({ href: "chap9.html", type: "text/html" });
+
+    await nav.play(target);
+
+    expect(mockIteratorStarts).toEqual([target]);
+  });
+});
+
+describe("play engine priming", () => {
+  /** Mirrors Chrome, which reports every utterance as pending once queued. */
+  function reportQueuedAsPending(): void {
+    const speak = synth.speak.bind(synth);
+    synth.speak = (u: FakeUtterance) => {
+      speak(u);
+      synth.pending = true;
+    };
+  }
+
+  it("does not cancel its own priming utterance on an idle engine", async () => {
+    const nav = makeNavigator();
+    reportQueuedAsPending();
+
+    await nav.play();
+
+    expect(synth.spoken.map((u) => u.text)).toEqual([""]);
+    expect(synth.cancelCalls).toBe(0);
+  });
+
+  it("stops earlier speech before priming", async () => {
+    const nav = makeNavigator();
+    reportQueuedAsPending();
+    synth.speaking = true;
+    const order: string[] = [];
+    const cancel = synth.cancel.bind(synth);
+    synth.cancel = () => {
+      order.push("cancel");
+      cancel();
+    };
+    const speak = synth.speak.bind(synth);
+    synth.speak = (u: FakeUtterance) => {
+      order.push(`speak:${u.text}`);
+      speak(u);
+    };
+
+    const playing = nav.play();
+    await jest.advanceTimersByTimeAsync(50);
+    await playing;
+
+    expect(order).toEqual(["cancel", "speak:"]);
+  });
+});
+
+describe("utterance language", () => {
+  it("uses the publication language when no voice is chosen", () => {
+    const nav = makeNavigator();
+    speakElement(nav, makeElement("Hej"));
+
+    expect(realUtterances()[0].lang).toBe("da");
+  });
+
+  it("picks a suitable installed voice for the language", () => {
+    synth.getVoices = () => [
+      { name: "Albert", voiceURI: "Albert", lang: "da-DK", localService: true, default: false },
+      { name: "Sara", voiceURI: "Sara", lang: "da-DK", localService: true, default: false },
+    ];
+    const nav = makeNavigator();
+    speakElement(nav, makeElement("Hej"));
+
+    expect(realUtterances()[0].voice?.name).toBe("Sara");
+  });
+
+  it("prefers the language override", () => {
+    const nav = makeNavigator({ lang: "nb" });
+    speakElement(nav, makeElement("Hei"));
+
+    expect(realUtterances()[0].lang).toBe("nb");
   });
 });
