@@ -36,7 +36,7 @@ import {
   serializeVoices,
   ttsPreferencesFromJson,
 } from "../preferences/FlutterTTSPreferences";
-import { pickDefaultVoice } from "./defaultVoice";
+import { pickDefaultVoice, voicesLoaded } from "./defaultVoice";
 import { withQueryableCssSelector } from "./firstVisibleLocator";
 import { flattenToc, enrichWithTocHref } from "./locatorEnrich";
 import { ReadiumWebError, ReadiumWebErrorCode } from "../errors/ReadiumWebError";
@@ -312,6 +312,12 @@ export class FlutterTTSNavigator {
     if (wasActive) {
       speechSynthesis.cancel();
     }
+    // A paused engine stays paused through cancel(), so new utterances would
+    // queue silently. Chrome reports `paused: false` even then, so resume
+    // unconditionally; it does nothing on an engine that is not paused. It is
+    // repeated once the engine has settled, below: in Chrome, either call alone
+    // still leaves the next utterance silent.
+    speechSynthesis.resume();
     // Prime the engine synchronously inside the user-gesture frame.
     // Chromium silently swallows the first async speak() if the gesture has
     // already expired by the time we call it (after awaiting hasNext()).
@@ -331,10 +337,16 @@ export class FlutterTTSNavigator {
     // dispatch utterance.onstart — the classic wedge that strikes when play()
     // is invoked twice in quick succession (e.g. ttsEnable followed by an
     // immediate play(locator) from the Dart side).
+    const generation = this._generation;
     if (wasActive) {
       await new Promise<void>((resolve) => setTimeout(resolve, 50));
-      if (this._destroyed) return;
     }
+    // The default voice is picked from this list, and Chrome fills it only
+    // after `voiceschanged`.
+    await voicesLoaded();
+    // A later play() or stop() owns the engine now.
+    if (this._destroyed || generation !== this._generation) return;
+    speechSynthesis.resume();
     log.debug("Initialized - Speaking first element");
     await this._speakNext();
   }

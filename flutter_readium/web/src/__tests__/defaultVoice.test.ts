@@ -47,6 +47,15 @@ describe("pickDefaultVoice", () => {
     expect(pickDefaultVoice(voices, "en-US")?.name).toBe("Ava (Premium)");
   });
 
+  it("prefers a plain local voice over a network voice", () => {
+    const voices = [
+      voice("Microsoft Christel Online (Natural) - Danish (Denmark)", "da-DK", { localService: false }),
+      voice("Microsoft Helle - Danish (Denmark)", "da-DK"),
+    ];
+
+    expect(pickDefaultVoice(voices, "da")?.name).toBe("Microsoft Helle - Danish (Denmark)");
+  });
+
   it("returns undefined when only unsuitable voices speak the language", () => {
     expect(pickDefaultVoice([voice("Albert", "en-US"), voice("Magnus", "da-DK")], "en")).toBeUndefined();
   });

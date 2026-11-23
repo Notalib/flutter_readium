@@ -120,7 +120,7 @@ describe("withFirstVisibleElement", () => {
     expect(withFirstVisibleElement(precise, [wnd])).toBe(precise);
   });
 
-  it("returns the locator unchanged when no frame can be inspected", () => {
+  it("returns the locator unchanged when the frame cannot be inspected", () => {
     const empty = frame(el("BODY", "body", [0, 100]));
     const destroyed = {
       get document(): Document {
@@ -128,7 +128,14 @@ describe("withFirstVisibleElement", () => {
       },
     } as unknown as Window;
 
-    expect(withFirstVisibleElement(chapter, [destroyed, empty])).toBe(chapter);
+    expect(withFirstVisibleElement(chapter, [destroyed])).toBe(chapter);
+    expect(withFirstVisibleElement(chapter, [empty])).toBe(chapter);
+  });
+
+  it("leaves a fixed-layout spread alone, whose frames show other resources", () => {
+    const page = () => frame(el("BODY", "body", [0, 100], [el("P", "p1", [10, 90])]));
+
+    expect(withFirstVisibleElement(chapter, [page(), page()])).toBe(chapter);
   });
 });
 

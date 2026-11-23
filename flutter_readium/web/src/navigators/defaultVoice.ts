@@ -25,10 +25,12 @@ const HIGH_QUALITY_NAME = /\((Premium|Enhanced)\)|\bNatural\b/;
  * Returns the best installed voice for `lang` (a BCP 47 tag such as "da" or
  * "en-US"), or undefined when there is none.
  *
- * Preference order: the browser's default voice when it speaks the language,
- * then a voice for the exact region, then high-quality voices, then local
- * voices. Local voices come before network ones because Chrome's network
- * voices send no word boundaries, so word highlighting stops working.
+ * Preference order: local voices, then the browser's default voice, then the
+ * exact region, then high-quality voices. Each criterion outweighs all later
+ * ones. Network voices (Chrome's "Google …", Edge's "… Online (Natural)") come
+ * last: they send the book text to the vendor, fail offline, and Chrome's send
+ * no word boundaries, so word highlighting stops working. Apps can still
+ * choose one explicitly.
  */
 export function pickDefaultVoice(
   voices: SpeechSynthesisVoice[],
@@ -42,12 +44,31 @@ export function pickDefaultVoice(
     return !UNSUITABLE_VOICE_NAMES.has(baseName(voice.name));
   });
   const score = (voice: SpeechSynthesisVoice): number =>
-    (voice.default ? 8 : 0) +
-    (normalizeLang(voice.lang) === wanted ? 4 : 0) +
-    (HIGH_QUALITY_NAME.test(voice.name) ? 2 : 0) +
-    (voice.localService ? 1 : 0);
+    (voice.localService ? 8 : 0) +
+    (voice.default ? 4 : 0) +
+    (normalizeLang(voice.lang) === wanted ? 2 : 0) +
+    (HIGH_QUALITY_NAME.test(voice.name) ? 1 : 0);
   // Stable sort: equal scores keep the browser's order.
   return candidates.sort((a, b) => score(b) - score(a))[0];
+}
+
+/**
+ * Resolves once the browser has listed its voices, or after `timeoutMs`.
+ * Chrome returns an empty list from `getVoices()` until `voiceschanged` fires
+ * shortly after page load, and without the list no default voice can be
+ * picked.
+ */
+export function voicesLoaded(timeoutMs = 1000): Promise<void> {
+  if (speechSynthesis.getVoices().length > 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = (): void => {
+      clearTimeout(timer);
+      speechSynthesis.removeEventListener("voiceschanged", done);
+      resolve();
+    };
+    const timer = setTimeout(done, timeoutMs);
+    speechSynthesis.addEventListener("voiceschanged", done);
+  });
 }
 
 function normalizeLang(lang: string): string {

@@ -73,8 +73,17 @@ class FakeSpeechSynthesis {
   resume(): void {
     this.paused = false;
   }
+  /** Loaded by default; tests of the empty list before `voiceschanged` override it. */
+  voices: any[] = [{ name: "Fake", voiceURI: "fake", lang: "xx", localService: true, default: true }];
   getVoices(): any[] {
-    return [];
+    return this.voices;
+  }
+  listeners = new Map<string, () => void>();
+  addEventListener(type: string, listener: () => void): void {
+    this.listeners.set(type, listener);
+  }
+  removeEventListener(type: string): void {
+    this.listeners.delete(type);
   }
 }
 
@@ -287,6 +296,45 @@ describe("play start position", () => {
     await nav.play(target);
 
     expect(mockIteratorStarts).toEqual([target]);
+  });
+});
+
+describe("play engine state", () => {
+  it("resumes a paused engine, which would otherwise queue utterances silently", async () => {
+    const nav = makeNavigator();
+    synth.paused = true;
+
+    await nav.play();
+
+    expect(synth.paused).toBe(false);
+  });
+
+  it("waits for the voice list before speaking", async () => {
+    const nav = makeNavigator();
+    synth.voices = [];
+    let done = false;
+
+    const playing = nav.play().then(() => (done = true));
+    await jest.advanceTimersByTimeAsync(100);
+    expect(done).toBe(false);
+
+    synth.voices = [{ name: "Sara", voiceURI: "sara", lang: "da-DK", localService: true, default: false }];
+    synth.listeners.get("voiceschanged")!();
+    await playing;
+    expect(mockIteratorStarts).toHaveLength(1);
+  });
+
+  it("does not speak when stopped while waiting for voices", async () => {
+    const nav = makeNavigator();
+    synth.voices = [];
+    const speakNext = jest.spyOn(nav as any, "_speakNext");
+
+    const playing = nav.play();
+    nav.stop();
+    await jest.advanceTimersByTimeAsync(1000);
+    await playing;
+
+    expect(speakNext).not.toHaveBeenCalled();
   });
 });
 

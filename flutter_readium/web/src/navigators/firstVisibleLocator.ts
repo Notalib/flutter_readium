@@ -22,20 +22,22 @@ const log = createLogger("FirstVisible");
  * top of the chapter. iOS does the same lookup (`getFirstVisibleLocator`).
  */
 export function withFirstVisibleElement(current: Locator, frameWindows: Window[]): Locator {
-  if (current.locations.otherLocations?.get("cssSelector")) return current;
-  for (const wnd of frameWindows) {
-    try {
-      const element = findFirstVisibleElement(wnd, wnd.document.body);
-      if (!element) continue;
-      const otherLocations = new Map(current.locations.otherLocations ?? []);
-      otherLocations.set("cssSelector", bodyPathSelector(element));
-      return current.copyWithLocations({ otherLocations });
-    } catch (error) {
-      // A frame that is being torn down throws on access.
-      log.debug("first visible element lookup failed:", error);
-    }
+  // A fixed-layout spread shows two resources side by side, and a frame cannot
+  // be matched to `current.href` (frames load from blob URLs), so TTS there
+  // starts at the top of the page.
+  if (frameWindows.length !== 1 || current.locations.otherLocations?.get("cssSelector")) return current;
+  const wnd = frameWindows[0];
+  try {
+    const element = findFirstVisibleElement(wnd, wnd.document.body);
+    if (!element) return current;
+    const otherLocations = new Map(current.locations.otherLocations ?? []);
+    otherLocations.set("cssSelector", bodyPathSelector(element));
+    return current.copyWithLocations({ otherLocations });
+  } catch (error) {
+    // A frame that is being torn down throws on access.
+    log.debug("first visible element lookup failed:", error);
+    return current;
   }
-  return current;
 }
 
 /**
