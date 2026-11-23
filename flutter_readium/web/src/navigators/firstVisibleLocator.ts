@@ -65,6 +65,10 @@ export function withQueryableCssSelector(locator: Locator): Locator {
 
 const TOOLKIT_SELECTOR_PREFIX = /^:scope > (?::nth-child\(1\)|html)(?= |$)/;
 
+// `Node.ELEMENT_NODE` and `Node.TEXT_NODE`; the `Node` global is missing in node tests.
+const ELEMENT_NODE = 1;
+const TEXT_NODE = 3;
+
 /**
  * Whether text or an image comes before `element` in its body, so the iterator
  * has something to skip.
@@ -72,6 +76,8 @@ const TOOLKIT_SELECTOR_PREFIX = /^:scope > (?::nth-child\(1\)|html)(?= |$)/;
 export function hasContentBefore(element: Element): boolean {
   for (let el: Element | null = element; el && el.tagName.toUpperCase() !== "BODY"; el = el.parentElement) {
     for (let node = el.previousSibling; node; node = node.previousSibling) {
+      // Comments and processing instructions give the iterator nothing to read.
+      if (node.nodeType !== ELEMENT_NODE && node.nodeType !== TEXT_NODE) continue;
       if (node.nodeName.toUpperCase() === "IMG" || node.textContent?.trim()) return true;
     }
   }

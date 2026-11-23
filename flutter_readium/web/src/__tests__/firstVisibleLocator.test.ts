@@ -16,6 +16,7 @@ import {
 interface FakeElement {
   tagName: string;
   nodeName: string;
+  nodeType: number;
   id: string;
   textContent: string;
   previousSibling: FakeElement | null;
@@ -31,6 +32,7 @@ function el(tagName: string, id: string, x: [number, number], children: FakeElem
   const element: FakeElement = {
     tagName,
     nodeName: tagName,
+    nodeType: 1,
     id,
     textContent: id,
     previousSibling: null,

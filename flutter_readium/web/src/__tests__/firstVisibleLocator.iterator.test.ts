@@ -52,6 +52,12 @@ describe("TTS start position with the toolkit iterator", () => {
     expect(await firstSpokenText(html, ["s", "p1"])).toBe("Only");
   });
 
+  it("ignores a comment before a chapter that is a single wrapped paragraph", async () => {
+    const html = xhtml(`<!-- page 12 --><section id="s"><p id="p1">Only</p></section>`);
+
+    expect(await firstSpokenText(html, ["s", "p1"])).toBe("Only");
+  });
+
   it("starts at the first visible paragraph of a section continued from the previous page", async () => {
     const html = xhtml(`<section id="s" data-spans="1"><p id="p1">One</p><p id="p2">Two</p></section>`);
 

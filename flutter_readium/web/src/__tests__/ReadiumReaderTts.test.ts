@@ -22,6 +22,7 @@ function contentFrame(): Window {
   const p = (left: number): any => ({
     tagName: "P",
     nodeName: "P",
+    nodeType: 1,
     textContent: "text",
     firstElementChild: null,
     getBoundingClientRect: () => ({ left, right: left + 80, top: 0, bottom: 50, width: 80, height: 50 }),
