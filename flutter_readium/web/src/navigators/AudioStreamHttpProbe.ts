@@ -95,10 +95,11 @@ function isEmptyBody(response: ProbeResponse): boolean {
 /**
  * A captive portal or login page answers 2xx with HTML, which the browser also fails to decode,
  * so only an audio `Content-Type` makes an undecodable track a defect in the publication.
+ * `application/octet-stream` is any binary payload, so it does not count.
  */
 function isServedAsAudio(response: ProbeResponse): boolean {
   const type = response.headers?.get("Content-Type")?.split(";")[0].trim().toLowerCase() ?? "";
-  return type.startsWith("audio/") || type === "application/octet-stream";
+  return type.startsWith("audio/");
 }
 
 /**

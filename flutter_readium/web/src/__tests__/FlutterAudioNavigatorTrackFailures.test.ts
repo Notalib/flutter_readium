@@ -199,7 +199,7 @@ describe("defective tracks", () => {
     probeResults.set(track(1), AudioStreamErrorAction.retry());
 
     await expect(open(3)).rejects.toMatchObject({ code: ReadiumWebErrorCode.audioStreamNetworkError });
-    await settle(300);
+    await settle(400);
 
     expect(errorCodes()).toEqual(["AudioStreamRetry", "AudioStreamNetworkError"]);
     expect(emitError.mock.calls[1][2]?.reason).toBeUndefined();
@@ -249,6 +249,41 @@ describe("recovery during the first load", () => {
     expect(installed?.destroyed).toBe(false);
     expect(FlutterAudioNavigator.isTerminallyFailed()).toBe(false);
     expect(errorCodes()).toEqual(["AudioStreamRetry"]);
+  });
+});
+
+describe("recovery rebuilds", () => {
+  it("discards a probe verdict from a navigator that a later rebuild replaced", async () => {
+    // A rebuild is verified on a 250 ms poll, so give it a longer connection timeout than that.
+    usePolicy(new AudioRecoveryPolicy(3, 0.001, 20, 1));
+    await open(2);
+    probe.mockImplementationOnce(async () => AudioStreamErrorAction.retry());
+    lastNav().listeners.error({ code: 2 }, lastNav().currentLocator);
+    await settle(50);
+    const firstRebuild = lastNav();
+    expect(installed).toBe(firstRebuild);
+    firstRebuild.currentTime += 1; // playback advances, so recovery verifies the rebuild
+    await settle(400);
+
+    let finishProbe: (action: AudioStreamErrorAction) => void = () => {};
+    probe.mockImplementationOnce(() => new Promise((resolve) => (finishProbe = resolve)));
+    firstRebuild.listeners.error({ code: 3 }, firstRebuild.currentLocator);
+    await settle();
+    probe.mockImplementationOnce(async () => AudioStreamErrorAction.retry());
+    firstRebuild.listeners.error({ code: 2 }, firstRebuild.currentLocator);
+    await settle(50);
+    const secondRebuild = lastNav();
+    expect(FakeAudioNavigator.instances).toHaveLength(3);
+    expect(installed).toBe(secondRebuild);
+    secondRebuild.currentTime += 1;
+    await settle(400);
+
+    finishProbe(AudioStreamErrorAction.fail("AudioStreamError", 200, "undecodable"));
+    await settle();
+
+    expect(errorCodes()).toEqual(["AudioStreamRetry", "AudioStreamRetry"]);
+    expect(FlutterAudioNavigator.isTerminallyFailed()).toBe(false);
+    expect(secondRebuild.isPlaying).toBe(true);
   });
 });
 

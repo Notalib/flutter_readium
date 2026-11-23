@@ -117,6 +117,12 @@ describe("probeAudioStreamHttpStatus", () => {
       expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamError", 200));
     });
 
+    it("2xx served as generic binary (application/octet-stream) -> fatal without a reason", async () => {
+      const fetch = served(200, "application/octet-stream");
+      const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch, decodeError: true });
+      expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamError", 200));
+    });
+
     it("404 -> reason missing", async () => {
       const fetch = served(404, "text/html");
       const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch, decodeError: true });

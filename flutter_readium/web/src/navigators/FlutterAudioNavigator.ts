@@ -427,6 +427,12 @@ export function seekAudioAndResume(
 // Re-enabled whenever a fresh AudioNavigator is created (see FlutterAudioNavigator.create).
 let _emissionsEnabled = true;
 
+/**
+ * Navigators a recovery rebuild has replaced. Each rebuild runs its own `create()`, whose
+ * listeners keep a binding to their own navigator after a later rebuild replaces it.
+ */
+const retiredNavigators = new WeakSet<AudioNavigator>();
+
 /** Enable/disable audio navigator emissions (text/state/visual sync). */
 export function setAudioEmissionsEnabled(enabled: boolean): void {
   log.debug(`Audio emissions ${enabled ? "enabled" : "disabled"}`);
@@ -927,7 +933,11 @@ export class FlutterAudioNavigator {
               href,
               publication,
               () => nav?.currentLocator,
-              () => { nav?.stop(); nav?.destroy(); },
+              () => {
+                if (nav) retiredNavigators.add(nav);
+                nav?.stop();
+                nav?.destroy();
+              },
               preferencesJsonString,
               setNav,
               locatorMapper,
@@ -1082,7 +1092,11 @@ export class FlutterAudioNavigator {
           void classifyWithProbe(mediaError, href, publication).then((action) => {
             // The probe can take seconds. A verdict on a track the user has since left, or on a
             // replaced navigator, must not stop what plays now.
-            if (isDisposed() || nav !== failedNav || nav.currentLocator.href !== failedResource) {
+            if (
+              isDisposed() ||
+              retiredNavigators.has(failedNav) ||
+              failedNav.currentLocator.href !== failedResource
+            ) {
               log.info("Discarding probe result for a resource that is no longer playing", href);
               return;
             }
