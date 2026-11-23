@@ -25,6 +25,18 @@ describe("pickDefaultVoice", () => {
     expect(pickDefaultVoice(macVoices, "en-US")?.name).toBe("Samantha");
   });
 
+  it("skips localized novelty names and eSpeak voices", () => {
+    const voices = [
+      voice("Mauvaises nouvelles", "fr-FR"),
+      voice("Thomas", "fr-FR"),
+      voice("eSpeak Danish", "da-DK"),
+      voice("Magnus", "da-DK"),
+    ];
+
+    expect(pickDefaultVoice(voices, "fr")?.name).toBe("Thomas");
+    expect(pickDefaultVoice(voices, "da")?.name).toBe("Magnus");
+  });
+
   it("matches a language without a region", () => {
     expect(pickDefaultVoice(macVoices, "en")?.name).toBe("Daniel");
   });

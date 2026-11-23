@@ -6,17 +6,7 @@
  * engine chooses a voice itself instead.
  */
 
-/**
- * macOS novelty voices and the old Eloquence voices (Eddy, Flo, ...). They are
- * robotic or sing, and are never a sensible default. Names follow the
- * novelty and veryLowQuality filters in https://github.com/readium/speech.
- */
-const UNSUITABLE_VOICE_NAMES = new Set([
-  "Albert", "Bad News", "Bahh", "Bells", "Boing", "Bubbles", "Cellos", "Fred", "Good News",
-  "Jester", "Junior", "Kathy", "Organ", "Ralph", "Superstar", "Trinoids", "Whisper", "Wobble",
-  "Zarvox",
-  "Eddy", "Flo", "Grandma", "Grandpa", "Reed", "Rocko", "Sandy", "Shelley",
-]);
+import { isNoveltyVoice, isVeryLowQualityVoice } from "@readium/speech";
 
 /** Marks the higher-quality downloads of macOS, Windows and Edge voices. */
 const HIGH_QUALITY_NAME = /\((Premium|Enhanced)\)|\bNatural\b/;
@@ -41,7 +31,10 @@ export function pickDefaultVoice(
   const candidates = voices.filter((voice) => {
     const voiceLang = normalizeLang(voice.lang);
     if (voiceLang !== wanted && voiceLang.split("-")[0] !== primary) return false;
-    return !UNSUITABLE_VOICE_NAMES.has(baseName(voice.name));
+    // Novelty voices sing or whisper, and very low quality ones (Eloquence,
+    // eSpeak) sound robotic. readium/speech keeps both lists, so they stay
+    // current with the OS releases it tracks.
+    return !isNoveltyVoice(voice.name, voice.voiceURI) && !isVeryLowQualityVoice(voice.name);
   });
   const score = (voice: SpeechSynthesisVoice): number =>
     (voice.localService ? 8 : 0) +
@@ -75,8 +68,3 @@ function normalizeLang(lang: string): string {
   return lang.replace("_", "-").toLowerCase();
 }
 
-/** "Eddy (English (United States))" -> "Eddy". */
-function baseName(voiceName: string): string {
-  const paren = voiceName.indexOf(" (");
-  return paren === -1 ? voiceName : voiceName.slice(0, paren);
-}

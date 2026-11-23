@@ -7,6 +7,10 @@ const isProd = process.env.BUILD === 'production';
 
 export default {
   input: 'web/src/index.ts',
+  // @readium/speech imports i18next for a function the plugin never calls.
+  // i18next does not declare itself side-effect free, so without this its
+  // whole module (about 50 KB minified) lands in the bundle unused.
+  treeshake: { moduleSideEffects: (id) => !id.includes('/node_modules/i18next/') },
   output: {
     file: 'lib/helpers/readiumReader.js',
     format: 'iife',
