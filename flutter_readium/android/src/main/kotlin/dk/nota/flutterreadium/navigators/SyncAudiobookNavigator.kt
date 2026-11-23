@@ -283,8 +283,21 @@ class SyncAudiobookNavigator(
             }
         val crossResource = curTextFile == null || curTextFile != locator.href.path
 
+        // A boundary cue can use the preceding audio file. Prefer a text anchor
+        // only if it identifies one audio file; otherwise keep the normal lookup.
+        val textId = if (locator.mediaType.isHtml) locator.getTextId() else null
+        val timeOffsetFromFragment = locator.locations.time
+        val anchoredItem =
+            textId?.let { id ->
+                mediaOverlays
+                    .flatMap { it?.items.orEmpty() }
+                    .filter { item ->
+                        item.textId == id && locator.href.isEquivalent(Url.invoke(item.textFile))
+                    }.distinctBy { it.audioFile }
+                    .singleOrNull()
+            }
         val mediaOverlay =
-            mediaOverlays.firstNotNullOfOrNull { mo ->
+            anchoredItem ?: mediaOverlays.firstNotNullOfOrNull { mo ->
                 mo?.findItemFromLocator(locator, allowResourceFallback = crossResource)
             }
 
@@ -301,9 +314,6 @@ class SyncAudiobookNavigator(
             locator.progression
                 ?.let { progression -> mediaOverlay.readingOrderItemDuration * progression }
                 ?.seconds
-        val timeOffsetFromFragment =
-            locator.locations.time
-
         if (timeOffsetFromProgression == null && timeOffsetFromFragment == null) {
             PluginLog.d(
                 TAG,
@@ -319,7 +329,13 @@ class SyncAudiobookNavigator(
             )
         }
 
-        val timeOffset = timeOffsetFromProgression ?: timeOffsetFromFragment ?: Duration.ZERO
+        // Preserve the saved audio time when its text anchor identifies the track.
+        val timeOffset =
+            if (anchoredItem != null && timeOffsetFromFragment != null) {
+                timeOffsetFromFragment
+            } else {
+                timeOffsetFromProgression ?: timeOffsetFromFragment ?: Duration.ZERO
+            }
 
         val updateSyncAudioLocator = syncAudioLocator.copyWithTimeFragment(timeOffset)
 
