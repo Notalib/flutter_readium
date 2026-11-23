@@ -178,6 +178,8 @@ class _ReadiumReader {
   private _lastMediaOverlayLocatorKey: string | null = null;
   /** Tail of the queued Media Overlay cue steps. */
   private _cueStepChain: Promise<void> = Promise.resolve();
+  /** The audio navigator `_cueStepChain` belongs to; a new navigator starts a fresh chain. */
+  private _cueStepChainNav: AudioNavigator | null = null;
 
   // Set to true once we've confirmed that any iframe in the current publication
   // is a comic-book page. Used to skip nav.go() for all subsequent cues.
@@ -841,9 +843,9 @@ class _ReadiumReader {
   private _seekAudioAndResume(
     audioLocator: Locator,
     resumePlaying: boolean
-  ): Promise<void> {
+  ): Promise<boolean> {
     const nav = this._audioNav;
-    if (!nav) return Promise.resolve();
+    if (!nav) return Promise.resolve(false);
     FlutterAudioNavigator.setPlaybackIntent(resumePlaying);
     return seekAudioAndResume(nav, audioLocator, resumePlaying);
   }
@@ -1091,10 +1093,20 @@ class _ReadiumReader {
     this._audioNav?.goBackward(false, () => {});
   }
 
-  /** Runs cue steps one at a time so a quick second tap sees the position the first one landed on. */
+  /**
+   * Runs cue steps one at a time so a quick second tap sees the position the first one landed on.
+   * Each step is bound to the navigator that was active at the tap. A stalled step of a closed
+   * publication then neither blocks nor moves the next one.
+   */
   private _queueCueStep(direction: 1 | -1): void {
+    const nav = this._audioNav;
+    if (!nav) return;
+    if (this._cueStepChainNav !== nav) {
+      this._cueStepChainNav = nav;
+      this._cueStepChain = Promise.resolve();
+    }
     this._cueStepChain = this._cueStepChain
-      .then(() => this._stepCue(direction))
+      .then(() => this._stepCue(nav, direction))
       .catch((err) => log.warn("cue step failed", err));
   }
 
@@ -1102,15 +1114,14 @@ class _ReadiumReader {
    * Media Overlay `next`/`previous`: moves one cue, keeping the play state. The view
    * moves to the cue even while paused, and a step out of manual mode re-enables sync.
    */
-  private async _stepCue(direction: 1 | -1): Promise<void> {
-    const nav = this._audioNav;
-    if (!nav || this._syncItems.length === 0) return;
+  private async _stepCue(nav: AudioNavigator, direction: 1 | -1): Promise<void> {
+    if (this._audioNav !== nav || this._syncItems.length === 0) return;
     const useSyncNarrationLookup = !!this._audioNavPublication &&
       detectSyncNarration(this._audioNavPublication) && !detectGuidedNavigation(this._audioNavPublication);
     const current = nav.currentLocator;
-    // While playing, `currentLocator` lags by up to one position poll, so it can still name the
-    // previous cue. When paused it is exact (seek and `seeked` both set it).
-    const time = isPlayingOrResuming(nav) ? nav.currentTime : (getTime(current.locations) ?? nav.currentTime);
+    // `currentLocator` lags the clock by up to one position poll, and pausing stops the poll
+    // without refreshing it. Its href is current: upstream go() sets it with the track.
+    const time = nav.currentTime;
     const target = findCueStepTarget(this._syncItems, current.href, time, direction, useSyncNarrationLookup);
     if (!target || target.audioStart === null) return;
 
@@ -1119,16 +1130,18 @@ class _ReadiumReader {
       type: "audio/mpeg",
       locations: new LocatorLocations({ fragments: [`t=${target.audioStart}`] }),
     });
-    await this._seekAudioAndResume(audioLocator, isPlayingOrResuming(nav));
-    if (this._audioNav !== nav) return;
+    // Sampled before the seek: its position callback can turn the comic page, which clears the
+    // override and emits updateNarrationSync(true) on its own.
+    const readerManual = !this._narrationSyncEnabled;
+    const comicManual = this._comicNav?.manuallyOverridden ?? false;
+    const seeked = await this._seekAudioAndResume(audioLocator, isPlayingOrResuming(nav));
+    if (!seeked || this._audioNav !== nav) return;
 
     // The view is moved here rather than via the audio navigator's emission, which is not
     // guaranteed while paused. That later emission of the same cue is deduplicated.
     const textLocator = textLocatorForItem(target);
     const durationMs = target.audioEnd !== null ? (target.audioEnd - target.audioStart) * 1000 : undefined;
     const comic = this._comicNav;
-    const readerManual = !this._narrationSyncEnabled;
-    const comicManual = comic?.manuallyOverridden ?? false;
     if (readerManual || comicManual) {
       // Make any deferred replay (and the dedup key) point at the target, not the old cue.
       this._lastDeferredSyncLocator = textLocator;

@@ -127,28 +127,32 @@ extension EPUBReaderView {
     if enabled, !wasEnabled, let deferredLocator = lastSyncLocator {
       let deferredSegmentDuration = lastSyncSegmentDuration
       Task.detached(priority: .high) {
-        // Clear the JS-side manual-override flag so the next pinch re-enters manual
-        // mode. No-op (optional chaining) on non-comic pages.
-        await self.evaluateJavascript("window.comicBookPage?.clearManualOverride?.();")
-        let navigated = await self.performSyncNavigation(
-          deferredLocator,
-          animated: false,
-          segmentDuration: deferredSegmentDuration)
-        Log.reader.debug(
-          "setNarrationSyncEnabled: re-sync completed success=\(navigated)")
+        await self.replaySyncCue(deferredLocator, segmentDuration: deferredSegmentDuration)
       }
     }
   }
 
-  /// Leaves manual mode after a cue step. The target cue is stored as the deferred sync locator
-  /// first, so the re-sync replays it directly instead of whichever cue was reached earlier.
+  /// Leaves manual mode after a cue step and returns once the view shows the target cue.
+  /// The target is stored as the deferred sync locator, so later re-syncs replay it too.
   /// Does nothing when sync is already on; the cue's own sync emission moves the view.
   @MainActor
-  internal func resyncToCue(_ locator: Locator, segmentDuration: TimeInterval?) {
+  internal func resyncToCue(_ locator: Locator, segmentDuration: TimeInterval?) async {
     guard !narrationSyncEnabled else { return }
     lastSyncLocator = locator
     lastSyncSegmentDuration = segmentDuration
-    setNarrationSyncEnabled(true)
+    narrationSyncEnabled = true
+    FlutterReadiumPlugin.instance?.narrationSyncStreamHandler?.sendEvent(true)
+    // Awaited, unlike setNarrationSyncEnabled's replay, so the caller's queue holds the next
+    // step until this one is on screen.
+    await replaySyncCue(locator, segmentDuration: segmentDuration)
+  }
+
+  private func replaySyncCue(_ locator: Locator, segmentDuration: TimeInterval?) async {
+    // Clear the JS-side manual-override flag so the next pinch re-enters manual
+    // mode. No-op (optional chaining) on non-comic pages.
+    await evaluateJavascript("window.comicBookPage?.clearManualOverride?.();")
+    let navigated = await performSyncNavigation(locator, animated: false, segmentDuration: segmentDuration)
+    Log.reader.debug("replaySyncCue: re-sync completed success=\(navigated)")
   }
 
   /// Called when narration stops (not paused — fully stopped). Resets the

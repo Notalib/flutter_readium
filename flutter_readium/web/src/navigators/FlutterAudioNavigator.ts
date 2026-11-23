@@ -381,12 +381,13 @@ function resume(nav: SeekableAudioNavigator): void {
  * @param nav           Active audio navigator.
  * @param audioLocator  Audio-domain locator to seek to (href + `t=` fragment).
  * @param resumePlaying When true, playback resumes once the seek completes.
+ * @returns           Whether the audio reached the target.
  */
 export function seekAudioAndResume(
   nav: SeekableAudioNavigator,
   audioLocator: Locator,
   resumePlaying: boolean
-): Promise<void> {
+): Promise<boolean> {
   // Already at the target: a real seek would set currentTime to its current
   // value, fire no "seeked", and hang upstream go(). Restart playback directly
   // so the DOM "play" event re-fires and position polling resumes.
@@ -395,7 +396,7 @@ export function seekAudioAndResume(
     if (resumePlaying) {
       resume(nav); // pauses first, which forces a paused→playing transition
     }
-    return Promise.resolve();
+    return Promise.resolve(true);
   }
 
   // Pausing here (when playing) guarantees the post-seek play() restarts the
@@ -407,15 +408,17 @@ export function seekAudioAndResume(
   const restartTrack =
     getTime(audioLocator.locations) === 0 &&
     audioLocator.href.split("#")[0] === nav.currentLocator.href.split("#")[0];
+  let succeeded = false;
   return nav.go(audioLocator, false, (ok) => {
     if (!ok) {
       log.warn("seekAudioAndResume: audio seek failed for", audioLocator.href);
       return;
     }
+    succeeded = true;
     if (restartTrack) nav.seek(0);
     log.debug("seekAudioAndResume: seek completed", audioLocator.href);
     if (resumePlaying) resume(nav);
-  });
+  }).then(() => succeeded);
 }
 
 // When a publication is closed, the upstream AudioNavigator can still fire a

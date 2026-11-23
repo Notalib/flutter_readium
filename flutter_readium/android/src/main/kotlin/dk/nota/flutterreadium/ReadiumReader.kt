@@ -1507,14 +1507,24 @@ object ReadiumReader :
      * Skip backwards.
      */
     suspend fun previous() {
-        if (!stepMediaOverlayCue(forward = false)) timebasedNavigator?.goBackward()
+        if (!stepMediaOverlayCue(forward = false)) seekBackward()
     }
 
     /**
      * Skip forwards.
      */
     suspend fun next() {
-        if (!stepMediaOverlayCue(forward = true)) timebasedNavigator?.goForward()
+        if (!stepMediaOverlayCue(forward = true)) seekForward()
+    }
+
+    /** Seeks back by the seek interval, also in media-overlay books. For the notification's seek button. */
+    suspend fun seekBackward() {
+        timebasedNavigator?.goBackward()
+    }
+
+    /** Seeks forward by the seek interval, also in media-overlay books. For the notification's seek button. */
+    suspend fun seekForward() {
+        timebasedNavigator?.goForward()
     }
 
     /**
@@ -1534,7 +1544,12 @@ object ReadiumReader :
             // would leave a just-written goToLocator target in state. Mirror goToLocator instead.
             currentReadiumTimebasedState.value =
                 currentReadiumTimebasedState.value.copyWith(currentLocator = cueLocator)
-            if (!narrationSyncEnabled) setNarrationSyncEnabled(true)
+            if (!narrationSyncEnabled) {
+                // Awaited under the lock, so a quick second step cannot be undone by this catch-up.
+                narrationSyncEnabled = true
+                emitNarrationSyncChanged(true)
+                resyncVisualAfterManualMode()
+            }
         }
         return true
     }
@@ -2034,22 +2049,20 @@ object ReadiumReader :
         narrationSyncEnabled = enabled
         if (enabled) {
             // Re-sync to the last known audio cue immediately.
-            launch {
-                val epub = epubNavigator
-                if (epub != null) {
-                    epub.resyncAfterManualMode()
-                    return@launch
-                }
-                val comic = comicNavigator
-                if (comic != null) {
-                    // Page-level catch-up: jump to the last audio-cue page immediately.
-                    // Panel-level framing is Phase 2 (no panel pan/zoom API on Android yet —
-                    // see docs/parity/native-divina-sync-handoff.md).
-                    comic.resyncAfterManualMode()
-                    return@launch
-                }
-            }
+            launch { resyncVisualAfterManualMode() }
         }
         emitNarrationSyncChanged(enabled)
+    }
+
+    private suspend fun resyncVisualAfterManualMode() {
+        val epub = epubNavigator
+        if (epub != null) {
+            epub.resyncAfterManualMode()
+            return
+        }
+        // Page-level catch-up: jump to the last audio-cue page immediately.
+        // Panel-level framing is Phase 2 (no panel pan/zoom API on Android yet —
+        // see docs/parity/native-divina-sync-handoff.md).
+        comicNavigator?.resyncAfterManualMode()
     }
 }

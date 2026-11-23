@@ -209,7 +209,7 @@ class PluginMediaService :
                 ),
             )
             CoroutineScope(Dispatchers.Main).async {
-                ReadiumReader.previous()
+                ReadiumReader.seekBackward()
             }
         }
         if (customCommand.customAction == NotificationPlayerCustomCommandButton.FORWARD.customAction) {
@@ -219,7 +219,7 @@ class PluginMediaService :
                 ),
             )
             CoroutineScope(Dispatchers.Main).async {
-                ReadiumReader.next()
+                ReadiumReader.seekForward()
             }
         }
         return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))

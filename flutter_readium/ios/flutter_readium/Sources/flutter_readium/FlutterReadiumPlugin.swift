@@ -823,7 +823,7 @@ extension FlutterReadiumPlugin {
   func skipToCue(on navigator: FlutterMediaOverlayNavigator, forward: Bool) async {
     await navigator.serialized {
       guard let cue = await navigator.skipToCue(forward: forward) else { return }
-      (self.currentReaderView as? EPUBReaderView)?.resyncToCue(cue.locator, segmentDuration: cue.segmentDuration)
+      await (self.currentReaderView as? EPUBReaderView)?.resyncToCue(cue.locator, segmentDuration: cue.segmentDuration)
     }
   }
 

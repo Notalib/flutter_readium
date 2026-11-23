@@ -125,6 +125,53 @@ describe("Media Overlay cue step", () => {
     expect(seekedTo(nav)).toEqual(["t=9"]);
   });
 
+  it("while paused, steps from the clock, not the locator the last poll left behind", async () => {
+    const nav = audioNav(4.8, false);
+    // Pausing stops the position poll without refreshing the locator.
+    nav.currentTime = 5.2;
+    const reader = readerWith(nav);
+
+    reader.next();
+    await settle(reader);
+
+    expect(seekedTo(nav)).toEqual(["t=9"]);
+  });
+
+  it("a failed audio seek neither moves the view nor re-enables sync", async () => {
+    const nav = audioNav(1, false);
+    nav.go.mockImplementation(async (_l: Locator, _a: boolean, cb: (ok: boolean) => void) => cb(false));
+    const reader = readerWith(nav);
+    const visual = { go: jest.fn(), _cframes: [] };
+    reader._nav = visual;
+    reader._narrationSyncEnabled = false;
+
+    reader.next();
+    await settle(reader);
+
+    expect(visual.go).not.toHaveBeenCalled();
+    expect(reader._narrationSyncEnabled).toBe(false);
+    expect(updateNarrationSync).not.toHaveBeenCalled();
+  });
+
+  it("steps queued for a closed publication neither block nor move the next one", async () => {
+    const first = audioNav(1, false);
+    // A seek that never settles, as after teardown.
+    first.go.mockImplementation(() => new Promise<void>(() => {}));
+    const reader = readerWith(first);
+    reader.next();
+    reader.next();
+    // Let the first step start its seek.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const second = audioNav(1, false);
+    reader._audioNav = second;
+    reader.next();
+    await settle(reader);
+
+    expect(first.go).toHaveBeenCalledTimes(1);
+    expect(seekedTo(second)).toEqual(["t=5"]);
+  });
+
   it("is a no-op on the last cue", async () => {
     const nav = audioNav(10, true);
     const reader = readerWith(nav);
@@ -194,6 +241,26 @@ describe("Media Overlay cue step", () => {
       const divina = comic(true, () => window.updateNarrationSync?.(true));
       reader._comicNav = divina;
       reader._narrationSyncEnabled = false;
+
+      reader.next();
+      await settle(reader);
+
+      expect(updateNarrationSync).toHaveBeenCalledTimes(1);
+    });
+
+    it("a page turn during the seek clears the override: still a single updateNarrationSync(true)", async () => {
+      const nav = audioNav(1, true);
+      const reader = readerWith(nav);
+      const divina = comic(true);
+      reader._comicNav = divina;
+      reader._narrationSyncEnabled = false;
+      const seek = nav.go.getMockImplementation()!;
+      // The seek's position callback turns the page, which clears the override and emits.
+      nav.go.mockImplementation(async (l: Locator, a: boolean, cb: (ok: boolean) => void) => {
+        divina.manuallyOverridden = false;
+        window.updateNarrationSync?.(true);
+        await seek(l, a, cb);
+      });
 
       reader.next();
       await settle(reader);

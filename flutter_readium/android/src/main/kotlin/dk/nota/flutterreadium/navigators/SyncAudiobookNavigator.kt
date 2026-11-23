@@ -16,6 +16,7 @@ import dk.nota.flutterreadium.models.cueStepTarget
 import dk.nota.flutterreadium.progression
 import dk.nota.flutterreadium.timeWithDuration
 import dk.nota.flutterreadium.tocHref
+import dk.nota.flutterreadium.withMainContext
 import dk.nota.flutterreadium.xhtmlIdTree
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.filterNotNull
@@ -26,6 +27,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.extensions.time
+import org.readium.r2.shared.DelicateReadiumApi
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Locator
@@ -135,24 +137,27 @@ class SyncAudiobookNavigator(
      * Only the channel next/previous come through here. Media-session next/previous keep using the
      * seek-interval [goForward]/[goBackward].
      */
-    @OptIn(InternalReadiumApi::class)
+    @OptIn(InternalReadiumApi::class, DelicateReadiumApi::class)
     suspend fun skipToCue(forward: Boolean): Locator? {
         val navigator =
             audioNavigator ?: run {
                 PluginLog.w(TAG, "::skipToCue. Navigator not ready.")
                 return null
             }
-        // Playback state is updated as soon as a seek settles. `currentLocator` is derived from it
-        // later, so it can still show the position before the previous step.
-        val playback = navigator.playback.value
+        // Ask the player itself: it reports a seek target at once. `playback` can still hold the
+        // pre-seek position, which goToLocator accepts as settled when it is close to the target.
+        val (index, time) =
+            withMainContext {
+                val player = navigator.asMedia3Player()
+                player.currentMediaItemIndex to player.currentPosition / 1000.0
+            }
         val href =
             navigator.readingOrder.items
-                .getOrNull(playback.index)
+                .getOrNull(index)
                 ?.href ?: run {
-                PluginLog.w(TAG, "::skipToCue. No reading order item at index ${playback.index}.")
+                PluginLog.w(TAG, "::skipToCue. No reading order item at index $index.")
                 return null
             }
-        val time = playback.offset.inWholeMilliseconds / 1000.0
 
         val target =
             mediaOverlays.cueStepTarget(href, time, forward) ?: run {
