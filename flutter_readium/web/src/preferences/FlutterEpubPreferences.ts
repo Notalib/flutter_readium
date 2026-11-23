@@ -179,6 +179,8 @@ export function epubPreferencesFromJson(
   //   custom CSS injection into the EPUB iframe.
   // - disableSynchronization: handled by ReadiumReader (plugin state), not navigator prefs.
   // - preventMOColumnBreaks: handled by ReadiumReader (plugin state), not navigator prefs.
+  // - makeSpaceForMarginDecoration: handled by ReadiumReader, which flags each EPUB iframe
+  //   for the padding rule in the helper CSS.
   // ---------------------------------------------------------------------------
 
   return normalizeTypes(out);
@@ -190,9 +192,11 @@ export function epubPreferencesFromJson(
  */
 export function pluginPrefsFromJson(prefs: Record<string, unknown>): {
   preventMOColumnBreaks: boolean;
+  makeSpaceForMarginDecoration: boolean;
 } {
   return {
     preventMOColumnBreaks: prefs.preventMOColumnBreaks !== false,
+    makeSpaceForMarginDecoration: prefs.makeSpaceForMarginDecoration === true,
   };
 }
 

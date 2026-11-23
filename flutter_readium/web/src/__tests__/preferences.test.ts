@@ -7,7 +7,7 @@
  * value through without any /100 conversion.
  */
 
-import { epubPreferencesFromJson } from "../preferences/FlutterEpubPreferences";
+import { epubPreferencesFromJson, pluginPrefsFromJson } from "../preferences/FlutterEpubPreferences";
 import { initializeWebPubPreferencesFromString } from "../preferences/FlutterWebPubPreferences";
 
 describe("EPUBPreferences fontSize — forwarded as ratio, not converted", () => {
@@ -45,5 +45,16 @@ describe("WebPubPreferences fontSize → zoom — forwarded as ratio", () => {
   it("omitted fontSize leaves zoom null/undefined", () => {
     const out = initializeWebPubPreferencesFromString(JSON.stringify({}));
     expect(out.zoom ?? null).toBeNull();
+  });
+});
+
+describe("EPUBPreferences makeSpaceForMarginDecoration — plugin-owned", () => {
+  it("is read by pluginPrefsFromJson and defaults to false", () => {
+    expect(pluginPrefsFromJson({ makeSpaceForMarginDecoration: true }).makeSpaceForMarginDecoration).toBe(true);
+    expect(pluginPrefsFromJson({}).makeSpaceForMarginDecoration).toBe(false);
+  });
+
+  it("is not forwarded to the navigator", () => {
+    expect(epubPreferencesFromJson({ makeSpaceForMarginDecoration: true })).not.toHaveProperty("makeSpaceForMarginDecoration");
   });
 });

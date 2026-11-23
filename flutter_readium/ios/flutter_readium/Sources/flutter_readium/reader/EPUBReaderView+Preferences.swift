@@ -16,14 +16,16 @@ extension EPUBReaderView {
   }
 
   /// Resolves preferences against the publication's layout. The first-element top
-  /// margin is a reflowable-text affordance, so it's dropped for every non-reflowable
-  /// publication — FXL EPUBs and paginated DiViNa report `.fixed`, scrolled DiViNa
-  /// reports `.scrolled`, and image publications (CBZ via ImageParser) report no
-  /// layout at all — where it would otherwise shift the full-page content down.
+  /// margin and the margin-decoration space are reflowable-text affordances, so they're
+  /// dropped for every non-reflowable publication — FXL EPUBs and paginated DiViNa report
+  /// `.fixed`, scrolled DiViNa reports `.scrolled`, and image publications (CBZ via
+  /// ImageParser) report no layout at all — where they would otherwise shift the
+  /// full-page content.
   func effectivePreferences(_ preferences: FlutterEPUBPreferences) -> FlutterEPUBPreferences {
     guard publication.metadata.layout != .reflowable else { return preferences }
     var resolved = preferences
     resolved.firstElementTopMargin = nil
+    resolved.makeSpaceForMarginDecoration = nil
     return resolved
   }
 

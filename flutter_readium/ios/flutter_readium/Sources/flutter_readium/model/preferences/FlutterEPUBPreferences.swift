@@ -4,9 +4,11 @@ let blackAndWhiteComicModeKey: String = "blackAndWhiteComicMode";
 let disableSynchronizationKey: String = "disableSynchronization";
 let firstElementTopMarginKey: String = "firstElementTopMargin";
 let preventMOColumnBreaksKey: String = "preventMOColumnBreaks";
+let makeSpaceForMarginDecorationKey: String = "makeSpaceForMarginDecoration";
 
 let topMarginCssVariable = "--FLUTTER_READIUM-first-element-top-margin"
 let blackAndWhiteComicModeCssVariable = "--FLUTTER_READIUM-black-white-comic-mode";
+let marginDecorationSpaceCssVariable = "--FLUTTER_READIUM-margin-decoration-space"
 
 public struct FlutterEPUBPreferences {
   
@@ -22,6 +24,8 @@ public struct FlutterEPUBPreferences {
   /// When true (default), prevents paragraph elements from splitting across CSS columns during
   /// media-overlay playback. Nil means the Dart-side default (true) applies.
   public var preventMOColumnBreaks: Bool?
+  /// Widens the side page margins to fit a margin marker decoration (rule in FlutterReadiumTools.scss).
+  public var makeSpaceForMarginDecoration: Bool?
   
   init() {
     readium = EPUBPreferences.init();
@@ -46,6 +50,10 @@ public struct FlutterEPUBPreferences {
       self.preventMOColumnBreaks = preventMOColumnBreaks
       mutableMap.removeValue(forKey: preventMOColumnBreaksKey);
     }
+    if let makeSpace = jsonMap[makeSpaceForMarginDecorationKey] as? Bool {
+      self.makeSpaceForMarginDecoration = makeSpace
+      mutableMap.removeValue(forKey: makeSpaceForMarginDecorationKey);
+    }
 
     readium = EPUBPreferences.init(fromMap: mutableMap)
   }
@@ -55,6 +63,7 @@ public struct FlutterEPUBPreferences {
 
       map[topMarginCssVariable] = firstElementTopMargin.map { "\($0)px" }
       map[blackAndWhiteComicModeCssVariable] = (blackAndWhiteComicMode == true) ? "1" : nil
+      map[marginDecorationSpaceCssVariable] = (makeSpaceForMarginDecoration == true) ? "1" : nil
 
       return map
   }

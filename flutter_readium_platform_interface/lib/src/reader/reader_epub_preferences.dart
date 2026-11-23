@@ -37,6 +37,7 @@ class EPUBPreferences with Equatable implements JSONable {
     this.disableSynchronization = false,
     this.firstElementTopMargin,
     this.preventMOColumnBreaks = true,
+    this.makeSpaceForMarginDecoration = false,
   });
 
   /// Default page background color.
@@ -139,6 +140,11 @@ class EPUBPreferences with Equatable implements JSONable {
   /// media-overlay playback. This ensures audio and visible text stay in sync when a paragraph
   /// would otherwise straddle a column boundary. Has no effect outside of media-overlay mode.
   final bool preventMOColumnBreaks;
+
+  /// Widens the side page margins so a [DecorationStyle.marginMarker] fits beside the text at any
+  /// font size. The extra margin follows the font size, so it changes line length and re-paginates.
+  /// Never narrows the margins below [pageMargins]. Ignored for fixed-layout publications.
+  final bool makeSpaceForMarginDecoration;
 
   /// Readium's supported [fontSize] range (ratio; `1.0` = 100%). Matches
   /// swift-toolkit's `EPUBPreferencesEditor.fontSize.supportedRange` (`0.1...5.0`).
@@ -258,6 +264,10 @@ class EPUBPreferences with Equatable implements JSONable {
       fallback: true,
       remove: true,
     );
+    final makeSpaceForMarginDecoration = jsonObject.optBoolean(
+      'makeSpaceForMarginDecoration',
+      remove: true,
+    );
 
     return EPUBPreferences(
       backgroundColor: backgroundColorStr != null ? ReadiumColorExtension.fromCSS(backgroundColorStr) : null,
@@ -289,6 +299,7 @@ class EPUBPreferences with Equatable implements JSONable {
       disableSynchronization: disableSynchronization,
       firstElementTopMargin: firstElementTopMargin,
       preventMOColumnBreaks: preventMOColumnBreaks,
+      makeSpaceForMarginDecoration: makeSpaceForMarginDecoration,
     );
   }
 
@@ -322,7 +333,8 @@ class EPUBPreferences with Equatable implements JSONable {
     // ignore: deprecated_member_use_from_same_package
     ..put('disableSynchronization', disableSynchronization)
     ..putOpt('firstElementTopMargin', firstElementTopMargin)
-    ..put('preventMOColumnBreaks', preventMOColumnBreaks);
+    ..put('preventMOColumnBreaks', preventMOColumnBreaks)
+    ..put('makeSpaceForMarginDecoration', makeSpaceForMarginDecoration);
 
   EPUBPreferences copyWith({
     Color? backgroundColor,
@@ -353,6 +365,7 @@ class EPUBPreferences with Equatable implements JSONable {
     bool? disableSynchronization,
     int? firstElementTopMargin,
     bool? preventMOColumnBreaks,
+    bool? makeSpaceForMarginDecoration,
   }) => EPUBPreferences(
     backgroundColor: backgroundColor ?? this.backgroundColor,
     columnCount: columnCount ?? this.columnCount,
@@ -383,6 +396,7 @@ class EPUBPreferences with Equatable implements JSONable {
     disableSynchronization: disableSynchronization ?? this.disableSynchronization,
     firstElementTopMargin: firstElementTopMargin ?? this.firstElementTopMargin,
     preventMOColumnBreaks: preventMOColumnBreaks ?? this.preventMOColumnBreaks,
+    makeSpaceForMarginDecoration: makeSpaceForMarginDecoration ?? this.makeSpaceForMarginDecoration,
   );
 
   @override
@@ -416,6 +430,7 @@ class EPUBPreferences with Equatable implements JSONable {
     disableSynchronization,
     firstElementTopMargin,
     preventMOColumnBreaks,
+    makeSpaceForMarginDecoration,
   ];
 }
 

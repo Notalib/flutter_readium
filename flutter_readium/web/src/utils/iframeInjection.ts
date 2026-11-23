@@ -57,6 +57,20 @@ export function injectMOBreakCSSIntoWindow(wnd: Window): void {
 }
 
 /**
+ * Switches the helper CSS rule that widens the side page margins for margin markers
+ * (`EPUBPreferences.makeSpaceForMarginDecoration`). A data attribute rather than a root CSS
+ * variable, because ts-toolkit removes root style properties it did not set on every CSS update.
+ */
+export function setMarginDecorationSpaceInWindow(wnd: Window, enabled: boolean): void {
+  const root = wnd.document.documentElement;
+  if (enabled) {
+    root.dataset.flutterReadiumMarginDecorationSpace = "";
+  } else {
+    delete root.dataset.flutterReadiumMarginDecorationSpace;
+  }
+}
+
+/**
  * Injects the Flutter Readium helper bundle (JS + CSS) and a bootstrap script
  * into a freshly-loaded EPUB iframe, mirroring what native iOS / Android do via
  * `WKUserScript` / `TransformingResource`.

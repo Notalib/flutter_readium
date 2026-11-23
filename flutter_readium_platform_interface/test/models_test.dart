@@ -280,6 +280,20 @@ void main() {
       const b = EPUBPreferences(preventMOColumnBreaks: false);
       expect(a, isNot(equals(b)));
     });
+
+    test('round-trips makeSpaceForMarginDecoration through toJson / fromJson', () {
+      const prefs = EPUBPreferences(makeSpaceForMarginDecoration: true);
+      final json = prefs.toJson();
+      expect(json['makeSpaceForMarginDecoration'], isTrue);
+      expect(EPUBPreferences.fromJson(json).makeSpaceForMarginDecoration, isTrue);
+    });
+
+    test('makeSpaceForMarginDecoration defaults to false and survives copyWith', () {
+      expect(EPUBPreferences.fromJson({}).makeSpaceForMarginDecoration, isFalse);
+      const prefs = EPUBPreferences(makeSpaceForMarginDecoration: true);
+      expect(prefs.copyWith().makeSpaceForMarginDecoration, isTrue);
+      expect(prefs.copyWith(makeSpaceForMarginDecoration: false), isNot(equals(prefs)));
+    });
   });
 
   group('PDFPreferences', () {

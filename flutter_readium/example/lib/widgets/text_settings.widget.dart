@@ -400,6 +400,17 @@ class _LayoutSection extends StatelessWidget {
                 ),
               ),
             ListItemWidget(
+              label: 'Room for margin markers',
+              isVerticalAlignment: true,
+              child: Switch(
+                key: const ValueKey('margin_decoration_space_switch'),
+                value: state.makeSpaceForMarginDecoration,
+                onChanged: (value) {
+                  textSettingsBloc.add(ToggleMarginDecorationSpace());
+                },
+              ),
+            ),
+            ListItemWidget(
               label: 'Disable Synchronization',
               isVerticalAlignment: true,
               child: Switch(

@@ -24,7 +24,7 @@ The fields are described in the [API reference](../api-reference/decorations.md#
 - `MarginAnchor.page` puts the marker near the page edge, or the column edge in two-column layouts. On a wide screen this can be far from the text, which suits printed page numbers.
 - `MarginAnchor.text` (default) keeps the marker a small gap (half the body font size) from the text column, however wide the margin is. Use it for markers that belong to a passage, such as bookmarks.
 
-A text-anchored marker follows font size, page margins, scroll mode and publisher CSS. When the margin is narrower than the marker, it overflows toward the text rather than off the page. It lines up with the body's text column, so paragraphs that the publisher indents further keep their extra indent.
+A text-anchored marker follows font size, page margins, scroll mode and publisher CSS. When the margin is narrower than the marker, it overflows toward the text rather than off the page; [`makeSpaceForMarginDecoration`](#margin-width) prevents that. It lines up with the body's text column, so paragraphs that the publisher indents further keep their extra indent.
 
 A `marginMarker` decoration without a label or icon is skipped and logged. In debug builds, `applyDecorations` asserts that the marker is present.
 
@@ -101,9 +101,22 @@ onDecorationInteraction: (event) {
 
 Pair a marker with a text decoration if tapping the location should do something. Markers are additive; the plugin has no option to suppress marker taps.
 
+## Margin width
+
+Markers are sized with the font, but Readium's page margin is a fixed number of pixels (scaled by `pageMargins`). At large font sizes, or with small `pageMargins`, a marker can therefore overlap the text. You cannot fix this with `pageMargins` alone, because the publication's base font size is not exposed.
+
+Set `makeSpaceForMarginDecoration` to let the plugin size the margin instead:
+
+```dart
+await reader.setEPUBPreferences(prefs.copyWith(makeSpaceForMarginDecoration: true));
+```
+
+The side margins then grow with the font size, enough for an icon or a page number of up to three digits with either [anchor](#anchoring). Longer labels can still reach the text. They are never narrower than `pageMargins` would make them. Turning it on shortens the lines, so the text re-paginates like any other layout change. It also applies in scroll mode, and it is ignored for fixed-layout publications.
+
+The margin is reserved on both sides, whether or not any marker is showing. Leave it off if you do not show margin markers.
+
 ## Layout notes
 
-- **Margin width.** Markers sit in the page margin, whatever their anchor. Icons need a little more room than page numbers, and with small `pageMargins` a marker can overlap the text. The plugin does not compensate for this.
 - **Two columns.** The `end` margin of the left column and the `start` margin of the right column are the same gap, so markers on both sides can overlap there.
 - **Vertical writing modes** are not supported.
 - **Fixed layout on iOS.** Decorations are duplicated on both pages of a two-page spread until swift-toolkit 4.0.

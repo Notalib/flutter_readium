@@ -877,12 +877,12 @@ fun Locator.addPageNumber(
     ),
 )
 
-// Resolves preferences against the publication's layout. The first-element top margin
-// is a reflowable-text affordance, so it's dropped for every non-reflowable publication
-// (fixed/scrolled layouts and image publications, which report no layout) where it would
-// otherwise shift the full-page content down.
+// Resolves preferences against the publication's layout. The first-element top margin and
+// the margin-decoration space are reflowable-text affordances, so they're dropped for every
+// non-reflowable publication (fixed/scrolled layouts and image publications, which report no
+// layout) where they would otherwise shift the full-page content.
 fun FlutterEpubPreferences.effectiveForLayout(layout: Layout?): FlutterEpubPreferences =
-    if (layout?.isReflowable == true) this else copy(firstElementTopMargin = null)
+    if (layout?.isReflowable == true) this else copy(firstElementTopMargin = null, makeSpaceForMarginDecoration = null)
 
 val Layout.isFixed: Boolean
     get() = this == Layout.FIXED

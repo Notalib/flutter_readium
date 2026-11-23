@@ -18,6 +18,25 @@ body > *:first-child {
   margin-top: var(--FLUTTER_READIUM-first-element-top-margin) !important;
 }
 
+// EPUBPreferences.makeSpaceForMarginDecoration: side padding wide enough for a margin marker.
+// The marker content is at most 1.3em: a 1.3em icon in the 0.75em span (0.975em), or a three-digit
+// page label. A page-anchored marker adds a max(4px, 1.5%) margin on each side (1.5vw is at least 1.5%
+// of a page); a text-anchored one sits in a cell with 4px padding at the page edge and 0.5em at the
+// text. Both cells inherit the body font size, so these em match the body's. Never narrower than
+// Readium's own padding. `html:root` gives (0,2,2), which beats Readium CSS's (0,2,1) page-margin
+// rule whatever the stylesheet order. Native sets the flag as a root CSS variable; web uses a data
+// attribute, because ts-toolkit removes root style properties it did not set.
+$margin-decoration-space: max(
+  calc(var(--RS__pageGutter) * var(--USER__pageMargins, 1)),
+  calc(2 * max(4px, 1.5vw) + 1.3em),
+  calc(4px + 0.5em + 1.3em)
+);
+html:root[style*='--FLUTTER_READIUM-margin-decoration-space'] body,
+html:root[data-flutter-readium-margin-decoration-space] body {
+  padding-left: $margin-decoration-space !important;
+  padding-right: $margin-decoration-space !important;
+}
+
 //TODO: Temporary fix for https://github.com/readium/readium-css/issues/129#issue-1856586505
 //remove when resolved
 * {
