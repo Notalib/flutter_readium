@@ -122,7 +122,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
             locator: locator,
             style: ReaderDecorationStyle(
               style: DecorationStyle.marginMarker,
-              marker: MarginMarker.label(title, side: MarginSide.end),
+              marker: MarginMarker.label(title, side: MarginSide.end, anchor: MarginAnchor.page),
             ),
           ),
         );

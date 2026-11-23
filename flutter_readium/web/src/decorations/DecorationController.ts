@@ -74,7 +74,7 @@ function marginMarkerHtml(marker: MarginMarker | undefined, tint: string | undef
   // Labels are muted like printed margin page numbers; icons keep the full colour.
   if (marker?.label) css += " opacity: 0.8 !important;";
   if (tint) css += ` color: ${escapeHtml(tint)} !important;`;
-  if (marker?.anchor === "text") {
+  if (marker?.anchor !== "page") {
     // The cell is as wide as the margin, which flutterReadiumTools.js measures. The marker is pushed
     // against the cell's text side; in a too-narrow margin it overflows toward the text, never off the page.
     const cell =

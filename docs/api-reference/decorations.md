@@ -46,7 +46,7 @@ ReaderDecoration(
 
 `side` is `MarginSide.start` (default) or `MarginSide.end`, and flips in right-to-left text. Labels are HTML-escaped. Icons are a closed set: the plugin never renders app-supplied markup.
 
-`anchor` is `MarginAnchor.page` (default), which puts the marker near the page or column edge, or `MarginAnchor.text`, which keeps it a small gap from the text column however wide the margin is. See [Margin Markers](../guides/margin-markers.md#anchoring).
+`anchor` is `MarginAnchor.text` (default), which keeps the marker a small gap from the text column however wide the margin is, or `MarginAnchor.page`, which puts it near the page or column edge. See [Margin Markers](../guides/margin-markers.md#anchoring).
 
 ## Applying decorations
 

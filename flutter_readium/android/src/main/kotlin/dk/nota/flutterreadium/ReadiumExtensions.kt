@@ -173,7 +173,7 @@ fun decorationStyleFromMap(decoMap: Map<*, *>?): Decoration.Style? {
                         return null
                     }
                     val side = if (marker?.get("side") == "end") "end" else "start"
-                    val anchor = if (marker?.get("anchor") == "text") "text" else "page"
+                    val anchor = if (marker?.get("anchor") == "page") "page" else "text"
                     MarginMarkerStyle(label, icon, side, anchor, tint)
                 }
 

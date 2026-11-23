@@ -133,7 +133,7 @@ describe("DecorationController", () => {
     function marker(id: string, style: object) {
       return { id, locator: locator.serialize(), style: { style: "marginMarker", ...style } };
     }
-    const label = (text: string, side = "start") => ({ marker: { label: text, side } });
+    const label = (text: string, side = "start") => ({ marker: { label: text, side, anchor: "page" } });
 
     it("renders a label as a bounds/page template in the decoration's own group", () => {
       const { controller, nav } = setup();
@@ -166,7 +166,7 @@ describe("DecorationController", () => {
       controller.applyDecorations(
         nav as any,
         "highlight-markers",
-        JSON.stringify([marker("b", { tint: "#ff2e7d32", marker: { icon: "bookmark", side: "start" } })])
+        JSON.stringify([marker("b", { tint: "#ff2e7d32", marker: { icon: "bookmark", side: "start", anchor: "page" } })])
       );
 
       const [deco] = appliedTo(nav, "highlight-markers");
@@ -181,13 +181,13 @@ describe("DecorationController", () => {
     it.each([
       ["start", "row", "--flutter-readium-text-inset-start", "margin-inline-start: auto"],
       ["end", "row-reverse", "--flutter-readium-text-inset-end", "margin-inline-end: auto"],
-    ])("sizes a text-anchored %s marker's cell from the measured inset", (side, direction, inset, push) => {
+    ])("sizes a text-anchored (default) %s marker's cell from the measured inset", (side, direction, inset, push) => {
       const { controller, nav } = setup();
 
       controller.applyDecorations(
         nav as any,
         "highlight-markers",
-        JSON.stringify([marker("t", { marker: { icon: "bookmark", side, anchor: "text" } })])
+        JSON.stringify([marker("t", { marker: { icon: "bookmark", side } })])
       );
 
       const [deco] = appliedTo(nav, "highlight-markers");
@@ -224,8 +224,8 @@ describe("DecorationController", () => {
       const [first, second] = nav.applyDecorations.mock.calls
         .filter(([, g]) => g === "page-list")
         .map(([list]) => list[0]);
-      expect(first.extras).toEqual({ marker: { label: "1", side: "start" }, tint: "#ff0000ff" });
-      expect(second.extras).toEqual({ marker: { label: "1", side: "start" }, tint: "#00ff00ff" });
+      expect(first.extras).toEqual({ marker: { label: "1", side: "start", anchor: "page" }, tint: "#ff0000ff" });
+      expect(second.extras).toEqual({ marker: { label: "1", side: "start", anchor: "page" }, tint: "#00ff00ff" });
       expect(JSON.stringify(first.extras)).not.toEqual(JSON.stringify(second.extras));
     });
 

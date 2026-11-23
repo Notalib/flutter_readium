@@ -76,7 +76,7 @@ Design decisions:
    Inline styles on the span, each with `!important`: the two `float` declarations from decision 5, `margin: 0 max(4px, 1.5%)` (1.5% of the page width keeps markers off the screen edge on tablets without pushing them into the text on narrow phone margins), `font-size: 0.75em`, `line-height: 1.4`, `opacity: 0.8` for labels only, and `color: {tint}` when a tint is set. There is no border or background: a box made icons look like checkboxes, and its padding pushed markers into the text on narrow phone margins. Labels are muted like printed margin page numbers; icons keep the full colour. The SVG carries `width="1.3em" height="1.3em"`, so it is about one body em. Use `layout: bounds` and `width: page`, so the row's top lines up with the first line of the range and spans the page, and the span floats into the margin.
 9. **A `marginMarker` without a `marker` is skipped and logged on every platform**, never rendered empty and never a crash. Dart also asserts in debug in `applyDecorations`, but release builds and `setDecorationStyle` (TTS) reach native unchecked.
 10. **The page-number mapping lives in the example app only**, as in the upstream test apps (`pageList` → `locatorFromLink` → `ReaderDecoration`). Use `pageList`, not `pageListOrGenerated`: the generated entries are PDF links, and PDF navigators don't support decorations. If it proves useful for a client, promote it to a `Publication` extension later.
-11. **`anchor` chooses between the page edge and the text column, per marker.** `MarginAnchor.page` (default) is the float template above. `MarginAnchor.text` makes the span a child of a flex cell as wide as the margin, with the span pushed against the cell's text side:
+11. **`anchor` chooses between the page edge and the text column, per marker.** `MarginAnchor.page` is the float template above. `MarginAnchor.text` (default) makes the span a child of a flex cell as wide as the margin, with the span pushed against the cell's text side:
     ```html
     <div><div style="{cell}"><span data-activable="1" style="{push}{shared styles}">…</span></div></div>
     ```
@@ -86,6 +86,7 @@ Design decisions:
     - **Inset variables:** `flutterReadiumTools.js` sets them on the body. It measures the body's used inline margin, border and padding, and swaps start and end in RTL. It re-measures on body resize, on changes to `<html style>` (where Readium writes user settings) and on window resize.
     - **Why measure:** a single measurement follows Readium CSS on native and web, publisher CSS, and any injected body padding. A `calc()` copy of Readium's body rules fails on web in scroll mode, where Readium CSS 2 drops the page gutter. No toolkit offers a text-column decoration width.
     - **Per marker, not a preference:** apps can then keep page numbers at the edge and bookmarks by the text.
+    - **Text is the default:** on wide screens a page-anchored marker drifts far from its passage, while on narrow margins the two anchors look the same. Page numbers opt into `page`.
 
 ## Implementation steps
 

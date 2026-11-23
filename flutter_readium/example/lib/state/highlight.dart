@@ -31,7 +31,7 @@ class Highlight {
     locator: decoration.locator,
     style: const ReaderDecorationStyle(
       style: DecorationStyle.marginMarker,
-      marker: MarginMarker.icon(MarginMarkerIcon.bookmark, anchor: MarginAnchor.text),
+      marker: MarginMarker.icon(MarginMarkerIcon.bookmark),
     ),
   );
 

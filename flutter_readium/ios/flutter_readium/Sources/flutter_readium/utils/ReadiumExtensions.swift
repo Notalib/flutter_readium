@@ -515,7 +515,7 @@ extension Decoration.Style {
         throw JSONError.parsing(Self.self)
       }
       let side = marker?["side"] as? String == "end" ? "end" : "start"
-      let anchor = marker?["anchor"] as? String == "text" ? "text" : "page"
+      let anchor = marker?["anchor"] as? String == "page" ? "page" : "text"
       self.init(
         id: .marginMarker,
         config: MarginMarkerConfig(label: label, icon: icon, side: side, anchor: anchor, tint: tintColor?.uiColor)

@@ -9,9 +9,8 @@ Markers are decorations with the `DecorationStyle.marginMarker` style, so they f
 `ReaderDecorationStyle.marker` is required for `marginMarker` and ignored for other styles. A marker is either a text label or a built-in icon:
 
 ```dart
-const MarginMarker.label('12', side: MarginSide.end)
-const MarginMarker.icon(MarginMarkerIcon.bookmark) // side defaults to MarginSide.start
-const MarginMarker.icon(MarginMarkerIcon.bookmark, anchor: MarginAnchor.text)
+const MarginMarker.label('12', side: MarginSide.end, anchor: MarginAnchor.page)
+const MarginMarker.icon(MarginMarkerIcon.bookmark) // side defaults to MarginSide.start, anchor to MarginAnchor.text
 ```
 
 The fields are described in the [API reference](../api-reference/decorations.md#marginmarker).
@@ -22,8 +21,8 @@ The fields are described in the [API reference](../api-reference/decorations.md#
 
 `anchor` decides where the marker sits inside the margin:
 
-- `MarginAnchor.page` (default) puts the marker near the page edge, or the column edge in two-column layouts. On a wide screen this can be far from the text, which suits printed page numbers.
-- `MarginAnchor.text` keeps the marker a small gap (half the body font size) from the text column, however wide the margin is. Use it for markers that belong to a passage, such as bookmarks.
+- `MarginAnchor.page` puts the marker near the page edge, or the column edge in two-column layouts. On a wide screen this can be far from the text, which suits printed page numbers.
+- `MarginAnchor.text` (default) keeps the marker a small gap (half the body font size) from the text column, however wide the margin is. Use it for markers that belong to a passage, such as bookmarks.
 
 A text-anchored marker follows font size, page margins, scroll mode and publisher CSS. When the margin is narrower than the marker, it overflows toward the text rather than off the page. It lines up with the body's text column, so paragraphs that the publisher indents further keep their extra indent.
 
@@ -46,7 +45,7 @@ Future<void> showPageNumbers(Publication publication) {
         locator: locator,
         style: ReaderDecorationStyle(
           style: DecorationStyle.marginMarker,
-          marker: MarginMarker.label(title, side: MarginSide.end),
+          marker: MarginMarker.label(title, side: MarginSide.end, anchor: MarginAnchor.page),
         ),
       ),
     );
@@ -81,7 +80,7 @@ await reader.applyDecorations('highlight-markers', [
       style: const ReaderDecorationStyle(
         style: DecorationStyle.marginMarker,
         tint: Color(0xFF2E7D32),
-        marker: MarginMarker.icon(MarginMarkerIcon.bookmark, anchor: MarginAnchor.text),
+        marker: MarginMarker.icon(MarginMarkerIcon.bookmark),
       ),
     ),
 ]);
