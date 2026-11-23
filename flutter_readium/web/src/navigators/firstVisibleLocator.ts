@@ -108,6 +108,12 @@ const BLOCK_TAGS = new Set([
  * that are only partly visible. A paragraph continued from the previous page
  * counts, like the injectables' own lookup, so no sentence on the page is
  * skipped.
+ *
+ * The helper scripts' `FlutterReadiumTools.#findFirstVisibleElement` answers
+ * a different question and is not reused. It picks blocks by computed
+ * `display`, while the iterator decides by tag name. It also returns a
+ * wrapper that begins on the previous page instead of descending into it,
+ * and it is injected into EPUB frames only.
  */
 export function findFirstVisibleElement(wnd: Window, root: Element | null): Element | undefined {
   // Sibling links rather than iterating `children`: in a Flutter debug build,
