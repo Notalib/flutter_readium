@@ -33,6 +33,8 @@ class FakeAudioNavigator {
   duration = 60;
   isPlaying = false;
   destroyed = false;
+  /** ts-toolkit's destroy() clears the page-wide media session, so each extra call matters. */
+  destroyCount = 0;
   currentLocator: Locator;
 
   constructor(
@@ -62,6 +64,7 @@ class FakeAudioNavigator {
   }
   destroy(): void {
     this.destroyed = true;
+    this.destroyCount += 1;
   }
 }
 
@@ -202,6 +205,24 @@ describe("defective tracks", () => {
     expect(emitError.mock.calls[1][2]?.reason).toBeUndefined();
   });
 
+  it("discards a probe verdict that arrives after the user moved to another track", async () => {
+    await open(2);
+    const nav = lastNav();
+    let finishProbe: (action: AudioStreamErrorAction) => void = () => {};
+    probe.mockImplementationOnce(() => new Promise((resolve) => (finishProbe = resolve)));
+
+    nav.listeners.error({ code: 3 }, nav.currentLocator);
+    await settle();
+    nav.currentLocator = locatorFor(track(2)); // what go() does on a seek
+    nav.play();
+    finishProbe(AudioStreamErrorAction.fail("AudioStreamError", 200, "undecodable"));
+    await settle();
+
+    expect(emitError).not.toHaveBeenCalled();
+    expect(FlutterAudioNavigator.isTerminallyFailed()).toBe(false);
+    expect(nav.isPlaying).toBe(true);
+  });
+
   it("does not claim a defect when the probe is inconclusive", async () => {
     brokenTracks = new Set([track(1)]);
     probeResults.set(track(1), undefined); // MediaError 4 alone -> AudioStreamNetworkError
@@ -232,16 +253,23 @@ describe("recovery during the first load", () => {
 });
 
 describe("closing the publication", () => {
-  it("a create still pending at close resolves quietly and destroys its navigator", async () => {
+  it("a create still pending at close destroys its navigator at close, once, and resolves quietly", async () => {
     hangingTracks = new Set([track(1)]);
     const pending = open(2);
     await settle();
+    const hung = lastNav();
 
     FlutterAudioNavigator.resetRecovery(); // what closePublication does
+    expect(hung.destroyCount).toBe(1); // before the next session sets up its media controls
     await expect(pending).resolves.toBe(false);
 
-    expect(lastNav().destroyed).toBe(true);
-    expect(installed).toBeUndefined();
+    hangingTracks = new Set();
+    await expect(open(2)).resolves.toBe(true);
+    hung.listeners.trackLoaded(undefined); // a late load of the closed session's track
+    await settle(200); // past the closed create's connection timeout
+
+    expect(hung.destroyCount).toBe(1);
+    expect(installed).toBe(lastNav());
     expect(emitError).not.toHaveBeenCalled();
   });
 
