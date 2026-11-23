@@ -21,13 +21,15 @@ const readerLocator = new Locator({
 function contentFrame(): Window {
   const p = (left: number): any => ({
     tagName: "P",
+    nodeName: "P",
+    textContent: "text",
     firstElementChild: null,
     getBoundingClientRect: () => ({ left, right: left + 80, top: 0, bottom: 50, width: 80, height: 50 }),
   });
   const body: any = { tagName: "BODY" };
   const [p1, p2] = [p(-100), p(10)];
-  Object.assign(p1, { parentElement: body, previousElementSibling: null, nextElementSibling: p2 });
-  Object.assign(p2, { parentElement: body, previousElementSibling: p1, nextElementSibling: null });
+  Object.assign(p1, { parentElement: body, previousElementSibling: null, previousSibling: null, nextElementSibling: p2 });
+  Object.assign(p2, { parentElement: body, previousElementSibling: p1, previousSibling: p1, nextElementSibling: null });
   body.firstElementChild = p1;
   return { innerWidth: 100, innerHeight: 100, document: { body } } as unknown as Window;
 }

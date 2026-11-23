@@ -185,6 +185,10 @@ export class FlutterTTSNavigator {
   private _generation = 0;
   private _watchdog: ReturnType<typeof setTimeout> | null = null;
   private _recoveryTimer: ReturnType<typeof setTimeout> | null = null;
+  /** pause() was called and neither resume(), play() nor stop() came since. */
+  private _paused = false;
+  /** play() was paused before its first utterance; resume() speaks it. */
+  private _startDeferred = false;
 
   /** voice selected via setVoice() — overrides prefs.voice */
   private _selectedVoice: SpeechSynthesisVoice | null = null;
@@ -297,6 +301,8 @@ export class FlutterTTSNavigator {
     if (this._destroyed) return;
     this._invalidateCurrentUtterance();
     this._lastDeferredSyncLocator = null;
+    this._paused = false;
+    this._startDeferred = false;
     const startLocator = fromLocator ?? this._currentElement?.locator ?? this._initialLocator;
     log.info("play", fromLocator ? "(from locator)" : startLocator ? "(resume)" : "", {
       speaking: speechSynthesis.speaking,
@@ -346,6 +352,10 @@ export class FlutterTTSNavigator {
     await voicesLoaded();
     // A later play() or stop() owns the engine now.
     if (this._destroyed || generation !== this._generation) return;
+    if (this._paused) {
+      this._startDeferred = true;
+      return;
+    }
     speechSynthesis.resume();
     log.debug("Initialized - Speaking first element");
     await this._speakNext();
@@ -354,6 +364,7 @@ export class FlutterTTSNavigator {
   pause(): void {
     if (this._destroyed) return;
     log.debug("pause");
+    this._paused = true;
     speechSynthesis.pause();
     emitState("paused", this._currentElement?.locator ?? null);
   }
@@ -361,14 +372,21 @@ export class FlutterTTSNavigator {
   resume(): void {
     if (this._destroyed) return;
     log.debug("resume");
+    this._paused = false;
     speechSynthesis.resume();
     emitState("playing", this._currentElement?.locator ?? null);
+    if (this._startDeferred) {
+      this._startDeferred = false;
+      void this._speakNext();
+    }
   }
 
   stop(): void {
     if (this._destroyed) return;
     log.info("stop");
     this._invalidateCurrentUtterance();
+    this._paused = false;
+    this._startDeferred = false;
     this._lastDeferredSyncLocator = null;
     speechSynthesis.cancel();
     this._iterator = null;

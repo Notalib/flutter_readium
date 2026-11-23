@@ -29,7 +29,11 @@ export function withFirstVisibleElement(current: Locator, frameWindows: Window[]
   const wnd = frameWindows[0];
   try {
     const element = findFirstVisibleElement(wnd, wnd.document.body);
-    if (!element) return current;
+    // Nothing before it means the top of the resource, which needs no
+    // selector. The iterator also mis-starts on such an element: it records
+    // its start index only while that is still 0, so a wrapper with nothing
+    // before it starts after its first paragraph, or after its whole content.
+    if (!element || !hasContentBefore(element)) return current;
     const otherLocations = new Map(current.locations.otherLocations ?? []);
     otherLocations.set("cssSelector", bodyPathSelector(element));
     return current.copyWithLocations({ otherLocations });
@@ -48,14 +52,30 @@ export function withFirstVisibleElement(current: Locator, frameWindows: Window[]
  * `:scope > <html step> > ...`. In `Document.querySelector`, `:scope` is the
  * `html` element, so the selector misses and TTS restarts at the top of the
  * resource. Replacing the first two steps with `:root` gives the intended
- * element.
+ * element. Only that first step, written as `:nth-child(1)` or `html`, is
+ * rewritten, so selectors from other sources are kept.
  */
 export function withQueryableCssSelector(locator: Locator): Locator {
   const selector = locator.locations.otherLocations?.get("cssSelector");
-  if (typeof selector !== "string" || !selector.startsWith(":scope > ")) return locator;
+  if (typeof selector !== "string" || !TOOLKIT_SELECTOR_PREFIX.test(selector)) return locator;
   const otherLocations = new Map(locator.locations.otherLocations);
-  otherLocations.set("cssSelector", selector.replace(/^:scope > \S+/, ":root"));
+  otherLocations.set("cssSelector", selector.replace(TOOLKIT_SELECTOR_PREFIX, ":root"));
   return locator.copyWithLocations({ otherLocations });
+}
+
+const TOOLKIT_SELECTOR_PREFIX = /^:scope > (?::nth-child\(1\)|html)(?= |$)/;
+
+/**
+ * Whether text or an image comes before `element` in its body, so the iterator
+ * has something to skip.
+ */
+export function hasContentBefore(element: Element): boolean {
+  for (let el: Element | null = element; el && el.tagName.toUpperCase() !== "BODY"; el = el.parentElement) {
+    for (let node = el.previousSibling; node; node = node.previousSibling) {
+      if (node.nodeName.toUpperCase() === "IMG" || node.textContent?.trim()) return true;
+    }
+  }
+  return false;
 }
 
 /**

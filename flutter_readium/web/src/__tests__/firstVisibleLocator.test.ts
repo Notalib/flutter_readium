@@ -15,7 +15,10 @@ import {
 
 interface FakeElement {
   tagName: string;
+  nodeName: string;
   id: string;
+  textContent: string;
+  previousSibling: FakeElement | null;
   parentElement: FakeElement | null;
   firstElementChild: FakeElement | null;
   nextElementSibling: FakeElement | null;
@@ -27,7 +30,10 @@ function el(tagName: string, id: string, x: [number, number], children: FakeElem
   const [left, right] = x;
   const element: FakeElement = {
     tagName,
+    nodeName: tagName,
     id,
+    textContent: id,
+    previousSibling: null,
     parentElement: null,
     firstElementChild: children[0] ?? null,
     nextElementSibling: null,
@@ -37,6 +43,7 @@ function el(tagName: string, id: string, x: [number, number], children: FakeElem
   children.forEach((child, i) => {
     child.parentElement = element;
     child.previousElementSibling = children[i - 1] ?? null;
+    child.previousSibling = child.previousElementSibling;
     child.nextElementSibling = children[i + 1] ?? null;
   });
   return element;
@@ -113,6 +120,13 @@ describe("withFirstVisibleElement", () => {
     expect(result.locations.otherLocations?.get("cssSelector")).toBe("body > :nth-child(2)");
   });
 
+  it("adds no selector for the first content of the resource", () => {
+    // The iterator would start after the section's first paragraph here.
+    const wnd = frame(el("BODY", "body", [0, 100], [el("SECTION", "sec", [0, 100], [el("P", "p1", [10, 90])])]));
+
+    expect(withFirstVisibleElement(chapter, [wnd])).toBe(chapter);
+  });
+
   it("keeps a selector the locator already has", () => {
     const precise = chapter.copyWithLocations({ otherLocations: new Map([["cssSelector", "#keep"]]) });
     const wnd = frame(el("BODY", "body", [0, 100], [el("P", "p1", [10, 90])]));
@@ -151,8 +165,10 @@ describe("withQueryableCssSelector", () => {
 
   it("leaves other selectors alone", () => {
     const locator = withSelector("hgroup p");
+    const fromElsewhere = withSelector(":scope > body > p");
 
     expect(withQueryableCssSelector(locator)).toBe(locator);
+    expect(withQueryableCssSelector(fromElsewhere)).toBe(fromElsewhere);
     expect(withQueryableCssSelector(chapter)).toBe(chapter);
   });
 });

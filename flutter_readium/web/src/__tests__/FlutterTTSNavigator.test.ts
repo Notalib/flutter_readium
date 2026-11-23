@@ -336,6 +336,22 @@ describe("play engine state", () => {
 
     expect(speakNext).not.toHaveBeenCalled();
   });
+
+  it("stays paused when paused while waiting for voices, and starts on resume", async () => {
+    const nav = makeNavigator();
+    synth.voices = [];
+    const speakNext = jest.spyOn(nav as any, "_speakNext");
+
+    const playing = nav.play();
+    nav.pause();
+    synth.voices = [{ name: "Sara", voiceURI: "sara", lang: "da-DK", localService: true, default: false }];
+    synth.listeners.get("voiceschanged")!();
+    await playing;
+    expect(speakNext).not.toHaveBeenCalled();
+
+    nav.resume();
+    expect(speakNext).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("play engine priming", () => {
