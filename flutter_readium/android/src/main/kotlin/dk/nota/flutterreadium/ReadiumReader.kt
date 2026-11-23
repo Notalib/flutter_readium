@@ -1529,9 +1529,12 @@ object ReadiumReader :
         if (timebasedNavigator !== navigator) return false
         // Method calls run concurrently, and each step must start from where the previous one landed.
         cueStepMutex.withLock {
-            if (navigator.skipToCue(forward) && !narrationSyncEnabled) {
-                setNarrationSyncEnabled(true)
-            }
+            val cueLocator = navigator.skipToCue(forward) ?: return true
+            // The navigator's locator flow drops a step back to a position it already reported, which
+            // would leave a just-written goToLocator target in state. Mirror goToLocator instead.
+            currentReadiumTimebasedState.value =
+                currentReadiumTimebasedState.value.copyWith(currentLocator = cueLocator)
+            if (!narrationSyncEnabled) setNarrationSyncEnabled(true)
         }
         return true
     }

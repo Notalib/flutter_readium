@@ -130,17 +130,17 @@ class SyncAudiobookNavigator(
 
     /**
      * Steps one cue forward or back across the whole publication, keeping the play state.
-     * Returns false when nothing moved (e.g. forward on the last cue).
+     * Returns the cue's locator, or null when nothing moved (e.g. forward on the last cue).
      *
      * Only the channel next/previous come through here. Media-session next/previous keep using the
      * seek-interval [goForward]/[goBackward].
      */
     @OptIn(InternalReadiumApi::class)
-    suspend fun skipToCue(forward: Boolean): Boolean {
+    suspend fun skipToCue(forward: Boolean): Locator? {
         val navigator =
             audioNavigator ?: run {
                 PluginLog.w(TAG, "::skipToCue. Navigator not ready.")
-                return false
+                return null
             }
         // Playback state is updated as soon as a seek settles. `currentLocator` is derived from it
         // later, so it can still show the position before the previous step.
@@ -150,25 +150,26 @@ class SyncAudiobookNavigator(
                 .getOrNull(playback.index)
                 ?.href ?: run {
                 PluginLog.w(TAG, "::skipToCue. No reading order item at index ${playback.index}.")
-                return false
+                return null
             }
         val time = playback.offset.inWholeMilliseconds / 1000.0
 
         val target =
             mediaOverlays.cueStepTarget(href, time, forward) ?: run {
                 PluginLog.d(TAG, "::skipToCue. No cue to step to, forward=$forward")
-                return false
+                return null
             }
         val audioLocator = target.skipToAudioLocator
         val textLocator = target.syncTextLocator
-        if (audioLocator == null || textLocator == null) {
+        val cueLocator = target.flutterAudioLocator
+        if (audioLocator == null || textLocator == null || cueLocator == null) {
             PluginLog.w(TAG, "::skipToCue. Target cue has no audio or text locator: $target")
-            return false
+            return null
         }
         // goToLocator only logs an href outside the reading order, so check here to report no move.
         if (navigator.readingOrder.items.none { it.href == audioLocator.href }) {
             PluginLog.w(TAG, "::skipToCue. Cue audio ${audioLocator.href} is not in the reading order.")
-            return false
+            return null
         }
 
         // `super` because this class's own goToLocator maps text locators to audio ones.
@@ -180,7 +181,7 @@ class SyncAudiobookNavigator(
         markCueSynced(textLocator)
         ReadiumReader.epubSyncToLocator(textLocator, false, target.duration)
         decorateCurrentUtterance(textLocator)
-        return true
+        return cueLocator
     }
 
     @OptIn(InternalReadiumApi::class)
