@@ -26,6 +26,7 @@ Future<Map<String, String>> loadFixturePaths() async {
     '38533_overlay_preview.webpub': '/test-fixtures/overlay/manifest.json',
     '38533_overlay_preview-toc-section-child.webpub': '/test-fixtures/toc-section-child/manifest.json',
     'adr-sync-narration-ownership.webpub': '/test-fixtures/adr-sync-narration-ownership/manifest.json',
+    'multi-audio-resume.webpub': '/test-fixtures/multi-audio-resume/manifest.json',
     'synthetic_local_newspaper.webpub': '/test-fixtures/synthetic-local-newspaper/manifest.json',
 
     // Audiobook (trimmed, local) — audio-only playback.
