@@ -27,9 +27,9 @@ describe("classifyAudioStreamError", () => {
     expect(classifyAudioStreamError(mediaError(2))).toEqual(AudioStreamErrorAction.retry());
   });
 
-  it("MEDIA_ERR_DECODE (3) is a terminal AudioStreamError with reason undecodable", () => {
+  it("MEDIA_ERR_DECODE (3) is a terminal AudioStreamError; only the probe adds a reason", () => {
     expect(classifyAudioStreamError(mediaError(3))).toEqual(
-      AudioStreamErrorAction.fail("AudioStreamError", undefined, "undecodable")
+      AudioStreamErrorAction.fail("AudioStreamError")
     );
   });
 

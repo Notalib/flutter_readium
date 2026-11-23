@@ -74,7 +74,7 @@ A track that is broken in the publication itself will not load on any retry. Whe
 | `AudioStreamHTTPError` | `missing` | The server answers 404 or 410 |
 | `AudioStreamHTTPError` | `empty` | The server answers 416 |
 | `AudioStreamError` | `empty` | A HEAD and a ranged GET both report an empty body |
-| `AudioStreamError` | `undecodable` | The browser reports `MEDIA_ERR_DECODE` |
+| `AudioStreamError` | `undecodable` | The browser reports `MEDIA_ERR_DECODE`, and the server answers 2xx with an audio `Content-Type` |
 
 Like iOS and Android, web does not move on to the next track. A failure that might be transient (5xx, a timeout, or a probe that cannot reach the server) never gets a `reason`; it goes through the retry loop. Report a fatal error that has a `reason` as a defect in the publication (for example to Sentry), with `href` and `httpStatus`, not as a connection problem.
 

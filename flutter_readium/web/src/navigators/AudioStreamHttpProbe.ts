@@ -34,7 +34,10 @@ export type ProbeFetch = (
   }
 ) => Promise<ProbeResponse>;
 
-/** The parts of a fetch `Response` the probe reads. `Content-Length` is CORS-safelisted. */
+/**
+ * The parts of a fetch `Response` the probe reads. `Content-Length` and `Content-Type` are
+ * CORS-safelisted.
+ */
 export interface ProbeResponse {
   status: number;
   ok: boolean;
@@ -48,6 +51,11 @@ export interface ProbeOptions {
   isOnline?: () => boolean;
   /** Hard timeout per HTTP attempt (HEAD, then GET fallback), in ms. */
   timeoutMs?: number;
+  /**
+   * The browser reported `MEDIA_ERR_DECODE`. A 2xx answer then ends playback instead of
+   * retrying, and carries reason `undecodable` only when the server labels the track as audio.
+   */
+  decodeError?: boolean;
 }
 
 const DEFAULT_TIMEOUT_MS = 3_000;
@@ -85,10 +93,22 @@ function isEmptyBody(response: ProbeResponse): boolean {
 }
 
 /**
+ * A captive portal or login page answers 2xx with HTML, which the browser also fails to decode,
+ * so only an audio `Content-Type` makes an undecodable track a defect in the publication.
+ */
+function isServedAsAudio(response: ProbeResponse): boolean {
+  const type = response.headers?.get("Content-Type")?.split(";")[0].trim().toLowerCase() ?? "";
+  return type.startsWith("audio/") || type === "application/octet-stream";
+}
+
+/**
  * Maps a resolved HTTP status to a classification, or `undefined` if inconclusive (opaque/0).
  * Answers that prove the track itself is broken (gone, or served empty) carry a defect `reason`.
  */
-function classifyStatus(response: ProbeResponse): AudioStreamErrorAction | undefined {
+function classifyStatus(
+  response: ProbeResponse,
+  decodeError: boolean
+): AudioStreamErrorAction | undefined {
   const httpStatus = response.status;
   if (httpStatus <= 0) return undefined; // opaque response — no real status visible
   if (httpStatus === 401 || httpStatus === 403)
@@ -103,6 +123,11 @@ function classifyStatus(response: ProbeResponse): AudioStreamErrorAction | undef
   if (httpStatus >= 400 && httpStatus < 500)
     return AudioStreamErrorAction.fail("AudioStreamHTTPError", httpStatus);
   if (httpStatus >= 500) return AudioStreamErrorAction.retry();
+  if (decodeError) {
+    return isServedAsAudio(response)
+      ? AudioStreamErrorAction.fail("AudioStreamError", httpStatus, "undecodable")
+      : AudioStreamErrorAction.fail("AudioStreamError", httpStatus);
+  }
   return AudioStreamErrorAction.retry(); // 2xx/3xx: resource reachable again
 }
 
@@ -127,13 +152,14 @@ export async function probeAudioStreamHttpStatus(
   const fetchFn = options.fetch ?? (globalThis as { fetch?: ProbeFetch }).fetch;
   const isOnline = options.isOnline ?? defaultIsOnline;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const decodeError = options.decodeError ?? false;
 
   if (!fetchFn) return undefined; // no fetch available — inconclusive
 
   const head = await fetchWithTimeout(fetchFn, url, { method: "HEAD" }, timeoutMs);
 
   if (head && head.status !== 405 && !isEmptyBody(head)) {
-    return classifyStatus(head);
+    return classifyStatus(head, decodeError);
   }
 
   // HEAD threw/timed out, was rejected with 405, or claimed an empty body — retry once with a
@@ -146,7 +172,7 @@ export async function probeAudioStreamHttpStatus(
   );
 
   if (get) {
-    return classifyStatus(get);
+    return classifyStatus(get, decodeError);
   }
 
   // Both attempts threw/timed out. Distinguish "definitely offline" (retry —

@@ -96,6 +96,34 @@ describe("probeAudioStreamHttpStatus", () => {
     expect(result).toEqual(AudioStreamErrorAction.retry());
   });
 
+  describe("after a decode error", () => {
+    function served(status: number, contentType: string): FetchLike {
+      return async () => ({
+        status,
+        ok: status >= 200 && status < 300,
+        headers: { get: (name) => (name === "Content-Type" ? contentType : null) },
+      });
+    }
+
+    it("2xx served as audio -> reason undecodable", async () => {
+      const fetch = served(200, "audio/mpeg; charset=binary");
+      const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch, decodeError: true });
+      expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamError", 200, "undecodable"));
+    });
+
+    it("2xx served as HTML (captive portal) -> fatal without a reason", async () => {
+      const fetch = served(200, "text/html");
+      const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch, decodeError: true });
+      expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamError", 200));
+    });
+
+    it("404 -> reason missing", async () => {
+      const fetch = served(404, "text/html");
+      const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch, decodeError: true });
+      expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamHTTPError", 404, "missing"));
+    });
+  });
+
   it("HEAD 206 (partial content reachable) -> retry", async () => {
     const fetch: FetchLike = async () => okResponse(206);
     const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch });

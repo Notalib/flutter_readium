@@ -119,6 +119,7 @@ describe("audio stop lifecycle", () => {
         .spyOn(FlutterAudioNavigator, "create")
         .mockImplementation(async (_publication, _initial, _prefs, setNav) => {
           setNav(audioNav as any);
+          return true;
         });
 
       (reader as any)._publication = { conformsToAudiobook: true };
@@ -167,6 +168,7 @@ describe("audio stop lifecycle", () => {
         .mockImplementation(async (_publication, initial, _prefs, setNav) => {
           expect(initial?.serialize()).toEqual(tocLocator.serialize());
           setNav(audioNav as any);
+          return true;
         });
 
       (reader as any)._publication = {

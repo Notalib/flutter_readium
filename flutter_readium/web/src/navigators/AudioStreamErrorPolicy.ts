@@ -71,7 +71,7 @@ export const MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
  * Mapping (browser-only classes available — no HTTP status):
  *   MEDIA_ERR_ABORTED            -> ignore   (e.g. cancelled during teardown/seek)
  *   MEDIA_ERR_NETWORK            -> retry
- *   MEDIA_ERR_DECODE             -> fail(AudioStreamError, reason "undecodable")
+ *   MEDIA_ERR_DECODE             -> fail(AudioStreamError); the probe adds reason "undecodable"
  *   MEDIA_ERR_SRC_NOT_SUPPORTED  -> fail(AudioStreamNetworkError)
  *   anything else / no code      -> retry (unclassifiable; goes terminal as
  *                                   AudioStreamNetworkError once attempts
@@ -86,7 +86,7 @@ export function classifyAudioStreamError(error: unknown): AudioStreamErrorAction
     case MEDIA_ERR_NETWORK:
       return AudioStreamErrorAction.retry();
     case MEDIA_ERR_DECODE:
-      return AudioStreamErrorAction.fail("AudioStreamError", undefined, "undecodable");
+      return AudioStreamErrorAction.fail("AudioStreamError");
     case MEDIA_ERR_SRC_NOT_SUPPORTED:
       return AudioStreamErrorAction.fail("AudioStreamNetworkError");
     default:
@@ -318,7 +318,9 @@ export class AudioStreamRecoveryController {
     this.hooks.emitError(
       message,
       code,
-      href !== undefined || httpStatus !== undefined ? { href, httpStatus, reason } : undefined
+      href !== undefined || httpStatus !== undefined || reason !== undefined
+        ? { href, httpStatus, reason }
+        : undefined
     );
     this.hooks.setPinnedState("failure");
   }

@@ -70,7 +70,7 @@ adding a new wire code a client would have to branch on identically anyway:
 | Code | `reason` values | Platforms |
 |---|---|---|
 | `audioStreamError` | `rangeNotSupported`, `fileSystem` | iOS (Android doesn't reach this code) |
-| `audioStreamError` | `undecodable`, `empty` | web: the track is broken in the publication (`MEDIA_ERR_DECODE`, or an empty body confirmed by a ranged GET) |
+| `audioStreamError` | `undecodable`, `empty` | web: the track is broken in the publication (`MEDIA_ERR_DECODE` on a 2xx answer served as audio, or an empty body confirmed by a ranged GET) |
 | `audioStreamHttpError` | `missing`, `empty` | web: 404/410, or 416 for an empty file. Other 4xx statuses set no reason |
 | `resourceReadError` | `notFound`, `cache` | iOS, Android. Web uses `notFound` and `urlResolution` (no on-disk cache step, so no `cache` reason); its `goTo`-navigation-failure and Media Overlay manifest-deserialization sites use `navigation` and `manifestDeserialization` respectively. Short tokens, but still producer-specific — don't assume every platform sets the same set for a given code |
 

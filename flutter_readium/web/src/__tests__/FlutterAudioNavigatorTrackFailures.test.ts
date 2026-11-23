@@ -72,9 +72,9 @@ jest.mock("@readium/navigator", () => ({
 }));
 
 const probeResults = new Map<string, AudioStreamErrorAction | undefined>();
-const probe = jest.fn(async (url: string) => probeResults.get(url));
+const probe = jest.fn(async (url: string, _options?: unknown) => probeResults.get(url));
 jest.mock("../navigators/AudioStreamHttpProbe", () => ({
-  probeAudioStreamHttpStatus: (url: string) => probe(url),
+  probeAudioStreamHttpStatus: (url: string, options?: unknown) => probe(url, options),
 }));
 
 import { FlutterAudioNavigator } from "../navigators/FlutterAudioNavigator";
@@ -107,7 +107,7 @@ const bridge = { emitError } as unknown as ReadiumBridge;
 
 let installed: FakeAudioNavigator | undefined;
 
-function open(trackCount: number, initialTrack?: number): Promise<void> {
+function open(trackCount: number, initialTrack?: number): Promise<boolean> {
   return FlutterAudioNavigator.create(
     fakePublication(trackCount),
     initialTrack ? locatorFor(track(initialTrack)) : undefined,
@@ -167,16 +167,28 @@ describe("defective tracks", () => {
     expect(lastNav().currentLocator.href).toBe(track(1));
   });
 
-  it("reports an undecodable track without probing it", async () => {
+  it("probes a decode error and reports the probe's verdict", async () => {
+    await open(2);
+    const nav = lastNav();
+    probeResults.set(track(1), AudioStreamErrorAction.fail("AudioStreamError", 200, "undecodable"));
+
+    nav.listeners.error({ code: 3 }, nav.currentLocator);
+    await settle();
+
+    expect(probe).toHaveBeenCalledWith(track(1), { decodeError: true });
+    expect(errorCodes()).toEqual(["AudioStreamError"]);
+    expect(emitError.mock.calls[0][2]).toEqual({ href: track(1), httpStatus: 200, reason: "undecodable" });
+  });
+
+  it("reports a decode error without a reason when the probe is inconclusive", async () => {
     await open(2);
     const nav = lastNav();
 
     nav.listeners.error({ code: 3 }, nav.currentLocator);
     await settle();
 
-    expect(probe).not.toHaveBeenCalled();
     expect(errorCodes()).toEqual(["AudioStreamError"]);
-    expect(emitError.mock.calls[0][2]).toEqual({ href: track(1), reason: "undecodable" });
+    expect(emitError.mock.calls[0][2]?.reason).toBeUndefined();
   });
 
   it("retries a transient failure (5xx), then fails as a network error without a reason", async () => {
@@ -201,6 +213,24 @@ describe("defective tracks", () => {
   });
 });
 
+describe("recovery during the first load", () => {
+  it("opens on the rebuilt navigator instead of timing out and destroying it", async () => {
+    brokenTracks = new Set([track(1)]);
+    probe.mockImplementationOnce(async () => {
+      brokenTracks.delete(track(1)); // the connection comes back
+      return AudioStreamErrorAction.retry();
+    });
+
+    await expect(open(2)).resolves.toBe(true);
+
+    expect(FakeAudioNavigator.instances).toHaveLength(2);
+    expect(installed).toBe(FakeAudioNavigator.instances[1]);
+    expect(installed?.destroyed).toBe(false);
+    expect(FlutterAudioNavigator.isTerminallyFailed()).toBe(false);
+    expect(errorCodes()).toEqual(["AudioStreamRetry"]);
+  });
+});
+
 describe("closing the publication", () => {
   it("a create still pending at close resolves quietly and destroys its navigator", async () => {
     hangingTracks = new Set([track(1)]);
@@ -208,7 +238,7 @@ describe("closing the publication", () => {
     await settle();
 
     FlutterAudioNavigator.resetRecovery(); // what closePublication does
-    await expect(pending).resolves.toBeUndefined();
+    await expect(pending).resolves.toBe(false);
 
     expect(lastNav().destroyed).toBe(true);
     expect(installed).toBeUndefined();

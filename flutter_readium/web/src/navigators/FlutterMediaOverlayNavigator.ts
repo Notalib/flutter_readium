@@ -208,7 +208,7 @@ async function _initializeFromItems(
       }
     : undefined;
 
-  await FlutterAudioNavigator.create(
+  const installed = await FlutterAudioNavigator.create(
     syntheticPub,
     audioInitialLocator,
     prefsJson,
@@ -222,7 +222,8 @@ async function _initializeFromItems(
     bridge
   );
 
-  if (wrappedCallback) {
+  // A session closed before its first track loaded must not route a narration cue.
+  if (installed && wrappedCallback) {
     const fragment = audioInitialLocator?.locations?.fragments?.[0];
     const initTime = fragment?.startsWith("t=") ? parseFloat(fragment.slice(2)) : 0;
     const initHref = audioInitialLocator?.href ?? resolvedItems[0]?.audioHref;
