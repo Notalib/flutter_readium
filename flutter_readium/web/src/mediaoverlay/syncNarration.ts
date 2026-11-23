@@ -196,7 +196,12 @@ export function combinedLocatorForItem(
     type: textLoc.type,
     title: textLoc.title,
     locations: new LocatorLocations({
-      fragments: textLoc.locations?.fragments ?? [],
+      // Text DOM id first, then the audio `t=` fragment, as in iOS toCombinedLocator.
+      // Dropping `t=` loses the playback time for bookmarks and position sync.
+      fragments: [
+        ...(textLoc.locations?.fragments ?? []),
+        ...(audioLocator.locations?.fragments ?? []),
+      ],
       progression: audioLocator.locations?.progression,
       totalProgression: audioLocator.locations?.totalProgression,
       // 1-based EPUB position from the parent reading-order link, mirroring
