@@ -422,6 +422,7 @@ function Setup() {
     initResponsiveTables();
     startSpotlightObserver(document);
     startTextInsetObserver(document);
+    relayoutDecorationsOnResize();
   });
 }
 
@@ -448,6 +449,21 @@ function startTextInsetObserver(doc: Document): void {
   new ResizeObserver(update).observe(doc.body);
   new MutationObserver(update).observe(doc.documentElement, { attributes: true, attributeFilter: ['style'] });
   window.addEventListener('resize', update);
+}
+
+/**
+ * Lays out every decoration group again once the viewport has resized. The toolkit decorator only relays out
+ * on a body ResizeObserver, which WebKit can fire during rotation while `window.innerWidth` still reports the
+ * old viewport, so `width: page` decorations keep the old page width. `resize` fires with the new size.
+ */
+function relayoutDecorationsOnResize(): void {
+  window.addEventListener('resize', () => {
+    const readium = window.readium;
+    if (typeof readium?.getDecorations !== 'function') return;
+    document.querySelectorAll<HTMLElement>('body > [id^="r2-decoration-"][data-group]').forEach((container) => {
+      readium.getDecorations(container.dataset.group!).requestLayout?.();
+    });
+  });
 }
 
 if (document.readyState !== 'loading') {
