@@ -134,6 +134,11 @@ class ReadiumError {
   /// The HTTP status code that triggered the error, when known.
   int? get httpStatus => details?.optNullableInt('httpStatus');
 
+  /// Finer-grained cause within [code], when the producer sends one. For
+  /// example, web sets `missing`, `empty` or `undecodable` on an audio failure
+  /// proven to be a defect in the publication rather than a connection problem.
+  String? get reason => details?.optNullableString('reason');
+
   @override
   bool operator ==(covariant final Object other) =>
       identical(this, other) ||

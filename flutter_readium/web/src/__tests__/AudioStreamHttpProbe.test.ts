@@ -8,12 +8,16 @@
  */
 
 import { AudioStreamErrorAction } from "../navigators/AudioStreamErrorPolicy";
-import { probeAudioStreamHttpStatus } from "../navigators/AudioStreamHttpProbe";
+import { probeAudioStreamHttpStatus, ProbeResponse } from "../navigators/AudioStreamHttpProbe";
 
-type FetchLike = (input: string, init?: any) => Promise<{ status: number; ok: boolean }>;
+type FetchLike = (input: string, init?: any) => Promise<ProbeResponse>;
 
-function okResponse(status: number): { status: number; ok: boolean } {
-  return { status, ok: status >= 200 && status < 300 };
+function okResponse(status: number, contentLength?: string): ProbeResponse {
+  return {
+    status,
+    ok: status >= 200 && status < 300,
+    headers: { get: (name) => (name === "Content-Length" ? contentLength ?? null : null) },
+  };
 }
 
 describe("probeAudioStreamHttpStatus", () => {
@@ -29,10 +33,55 @@ describe("probeAudioStreamHttpStatus", () => {
     expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamAuthError", 403));
   });
 
-  it("HEAD other 4xx (404) -> fail(AudioStreamHTTPError) with httpStatus", async () => {
-    const fetch: FetchLike = async () => okResponse(404);
+  it.each([404, 410])("HEAD %i -> HTTP error, reason missing", async (status) => {
+    const fetch: FetchLike = async () => okResponse(status);
     const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch });
-    expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamHTTPError", 404));
+    expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamHTTPError", status, "missing"));
+  });
+
+  it("HEAD 416 -> reason empty", async () => {
+    const fetch: FetchLike = async () => okResponse(416);
+    const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch });
+    expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamHTTPError", 416, "empty"));
+  });
+
+  it.each([400, 408, 429])("HEAD %i (not a proven defect) -> fail(AudioStreamHTTPError)", async (status) => {
+    const fetch: FetchLike = async () => okResponse(status);
+    const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch });
+    expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamHTTPError", status));
+  });
+
+  it("HEAD 200 with Content-Length 0 is confirmed by a ranged GET answering 416 -> reason empty", async () => {
+    const methods: string[] = [];
+    const fetch: FetchLike = async (_input, init) => {
+      methods.push(init?.method);
+      return init?.method === "HEAD" ? okResponse(200, "0") : okResponse(416);
+    };
+    const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch });
+    expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamHTTPError", 416, "empty"));
+    expect(methods).toEqual(["HEAD", "GET"]);
+  });
+
+  it("HEAD and GET both 200 with Content-Length 0 -> reason empty", async () => {
+    const fetch: FetchLike = async () => okResponse(200, "0");
+    const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch });
+    expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamError", 200, "empty"));
+  });
+
+  it("an empty HEAD contradicted by a ranged GET with content -> retry", async () => {
+    const fetch: FetchLike = async (_input, init) =>
+      init?.method === "HEAD" ? okResponse(200, "0") : okResponse(206, "1");
+    const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch });
+    expect(result).toEqual(AudioStreamErrorAction.retry());
+  });
+
+  it("an empty HEAD with an unreachable GET is inconclusive, never a defect", async () => {
+    const fetch: FetchLike = async (_input, init) => {
+      if (init?.method === "GET") throw new TypeError("network error");
+      return okResponse(200, "0");
+    };
+    const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch, isOnline: () => true });
+    expect(result).toBeUndefined();
   });
 
   it("HEAD 5xx -> retry", async () => {
@@ -67,7 +116,7 @@ describe("probeAudioStreamHttpStatus", () => {
     expect(calls[1].init?.headers?.Range).toBe("bytes=0-0");
   });
 
-  it("HEAD network failure falls back to GET+Range, which succeeds (404)", async () => {
+  it("HEAD network failure falls back to GET+Range, which reports 404", async () => {
     let call = 0;
     const fetch: FetchLike = async (_input, init) => {
       call++;
@@ -75,7 +124,7 @@ describe("probeAudioStreamHttpStatus", () => {
       return okResponse(404);
     };
     const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch });
-    expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamHTTPError", 404));
+    expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamHTTPError", 404, "missing"));
     expect(call).toBe(2);
   });
 

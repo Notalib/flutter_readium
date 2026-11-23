@@ -811,7 +811,7 @@ export class FlutterAudioNavigator {
     }
 
     function armResourceLoadingWatchdog(): void {
-      if (!nav || !recovery || recovery.isSuppressed() || !playbackRequested) {
+      if (!nav || !recovery || recovery.isSuppressed() || !playbackRequested || isDisposed()) {
         resetResourceLoadingWatchdog();
         return;
       }
@@ -826,7 +826,7 @@ export class FlutterAudioNavigator {
     }
 
     function updateResourceLoadingWatchdog(): void {
-      if (!nav || !recovery || recovery.isSuppressed() || !playbackRequested) {
+      if (!nav || !recovery || recovery.isSuppressed() || !playbackRequested || isDisposed()) {
         resetResourceLoadingWatchdog();
         return;
       }
@@ -939,7 +939,8 @@ export class FlutterAudioNavigator {
       locator: Locator | undefined,
       alsoText: boolean
     ) => {
-      if (!nav) return;
+      // Emissions are re-enabled per session, so a closed session must check its own generation.
+      if (!nav || isDisposed()) return;
       _emitState(
         state,
         nav,
@@ -1032,7 +1033,8 @@ export class FlutterAudioNavigator {
           emit(isStalled ? "loading" : nav.isPlaying ? "playing" : "paused", undefined, false);
         },
         error: (mediaError, locator) => {
-          if (!nav) return;
+          // A destroyed navigator's element can still report its aborted load.
+          if (!nav || isDisposed()) return;
           log.error("AudioNavigator error:", mediaError, "locator:", locator?.href);
           resetResourceLoadingWatchdog();
           if (!recovery) {
@@ -1069,16 +1071,21 @@ export class FlutterAudioNavigator {
       const timedOut = error instanceof TimeoutError;
       createCancelled = true;
       resetResourceLoadingWatchdog();
-      if (!isDisposed()) {
-        try {
-          nav?.stop();
-          nav?.destroy();
-        } catch (destroyError) {
-          log.warn("AudioNavigator cleanup after create timeout failed", destroyError);
-        }
-        if (timedOut && emitCreateTimeoutError && !locatorMapper) {
-          log.warn("AudioNavigator initial create timed out", initialPosition?.href ?? "(initial track)");
-        }
+      // Never installed, so no close can have destroyed it.
+      try {
+        nav?.stop();
+        nav?.destroy();
+      } catch (destroyError) {
+        log.warn("AudioNavigator cleanup after create timeout failed", destroyError);
+      }
+      if (isDisposed()) {
+        // The caller already closed this session. Rejecting now would surface a stale error
+        // in, or make openPublication's error path close, whatever publication is open now.
+        log.info("AudioNavigator create ended after its session closed", timedOut ? "(timed out)" : "");
+        return;
+      }
+      if (timedOut && emitCreateTimeoutError && !locatorMapper) {
+        log.warn("AudioNavigator initial create timed out", initialPosition?.href ?? "(initial track)");
       }
       // Give the timeout a typed code so Dart stops matching on the message
       // (was previously string-matched via `_convertToNativeCode`).

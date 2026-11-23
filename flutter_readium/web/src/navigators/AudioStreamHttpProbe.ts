@@ -32,7 +32,14 @@ export type ProbeFetch = (
     headers?: Record<string, string>;
     signal?: AbortSignal;
   }
-) => Promise<{ status: number; ok: boolean }>;
+) => Promise<ProbeResponse>;
+
+/** The parts of a fetch `Response` the probe reads. `Content-Length` is CORS-safelisted. */
+export interface ProbeResponse {
+  status: number;
+  ok: boolean;
+  headers?: { get(name: string): string | null };
+}
 
 export interface ProbeOptions {
   /** Injectable `fetch` — defaults to the global. */
@@ -55,7 +62,7 @@ async function fetchWithTimeout(
   url: string,
   init: { method: string; headers?: Record<string, string> },
   timeoutMs: number
-): Promise<{ status: number; ok: boolean } | undefined> {
+): Promise<ProbeResponse | undefined> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -73,11 +80,26 @@ async function fetchWithTimeout(
   }
 }
 
-/** Maps a resolved HTTP status to a classification, or `undefined` if inconclusive (opaque/0). */
-function classifyStatus(httpStatus: number): AudioStreamErrorAction | undefined {
+function isEmptyBody(response: ProbeResponse): boolean {
+  return response.ok && response.headers?.get("Content-Length")?.trim() === "0";
+}
+
+/**
+ * Maps a resolved HTTP status to a classification, or `undefined` if inconclusive (opaque/0).
+ * Answers that prove the track itself is broken (gone, or served empty) carry a defect `reason`.
+ */
+function classifyStatus(response: ProbeResponse): AudioStreamErrorAction | undefined {
+  const httpStatus = response.status;
   if (httpStatus <= 0) return undefined; // opaque response — no real status visible
   if (httpStatus === 401 || httpStatus === 403)
     return AudioStreamErrorAction.fail("AudioStreamAuthError", httpStatus);
+  if (httpStatus === 404 || httpStatus === 410)
+    return AudioStreamErrorAction.fail("AudioStreamHTTPError", httpStatus, "missing");
+  // An empty file has no byte 0, so the browser's ranged GET gets 416.
+  if (httpStatus === 416)
+    return AudioStreamErrorAction.fail("AudioStreamHTTPError", httpStatus, "empty");
+  if (isEmptyBody(response))
+    return AudioStreamErrorAction.fail("AudioStreamError", httpStatus, "empty");
   if (httpStatus >= 400 && httpStatus < 500)
     return AudioStreamErrorAction.fail("AudioStreamHTTPError", httpStatus);
   if (httpStatus >= 500) return AudioStreamErrorAction.retry();
@@ -88,9 +110,11 @@ function classifyStatus(httpStatus: number): AudioStreamErrorAction | undefined 
  * Probes `url` (the resolved absolute URL of the failing audio resource) to
  * determine the real HTTP status behind a `MediaError`.
  *
- * Sequence: HEAD first; if that fails outright or returns 405 (method not
- * allowed — some static hosts/proxies reject HEAD), retries once with
- * `GET` + `Range: bytes=0-0` (fetches at most one byte).
+ * Sequence: HEAD first; if that fails outright, returns 405 (method not
+ * allowed — some static hosts/proxies reject HEAD), or reports an empty body,
+ * retries once with `GET` + `Range: bytes=0-0` (fetches at most one byte).
+ * Some servers answer HEAD with `Content-Length: 0` for a real file, so an empty
+ * HEAD alone never fails a track.
  *
  * Returns `undefined` (inconclusive) when neither attempt yields a usable
  * status — callers should fall back to the existing `MediaError`-only
@@ -108,11 +132,11 @@ export async function probeAudioStreamHttpStatus(
 
   const head = await fetchWithTimeout(fetchFn, url, { method: "HEAD" }, timeoutMs);
 
-  if (head && head.status !== 405) {
-    return classifyStatus(head.status);
+  if (head && head.status !== 405 && !isEmptyBody(head)) {
+    return classifyStatus(head);
   }
 
-  // HEAD threw/timed out, or was rejected with 405 — retry once with a
+  // HEAD threw/timed out, was rejected with 405, or claimed an empty body — retry once with a
   // minimal ranged GET, which most servers accept even when HEAD is blocked.
   const get = await fetchWithTimeout(
     fetchFn,
@@ -122,7 +146,7 @@ export async function probeAudioStreamHttpStatus(
   );
 
   if (get) {
-    return classifyStatus(get.status);
+    return classifyStatus(get);
   }
 
   // Both attempts threw/timed out. Distinguish "definitely offline" (retry —
