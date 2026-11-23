@@ -816,7 +816,12 @@ class _ReadiumReader {
 
     // The TTS engine drives the visual navigator that is being torn down here, so it goes
     // even when audio stays: a synchronised narration is an AudioNavigator, not TTS.
-    this._ttsEngine?.destroy();
+    // A failing TTS teardown must not abort the rest of the close, or every later open fails.
+    try {
+      this._ttsEngine?.destroy();
+    } catch (err) {
+      log.error("Error destroying TTS engine:", err);
+    }
     this._ttsEngine = undefined;
 
     if (!keepAudio) {

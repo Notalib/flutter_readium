@@ -1,4 +1,7 @@
 import { EpubNavigator, WebPubNavigator } from "@readium/navigator";
+import { createLogger } from "../utils/ReadiumPluginLogger";
+
+const log = createLogger("DecorationFrames");
 
 /**
  * Group-name suffix used to mark a decoration group as a "spotlight" group.
@@ -35,14 +38,23 @@ function getIframeState(wnd: Window): IframeDecorationState {
 /**
  * Return the list of content-frame `Window`s for a navigator. Used for fanning
  * out CSS injection to every loaded EPUB iframe.
+ *
+ * Skips frames whose iframe is already detached: upstream's `window` getter throws
+ * for those, and teardown (e.g. TTS clearing its decorations on close) still runs here.
  */
 export function navIframeWindows(
   nav: EpubNavigator | WebPubNavigator
 ): Window[] {
   const cframes: any[] = (nav as any)._cframes ?? [];
-  return cframes
-    .map((f) => f?.window as Window | undefined)
-    .filter((w): w is Window => !!w);
+  const windows: Window[] = [];
+  for (const f of cframes) {
+    try {
+      if (f?.window) windows.push(f.window);
+    } catch (err) {
+      log.debug("Skipping detached frame:", err);
+    }
+  }
+  return windows;
 }
 
 /**

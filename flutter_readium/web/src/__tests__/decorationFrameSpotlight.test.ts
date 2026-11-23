@@ -3,6 +3,7 @@ import {
   injectDecorationOverrides,
   setSpotlightGroupOnIframes,
   clearSpotlightState,
+  navIframeWindows,
 } from "../decorations/decorationFrameUtils";
 
 function makeFrame(): Window {
@@ -47,5 +48,20 @@ describe("spotlight frame dimming", () => {
     setSpotlightGroupOnIframes([late], "a__spotlight", false);
     injectDecorationOverrides(late);
     expect(late.document.body.classList.contains("flutter-readium-spotlight")).toBe(false);
+  });
+});
+
+describe("navIframeWindows", () => {
+  it("skips frames whose window is gone instead of throwing", () => {
+    const live = makeFrame();
+    // Upstream frame managers throw from `window` once the iframe is detached.
+    const detached = {
+      get window(): Window {
+        throw Error("Trying to use frame window when it doesn't exist");
+      },
+    };
+    const nav = { _cframes: [detached, undefined, { window: live }] } as any;
+
+    expect(navIframeWindows(nav)).toEqual([live]);
   });
 });

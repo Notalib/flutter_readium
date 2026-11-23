@@ -63,6 +63,51 @@ describe("closePublication teardown", () => {
     });
   });
 
+  it("finishes teardown when TTS clears decorations on a detached EPUB frame", () => {
+    withDomGlobals(() => {
+      const reader = new ReadiumReader();
+      // Upstream frame managers throw from `window` once the iframe is detached.
+      const detachedFrame = {
+        get window(): Window {
+          throw Error("Trying to use frame window when it doesn't exist");
+        },
+      };
+      const nav = { applyDecorations: jest.fn(), destroy: jest.fn(), _cframes: [detachedFrame] };
+      // The real engine clears its decoration groups through this callback on destroy.
+      const ttsEngine = {
+        destroy: jest.fn(() => (reader as any)._applyInternalDecorations("tts_utterance", "[]")),
+      };
+      (reader as any)._nav = nav;
+      (reader as any)._ttsEngine = ttsEngine;
+
+      expect(() => reader.closePublication()).not.toThrow();
+
+      expect(ttsEngine.destroy).toHaveBeenCalled();
+      expect(nav.destroy).toHaveBeenCalled();
+      expect((reader as any)._ttsEngine).toBeUndefined();
+      expect((reader as any)._nav).toBeUndefined();
+    });
+  });
+
+  it("finishes teardown when TTS destroy throws", () => {
+    withDomGlobals(() => {
+      const reader = new ReadiumReader();
+      const nav = { destroy: jest.fn() };
+      (reader as any)._nav = nav;
+      (reader as any)._ttsEngine = {
+        destroy: jest.fn(() => {
+          throw Error("boom");
+        }),
+      };
+
+      expect(() => reader.closePublication()).not.toThrow();
+
+      expect(nav.destroy).toHaveBeenCalled();
+      expect((reader as any)._ttsEngine).toBeUndefined();
+      expect((reader as any)._nav).toBeUndefined();
+    });
+  });
+
   it("does not throw when no navigators are active", () => {
     withDomGlobals(() => {
       const reader = new ReadiumReader();
