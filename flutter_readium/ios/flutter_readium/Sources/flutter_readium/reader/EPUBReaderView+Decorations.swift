@@ -7,11 +7,12 @@ extension Decoration.Style.Id {
   static let marginMarker: Decoration.Style.Id = "marginMarker"
 }
 
-/// Payload of a `marginMarker` decoration style. `side` is "start" or "end".
+/// Payload of a `marginMarker` decoration style. `side` is "start" or "end"; `anchor` is "page" or "text".
 struct MarginMarkerConfig: Hashable {
   var label: String?
   var icon: String?
   var side: String
+  var anchor: String
   var tint: UIColor?
 
   /// SVG path data (24x24 viewBox) by `MarginMarkerIcon` name. Keep in sync with Dart, Android and web.
@@ -116,8 +117,8 @@ extension EPUBReaderView {
     )
   }
 
-  /// Margin marker floated into the page margin. Keep the markup identical to the Android and web
-  /// templates; the design is in docs/plans/margin-marker-decorations.md.
+  /// Margin marker floated into the page margin, or placed next to the text for the "text" anchor. Keep
+  /// the markup identical to the Android and web templates; the design is in docs/plans/margin-marker-decorations.md.
   static func marginMarkerDecorationTemplate() -> HTMLDecorationTemplate {
     HTMLDecorationTemplate(
       layout: .bounds,
@@ -138,15 +139,23 @@ extension EPUBReaderView {
         } else {
           return "<div/>"
         }
-        let physical = config.side == "end" ? "right" : "left"
-        let logical = config.side == "end" ? "inline-end" : "inline-start"
-        var css = "float: \(physical) !important; float: \(logical) !important;"
-        css += " margin: 0 max(4px, 1.5%) !important; font-size: 0.75em !important; line-height: 1.4 !important;"
-        css += opacity
+        let end = config.side == "end"
+        var css = " font-size: 0.75em !important; line-height: 1.4 !important;" + opacity
         if let tint = config.tint {
           css += " color: \(tint.cssValue()) !important;"
         }
-        return "<div><span data-activable=\"1\" style=\"\(css)\">\(content)</span></div>"
+        if config.anchor == "text" {
+          // The cell is as wide as the margin, which flutterReadiumTools.js measures. The marker is pushed
+          // against the cell's text side; in a too-narrow margin it overflows toward the text, never off the page.
+          let cell = "display: flex !important; flex-direction: \(end ? "row-reverse" : "row") !important;"
+            + " box-sizing: border-box !important; width: var(--flutter-readium-text-inset-\(end ? "end" : "start"), 0px) !important;"
+            + " padding-inline: \(end ? "0.5em 4px" : "4px 0.5em") !important;\(end ? " margin-inline-start: auto !important;" : "")"
+          let push = "margin-\(end ? "inline-end" : "inline-start"): auto !important; flex: none !important;"
+          return "<div><div style=\"\(cell)\"><span data-activable=\"1\" style=\"\(push)\(css)\">\(content)</span></div></div>"
+        }
+        let float = "float: \(end ? "right" : "left") !important; float: \(end ? "inline-end" : "inline-start") !important;"
+          + " margin: 0 max(4px, 1.5%) !important;"
+        return "<div><span data-activable=\"1\" style=\"\(float)\(css)\">\(content)</span></div>"
       }
     )
   }

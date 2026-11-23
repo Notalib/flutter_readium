@@ -11,11 +11,21 @@ Markers are decorations with the `DecorationStyle.marginMarker` style, so they f
 ```dart
 const MarginMarker.label('12', side: MarginSide.end)
 const MarginMarker.icon(MarginMarkerIcon.bookmark) // side defaults to MarginSide.start
+const MarginMarker.icon(MarginMarkerIcon.bookmark, anchor: MarginAnchor.text)
 ```
 
 The fields are described in the [API reference](../api-reference/decorations.md#marginmarker).
 
 `tint` colours the marker's label or icon. Without a tint the marker uses the publication's text colour, so it follows the reader theme. Labels are drawn slightly muted. `isActive` is ignored.
+
+## Anchoring
+
+`anchor` decides where the marker sits inside the margin:
+
+- `MarginAnchor.page` (default) puts the marker near the page edge, or the column edge in two-column layouts. On a wide screen this can be far from the text, which suits printed page numbers.
+- `MarginAnchor.text` keeps the marker a small gap (half the body font size) from the text column, however wide the margin is. Use it for markers that belong to a passage, such as bookmarks.
+
+A text-anchored marker follows font size, page margins, scroll mode and publisher CSS. When the margin is narrower than the marker, it overflows toward the text rather than off the page. It lines up with the body's text column, so paragraphs that the publisher indents further keep their extra indent.
 
 A `marginMarker` decoration without a label or icon is skipped and logged. In debug builds, `applyDecorations` asserts that the marker is present.
 
@@ -71,7 +81,7 @@ await reader.applyDecorations('highlight-markers', [
       style: const ReaderDecorationStyle(
         style: DecorationStyle.marginMarker,
         tint: Color(0xFF2E7D32),
-        marker: MarginMarker.icon(MarginMarkerIcon.bookmark),
+        marker: MarginMarker.icon(MarginMarkerIcon.bookmark, anchor: MarginAnchor.text),
       ),
     ),
 ]);
@@ -94,7 +104,7 @@ Pair a marker with a text decoration if tapping the location should do something
 
 ## Layout notes
 
-- **Margin width.** Markers sit in the page margin. Icons need a little more room than page numbers, and with small `pageMargins` a marker can overlap the text. The plugin does not compensate for this.
+- **Margin width.** Markers sit in the page margin, whatever their anchor. Icons need a little more room than page numbers, and with small `pageMargins` a marker can overlap the text. The plugin does not compensate for this.
 - **Two columns.** The `end` margin of the left column and the `start` margin of the right column are the same gap, so markers on both sides can overlap there.
 - **Vertical writing modes** are not supported.
 - **Fixed layout on iOS.** Decorations are duplicated on both pages of a two-page spread until swift-toolkit 4.0.

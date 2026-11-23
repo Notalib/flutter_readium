@@ -41,10 +41,12 @@ ReaderDecoration(
 
 | Constructor | Description |
 |-------------|-------------|
-| `MarginMarker.label(String, {side})` | Text label, such as a page number |
-| `MarginMarker.icon(MarginMarkerIcon, {side})` | Built-in icon: `MarginMarkerIcon.bookmark`, `.note` or `.star` |
+| `MarginMarker.label(String, {side, anchor})` | Text label, such as a page number |
+| `MarginMarker.icon(MarginMarkerIcon, {side, anchor})` | Built-in icon: `MarginMarkerIcon.bookmark`, `.note` or `.star` |
 
 `side` is `MarginSide.start` (default) or `MarginSide.end`, and flips in right-to-left text. Labels are HTML-escaped. Icons are a closed set: the plugin never renders app-supplied markup.
+
+`anchor` is `MarginAnchor.page` (default), which puts the marker near the page or column edge, or `MarginAnchor.text`, which keeps it a small gap from the text column however wide the margin is. See [Margin Markers](../guides/margin-markers.md#anchoring).
 
 ## Applying decorations
 

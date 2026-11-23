@@ -23,7 +23,7 @@ class Highlight {
 
   Color? get tint => decoration.style.tint;
 
-  /// A bookmark icon in the margin, level with the first line of the highlight.
+  /// A bookmark icon in the margin, level with the first line of the highlight and next to the text.
   ///
   /// Untinted, so it takes the text colour and follows the reader theme.
   ReaderDecoration get marker => ReaderDecoration(
@@ -31,7 +31,7 @@ class Highlight {
     locator: decoration.locator,
     style: const ReaderDecorationStyle(
       style: DecorationStyle.marginMarker,
-      marker: MarginMarker.icon(MarginMarkerIcon.bookmark),
+      marker: MarginMarker.icon(MarginMarkerIcon.bookmark, anchor: MarginAnchor.text),
     ),
   );
 

@@ -79,29 +79,43 @@ enum MarginMarkerIcon {
 /// Which page margin a [MarginMarker] sits in. Logical: [start] is the left margin in LTR and the right margin in RTL.
 enum MarginSide { start, end }
 
+/// What a [MarginMarker] lines up with horizontally.
+enum MarginAnchor {
+  /// Near the edge of the page (or of the column, in two-column layouts).
+  page,
+
+  /// A small gap from the text column, however wide the margin is.
+  text,
+}
+
 /// The content of a [DecorationStyle.marginMarker] decoration: a text label or a built-in icon.
 class MarginMarker implements JSONable {
-  const MarginMarker.label(String this.label, {this.side = MarginSide.start}) : icon = null;
+  const MarginMarker.label(String this.label, {this.side = MarginSide.start, this.anchor = MarginAnchor.page})
+    : icon = null;
 
-  const MarginMarker.icon(MarginMarkerIcon this.icon, {this.side = MarginSide.start}) : label = null;
+  const MarginMarker.icon(MarginMarkerIcon this.icon, {this.side = MarginSide.start, this.anchor = MarginAnchor.page})
+    : label = null;
 
-  const MarginMarker._({this.label, this.icon, this.side = MarginSide.start});
+  const MarginMarker._({this.label, this.icon, this.side = MarginSide.start, this.anchor = MarginAnchor.page});
 
   factory MarginMarker.fromJson(final Map<String, dynamic> map) => MarginMarker._(
     label: map['label'] as String?,
     icon: MarginMarkerIcon.values.where((i) => i.name == map['icon']).firstOrNull,
     side: MarginSide.values.where((s) => s.name == map['side']).firstOrNull ?? MarginSide.start,
+    anchor: MarginAnchor.values.where((a) => a.name == map['anchor']).firstOrNull ?? MarginAnchor.page,
   );
 
   final String? label;
   final MarginMarkerIcon? icon;
   final MarginSide side;
+  final MarginAnchor anchor;
 
   @override
   Map<String, dynamic> toJson() => {
     if (label != null) 'label': label,
     if (icon != null) 'icon': icon!.name,
     'side': side.name,
+    'anchor': anchor.name,
   };
 }
 

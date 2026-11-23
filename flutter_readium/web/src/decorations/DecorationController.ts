@@ -31,6 +31,7 @@ interface MarginMarker {
   label?: string;
   icon?: string;
   side?: string;
+  anchor?: string;
 }
 
 /** SVG path data (24x24 viewBox) by `MarginMarkerIcon` name. Keep in sync with Dart, iOS and Android. */
@@ -56,8 +57,9 @@ function escapeHtml(s: string): string {
 }
 
 /**
- * Builds the margin marker element, or `null` when there is nothing to show. Keep the markup identical
- * to the iOS and Android templates; the design is in docs/plans/margin-marker-decorations.md.
+ * Builds the margin marker element, or `null` when there is nothing to show. It floats into the page
+ * margin, or sits next to the text for the "text" anchor. Keep the markup identical to the iOS and
+ * Android templates; the design is in docs/plans/margin-marker-decorations.md.
  */
 function marginMarkerHtml(marker: MarginMarker | undefined, tint: string | undefined): string | null {
   const content = marker?.label
@@ -68,13 +70,24 @@ function marginMarkerHtml(marker: MarginMarker | undefined, tint: string | undef
   if (!content) return null;
 
   const end = marker?.side === "end";
-  let css =
-    `float: ${end ? "right" : "left"} !important; float: ${end ? "inline-end" : "inline-start"} !important;` +
-    " margin: 0 max(4px, 1.5%) !important; font-size: 0.75em !important; line-height: 1.4 !important;";
+  let css = " font-size: 0.75em !important; line-height: 1.4 !important;";
   // Labels are muted like printed margin page numbers; icons keep the full colour.
   if (marker?.label) css += " opacity: 0.8 !important;";
   if (tint) css += ` color: ${escapeHtml(tint)} !important;`;
-  return `<div><span data-activable="1" style="${css}">${content}</span></div>`;
+  if (marker?.anchor === "text") {
+    // The cell is as wide as the margin, which flutterReadiumTools.js measures. The marker is pushed
+    // against the cell's text side; in a too-narrow margin it overflows toward the text, never off the page.
+    const cell =
+      `display: flex !important; flex-direction: ${end ? "row-reverse" : "row"} !important;` +
+      ` box-sizing: border-box !important; width: var(--flutter-readium-text-inset-${end ? "end" : "start"}, 0px) !important;` +
+      ` padding-inline: ${end ? "0.5em 4px" : "4px 0.5em"} !important;${end ? " margin-inline-start: auto !important;" : ""}`;
+    const push = `margin-${end ? "inline-end" : "inline-start"}: auto !important; flex: none !important;`;
+    return `<div><div style="${cell}"><span data-activable="1" style="${push}${css}">${content}</span></div></div>`;
+  }
+  const float =
+    `float: ${end ? "right" : "left"} !important; float: ${end ? "inline-end" : "inline-start"} !important;` +
+    " margin: 0 max(4px, 1.5%) !important;";
+  return `<div><span data-activable="1" style="${float}${css}">${content}</span></div>`;
 }
 
 export interface ApplyDecorationsOptions {

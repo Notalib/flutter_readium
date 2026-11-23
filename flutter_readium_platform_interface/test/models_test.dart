@@ -1127,12 +1127,20 @@ void main() {
       expect(decoration.style.toJson()['marker'], {
         'icon': 'bookmark',
         'side': 'start',
+        'anchor': 'page',
       });
       final restored = roundTrip(decoration);
       expect(restored.style.marker?.icon, MarginMarkerIcon.bookmark);
       expect(restored.style.marker?.label, isNull);
       expect(restored.style.marker?.side, MarginSide.start);
       expect(restored.style.tint, const Color(0xFF2E7D32));
+    });
+
+    test('text anchor round-trips; a missing or unknown anchor reads as page', () {
+      const marker = MarginMarker.icon(MarginMarkerIcon.note, anchor: MarginAnchor.text);
+      expect(MarginMarker.fromJson(marker.toJson()).anchor, MarginAnchor.text);
+      expect(MarginMarker.fromJson({'label': '3'}).anchor, MarginAnchor.page);
+      expect(MarginMarker.fromJson({'label': '3', 'anchor': 'gutter'}).anchor, MarginAnchor.page);
     });
 
     test('copyWith keeps, replaces and clears the marker', () {

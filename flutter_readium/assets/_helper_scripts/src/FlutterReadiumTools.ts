@@ -421,7 +421,33 @@ function Setup() {
 
     initResponsiveTables();
     startSpotlightObserver(document);
+    startTextInsetObserver(document);
   });
+}
+
+/**
+ * Publishes the distance from each page edge to the text column as `--flutter-readium-text-inset-start`
+ * and `--flutter-readium-text-inset-end` on the body, so text-anchored margin markers can sit next to the
+ * text. Measuring the used box follows Readium CSS, publisher CSS and injected padding alike.
+ */
+function startTextInsetObserver(doc: Document): void {
+  const update = () => {
+    const body = doc.body;
+    if (!body) return;
+    const cs = getComputedStyle(body);
+    const px = (v: string) => parseFloat(v) || 0;
+    const left = px(cs.marginLeft) + px(cs.borderLeftWidth) + px(cs.paddingLeft);
+    const right = px(cs.marginRight) + px(cs.borderRightWidth) + px(cs.paddingRight);
+    const rtl = cs.direction === 'rtl';
+    body.style.setProperty('--flutter-readium-text-inset-start', `${rtl ? right : left}px`);
+    body.style.setProperty('--flutter-readium-text-inset-end', `${rtl ? left : right}px`);
+  };
+  update();
+  // Readium writes user settings to <html style>. The variables go on the body, so writing them does
+  // not retrigger this observer. A wider viewport can move auto margins without resizing the body.
+  new ResizeObserver(update).observe(doc.body);
+  new MutationObserver(update).observe(doc.documentElement, { attributes: true, attributeFilter: ['style'] });
+  window.addEventListener('resize', update);
 }
 
 if (document.readyState !== 'loading') {

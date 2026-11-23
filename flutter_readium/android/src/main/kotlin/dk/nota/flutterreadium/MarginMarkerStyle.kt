@@ -7,6 +7,7 @@ import org.readium.r2.navigator.Decoration
 /**
  * Margin marker: a text [label] or built-in [icon] floated into the page margin, level with the
  * first line of the range. [side] is "start" or "end" (logical, so it flips in RTL).
+ * [anchor] is "page" (near the page edge) or "text" (a small gap from the text column).
  * A transparent [tint] means no tint was set.
  */
 @Parcelize
@@ -14,6 +15,7 @@ data class MarginMarkerStyle(
     val label: String?,
     val icon: String?,
     val side: String,
+    val anchor: String,
     @ColorInt override val tint: Int,
 ) : Decoration.Style,
     Decoration.Style.Tinted {

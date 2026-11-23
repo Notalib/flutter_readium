@@ -178,6 +178,26 @@ describe("DecorationController", () => {
       expect(html).toContain("color: #2e7d32ff !important;");
     });
 
+    it.each([
+      ["start", "row", "--flutter-readium-text-inset-start", "margin-inline-start: auto"],
+      ["end", "row-reverse", "--flutter-readium-text-inset-end", "margin-inline-end: auto"],
+    ])("sizes a text-anchored %s marker's cell from the measured inset", (side, direction, inset, push) => {
+      const { controller, nav } = setup();
+
+      controller.applyDecorations(
+        nav as any,
+        "highlight-markers",
+        JSON.stringify([marker("t", { marker: { icon: "bookmark", side, anchor: "text" } })])
+      );
+
+      const [deco] = appliedTo(nav, "highlight-markers");
+      const html: string = deco.style.element(deco);
+      expect(html).toContain(`flex-direction: ${direction} !important;`);
+      expect(html).toContain(`width: var(${inset}, 0px) !important;`);
+      expect(html).toContain(`<span data-activable="1" style="${push} !important;`);
+      expect(html).not.toContain("float");
+    });
+
     it.each(["bookmark", "note", "star"])("renders the built-in %s icon", (icon) => {
       const { controller, nav } = setup();
 

@@ -1053,8 +1053,9 @@ class EpubReaderFragment :
             )
 
         /**
-         * Margin marker floated into the page margin. Keep the markup identical to the iOS and web
-         * templates; the design is in docs/plans/margin-marker-decorations.md.
+         * Margin marker floated into the page margin, or placed next to the text for the "text" anchor.
+         * Keep the markup identical to the iOS and web templates; the design is in
+         * docs/plans/margin-marker-decorations.md.
          */
         private fun marginMarkerDecorationTemplate(): HtmlDecorationTemplate =
             HtmlDecorationTemplate(
@@ -1083,8 +1084,7 @@ class EpubReaderFragment :
                     if (style == null || content == null) {
                         "<div/>"
                     } else {
-                        val physical = if (style.side == "end") "right" else "left"
-                        val logical = if (style.side == "end") "inline-end" else "inline-start"
+                        val end = style.side == "end"
                         val color =
                             if (android.graphics.Color.alpha(style.tint) == 0) {
                                 ""
@@ -1096,12 +1096,25 @@ class EpubReaderFragment :
                             }
                         // Labels are muted like printed margin page numbers; icons keep the full colour.
                         val opacity = if (style.label != null) " opacity: 0.8 !important;" else ""
-                        val css =
-                            "float: $physical !important; float: $logical !important;" +
-                                " margin: 0 max(4px, 1.5%) !important; font-size: 0.75em !important; line-height: 1.4 !important;" +
-                                opacity +
-                                color
-                        """<div><span data-activable="1" style="$css">$content</span></div>"""
+                        val css = " font-size: 0.75em !important; line-height: 1.4 !important;$opacity$color"
+                        if (style.anchor == "text") {
+                            // The cell is as wide as the margin, which flutterReadiumTools.js measures. The marker is pushed
+                            // against the cell's text side; in a too-narrow margin it overflows toward the text, never off the page.
+                            val cell =
+                                "display: flex !important; flex-direction: ${if (end) "row-reverse" else "row"} !important;" +
+                                    " box-sizing: border-box !important;" +
+                                    " width: var(--flutter-readium-text-inset-${if (end) "end" else "start"}, 0px) !important;" +
+                                    " padding-inline: ${if (end) "0.5em 4px" else "4px 0.5em"} !important;" +
+                                    if (end) " margin-inline-start: auto !important;" else ""
+                            val push = "margin-${if (end) "inline-end" else "inline-start"}: auto !important; flex: none !important;"
+                            """<div><div style="$cell"><span data-activable="1" style="$push$css">$content</span></div></div>"""
+                        } else {
+                            val float =
+                                "float: ${if (end) "right" else "left"} !important;" +
+                                    " float: ${if (end) "inline-end" else "inline-start"} !important;" +
+                                    " margin: 0 max(4px, 1.5%) !important;"
+                            """<div><span data-activable="1" style="$float$css">$content</span></div>"""
+                        }
                     }
                 },
             )

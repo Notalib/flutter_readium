@@ -493,7 +493,7 @@ extension Decoration.Style {
 
   // Accepts the flat style map produced by ReaderDecorationStyle.toJson() on the Dart side:
   // { "style": "highlight", "tint": "#RRGGBB" (optional), "isActive": true/false,
-  //   "marker": { "label"|"icon", "side" } (only for "marginMarker") }
+  //   "marker": { "label"|"icon", "side", "anchor" } (only for "marginMarker") }
   // `tint` is optional — when absent the decoration has no background colour.
   init(fromMap jsonMap: [String: Any]?) throws {
     guard let map = jsonMap,
@@ -515,9 +515,10 @@ extension Decoration.Style {
         throw JSONError.parsing(Self.self)
       }
       let side = marker?["side"] as? String == "end" ? "end" : "start"
+      let anchor = marker?["anchor"] as? String == "text" ? "text" : "page"
       self.init(
         id: .marginMarker,
-        config: MarginMarkerConfig(label: label, icon: icon, side: side, tint: tintColor?.uiColor)
+        config: MarginMarkerConfig(label: label, icon: icon, side: side, anchor: anchor, tint: tintColor?.uiColor)
       )
       return
     }
