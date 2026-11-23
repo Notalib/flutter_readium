@@ -966,7 +966,7 @@ class _ReadiumReader {
       const locator = locatorJson
         ? Locator.deserialize(JSON.parse(locatorJson)) ?? undefined
         : undefined;
-      this._ttsEngine.play(locator);
+      this._ttsEngine.play(locator && this._withFirstVisibleElementIfShown(locator));
       return;
     }
     if (!this._audioNav) return;
@@ -1223,6 +1223,18 @@ class _ReadiumReader {
         return readerLocator ? withFirstVisibleElement(readerLocator, navIframeWindows(nav)) : undefined;
       }
     );
+  }
+
+  /**
+   * Adds the first visible element to `locator` when it is the position the
+   * reader shows. Apps pass the reader's own locator to `play()` to mean "from
+   * here", and its progression alone makes TTS start at the top of the chapter.
+   */
+  private _withFirstVisibleElementIfShown(locator: Locator): Locator {
+    const shown: Locator | undefined = this._nav?.currentLocator;
+    if (!this._nav || !shown || shown.href !== locator.href) return locator;
+    if (shown.locations.progression !== locator.locations.progression) return locator;
+    return withFirstVisibleElement(locator, navIframeWindows(this._nav));
   }
 
   /** Returns a JSON string containing available browser TTS voices. */

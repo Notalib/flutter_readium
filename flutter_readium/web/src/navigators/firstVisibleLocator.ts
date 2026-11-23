@@ -29,14 +29,19 @@ export function withFirstVisibleElement(current: Locator, frameWindows: Window[]
   const wnd = frameWindows[0];
   try {
     const element = findFirstVisibleElement(wnd, wnd.document.body);
+    if (!element) return current;
+    // The iterator reads a progression of exactly 1 as "start at the end of
+    // the resource" and then ignores the selector. The reader reports 1 on
+    // the last page of a chapter, so the found element replaces it.
+    const located = current.copyWithLocations({ progression: undefined });
     // Nothing before it means the top of the resource, which needs no
     // selector. The iterator also mis-starts on such an element: it records
     // its start index only while that is still 0, so a wrapper with nothing
     // before it starts after its first paragraph, or after its whole content.
-    if (!element || !hasContentBefore(element)) return current;
+    if (!hasContentBefore(element)) return located;
     const otherLocations = new Map(current.locations.otherLocations ?? []);
     otherLocations.set("cssSelector", bodyPathSelector(element));
-    return current.copyWithLocations({ otherLocations });
+    return located.copyWithLocations({ otherLocations });
   } catch (error) {
     // A frame that is being torn down throws on access.
     log.debug("first visible element lookup failed:", error);
@@ -88,12 +93,13 @@ export function hasContentBefore(element: Element): boolean {
  * Tags the content iterator treats as blocks. It can only start at a block, so
  * a selector for an inline element would make TTS start at the top of the
  * resource instead. A block tag missing here is skipped in favor of its parent
- * or next sibling.
+ * or next sibling. `SUMMARY` is left out on purpose: the iterator treats it as
+ * inline.
  */
 const BLOCK_TAGS = new Set([
   "ADDRESS", "ARTICLE", "ASIDE", "BLOCKQUOTE", "CAPTION", "DD", "DETAILS", "DIV", "DL", "DT",
   "FIELDSET", "FIGCAPTION", "FIGURE", "FOOTER", "FORM", "H1", "H2", "H3", "H4", "H5", "H6",
-  "HEADER", "HGROUP", "LI", "MAIN", "NAV", "OL", "P", "PRE", "SECTION", "SUMMARY", "TABLE",
+  "HEADER", "HGROUP", "LI", "MAIN", "NAV", "OL", "P", "PRE", "SECTION", "TABLE",
   "TBODY", "TD", "TH", "THEAD", "TR", "UL",
 ]);
 

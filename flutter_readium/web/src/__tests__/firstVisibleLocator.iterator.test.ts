@@ -24,11 +24,11 @@ function renderedFrame(html: string, visible: string[]): Window {
   return { innerWidth: 100, innerHeight: 100, document: doc } as unknown as Window;
 }
 
-async function firstSpokenText(html: string, visible: string[]): Promise<string> {
+async function firstSpokenText(html: string, visible: string[], progression = 0.5): Promise<string> {
   const chapter = new Locator({
     href: "chap.xhtml",
     type: "application/xhtml+xml",
-    locations: new LocatorLocations({ progression: 0.5 }),
+    locations: new LocatorLocations({ progression }),
   });
   const start = withFirstVisibleElement(chapter, [renderedFrame(html, visible)]);
   const resource = { readAsString: async () => html };
@@ -62,6 +62,19 @@ describe("TTS start position with the toolkit iterator", () => {
     const html = xhtml(`<section id="s" data-spans="1"><p id="p1">One</p><p id="p2">Two</p></section>`);
 
     expect(await firstSpokenText(html, ["p2"])).toBe("Two");
+  });
+
+  it("starts at the first visible paragraph on the last page of a chapter", async () => {
+    // The reader reports a progression of exactly 1 there.
+    const html = xhtml(`<h1 id="h">Title</h1><p id="p1">One</p><p id="p2">Two</p>`);
+
+    expect(await firstSpokenText(html, ["p2"], 1)).toBe("Two");
+  });
+
+  it("starts at the top on a chapter's only page", async () => {
+    const html = xhtml(`<section id="s"><p id="p1">Only</p></section>`);
+
+    expect(await firstSpokenText(html, ["s", "p1"], 1)).toBe("Only");
   });
 
   it("keeps a section's own text before its first paragraph", async () => {

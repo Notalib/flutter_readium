@@ -351,8 +351,9 @@ export class FlutterTTSNavigator {
       await new Promise<void>((resolve) => setTimeout(resolve, 50));
     }
     // The default voice is picked from this list, and Chrome fills it only
-    // after `voiceschanged`.
-    await voicesLoaded();
+    // after `voiceschanged`. A chosen voice needs no list, which spares
+    // browsers without voices the wait's timeout.
+    if (!(this._selectedVoice ?? this._prefs.voice)) await voicesLoaded();
     // A later play() or stop() owns the engine now.
     if (this._destroyed || generation !== this._generation) return;
     if (this._paused) {

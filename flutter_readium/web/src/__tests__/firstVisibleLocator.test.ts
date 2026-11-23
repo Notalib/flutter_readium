@@ -118,7 +118,7 @@ describe("withFirstVisibleElement", () => {
     const result = withFirstVisibleElement(chapter, [wnd]);
 
     expect(result.href).toBe("chap1.html");
-    expect(result.locations.progression).toBe(0.4);
+    expect(result.locations.progression).toBeUndefined();
     expect(result.locations.otherLocations?.get("cssSelector")).toBe("body > :nth-child(2)");
   });
 
@@ -126,7 +126,10 @@ describe("withFirstVisibleElement", () => {
     // The iterator would start after the section's first paragraph here.
     const wnd = frame(el("BODY", "body", [0, 100], [el("SECTION", "sec", [0, 100], [el("P", "p1", [10, 90])])]));
 
-    expect(withFirstVisibleElement(chapter, [wnd])).toBe(chapter);
+    const result = withFirstVisibleElement(chapter, [wnd]);
+
+    expect(result.locations.otherLocations?.get("cssSelector")).toBeUndefined();
+    expect(result.locations.progression).toBeUndefined();
   });
 
   it("keeps a selector the locator already has", () => {

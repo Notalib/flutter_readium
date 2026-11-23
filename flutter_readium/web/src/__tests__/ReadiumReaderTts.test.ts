@@ -49,6 +49,11 @@ function initialLocatorOf(call: number): Locator | undefined {
   return MockTTSNavigator.mock.calls[call][7]?.();
 }
 
+/** The locator the reader passed to the engine's first play(). */
+function startOf(instance: number): Locator {
+  return jest.mocked(MockTTSNavigator.mock.instances[instance].play).mock.calls[0][0]!;
+}
+
 beforeEach(() => {
   MockTTSNavigator.mockClear();
 });
@@ -93,6 +98,28 @@ describe("ttsEnable", () => {
     await reader.ttsEnable("{}", JSON.stringify({ href: "chap7.html", type: "application/xhtml+xml" }));
 
     expect(initialLocatorOf(0)?.href).toBe("chap7.html");
+  });
+
+  it("starts play() with the reader's own locator at the first visible element", async () => {
+    const reader = makeReader();
+    await reader.ttsEnable("{}");
+
+    reader.play(JSON.stringify(readerLocator.serialize()));
+
+    const start = startOf(0);
+    expect(start.locations.otherLocations?.get("cssSelector")).toBe("body > :nth-child(2)");
+  });
+
+  it("keeps a play() locator for another position", async () => {
+    const reader = makeReader();
+    await reader.ttsEnable("{}");
+    const elsewhere = readerLocator.copyWithLocations({ progression: 0.9 });
+
+    reader.play(JSON.stringify(elsewhere.serialize()));
+
+    const start = startOf(0);
+    expect(start.locations.progression).toBe(0.9);
+    expect(start.locations.otherLocations?.get("cssSelector")).toBeUndefined();
   });
 
   it("lets play() without a locator resume the engine", async () => {
