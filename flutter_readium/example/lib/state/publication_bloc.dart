@@ -58,12 +58,16 @@ class OpenPublication extends PublicationEvent {
 class PublicationState {
   PublicationState({
     this.publication,
+    this.publicationUrl,
     this.initialLocator,
     this.error,
     this.isLoading = false,
     Map<String, Highlight>? highlights,
   }) : highlights = highlights ?? {};
   final Publication? publication;
+
+  /// Where the current publication was opened from.
+  final String? publicationUrl;
   final Locator? initialLocator;
   final dynamic error;
   final bool isLoading;
@@ -94,12 +98,14 @@ class PublicationState {
 
   PublicationState copyWith({
     final Publication? publication,
+    final String? publicationUrl,
     final Locator? initialLocator,
     final dynamic error,
     final bool? isLoading,
     final Map<String, Highlight>? highlights,
   }) => PublicationState(
     publication: publication ?? this.publication,
+    publicationUrl: publicationUrl ?? this.publicationUrl,
     initialLocator: initialLocator ?? this.initialLocator,
     error: error ?? this.error,
     isLoading: isLoading ?? this.isLoading,
@@ -109,8 +115,10 @@ class PublicationState {
   PublicationState openPublicationSuccess(
     final Publication publication,
     Locator? initialLocator,
+    final String publicationUrl,
   ) => PublicationState(
     publication: publication,
+    publicationUrl: publicationUrl,
     initialLocator: initialLocator,
     isLoading: false,
     error: null,
@@ -140,6 +148,7 @@ class PublicationState {
   Map<String, dynamic> toJson() {
     return {
       'publication': publication?.toJson(),
+      'publicationUrl': publicationUrl,
       'initialLocator': initialLocator?.toJson(),
       'error': error?.toString(),
       'isLoading': isLoading,
@@ -156,6 +165,7 @@ class PublicationState {
     final publication = Publication.fromJson(
       jsonObject.optNullableMap('publication', remove: true),
     );
+    final publicationUrl = jsonObject.optNullableString('publicationUrl', remove: true);
     final initialLocator = Locator.fromJson(
       jsonObject.optNullableMap('initialLocator', remove: true),
     );
@@ -168,6 +178,7 @@ class PublicationState {
 
     return PublicationState(
       publication: publication,
+      publicationUrl: publicationUrl,
       initialLocator: initialLocator,
       error: error,
       isLoading: isLoading,
@@ -196,7 +207,7 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
         final pubUrlHashCode = event.publicationUrl.hashCode.toString();
         bool timebasedLocatorReceived = false;
 
-        emit(state.openPublicationSuccess(publication, event.initialLocator));
+        emit(state.openPublicationSuccess(publication, event.initialLocator, event.publicationUrl));
 
         // Listen to timebased player state changes to log current locator for debugging purposes.
         timebasedStateSub = instance.onTimebasedPlayerStateChanged

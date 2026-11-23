@@ -1,0 +1,2 @@
+**Readium LCP support for iOS and Android.**
+Open LCP-protected EPUB, audiobook and PDF publications with a passphrase prompt driven from Dart, acquire a publication from a `.lcpl` license, and read license info. Failures surface as typed `LcpException`s. Your app supplies EDRLab's private client library; see [docs/guides/lcp.md](https://github.com/Notalib/flutter_readium/blob/main/docs/guides/lcp.md).

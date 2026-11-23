@@ -1,0 +1,59 @@
+buildscript {
+  ext.kotlin_version = '2.3.21'
+  // Keep in step with flutter_readium/android/build.gradle (bin/readium_versions --check compares them).
+  ext.readium_version = '3.4.0'
+
+  repositories {
+    google()
+    mavenCentral()
+  }
+
+  dependencies {
+    classpath 'com.android.tools.build:gradle:8.13.2'
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+  }
+}
+
+group 'dk.nota.flutterreadiumlcp'
+version '1.0-SNAPSHOT'
+
+rootProject.allprojects {
+  repositories {
+    google()
+    mavenCentral()
+  }
+}
+
+apply plugin: 'com.android.library'
+
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+android {
+  if (project.android.hasProperty('namespace')) {
+    namespace 'dk.nota.flutterreadiumlcp'
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_18
+    targetCompatibility JavaVersion.VERSION_18
+  }
+
+  kotlin {
+    compilerOptions {
+      jvmTarget = JvmTarget.JVM_18
+    }
+  }
+
+  compileSdkVersion 37
+
+  defaultConfig {
+    minSdkVersion 24
+  }
+}
+
+dependencies {
+  // The app already has flutter_readium; compiling against it must not bundle a second copy.
+  compileOnly project(':flutter_readium')
+  implementation "org.readium.kotlin-toolkit:readium-lcp:$readium_version"
+  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2'
+}

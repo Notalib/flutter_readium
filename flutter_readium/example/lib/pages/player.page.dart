@@ -9,6 +9,7 @@ import 'package:flutter_readium/flutter_readium.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../state/index.dart';
+import '../utils/index.dart';
 import '../widgets/index.dart';
 
 const Color _appBarColor = Colors.amber;
@@ -217,6 +218,13 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   );
 
   List<Widget> _buildActionButtons(final bool isAudioBook, final bool isDivina, final bool isPdf) => <Widget>[
+    if (PublicationUtils.isLcp(context.read<PublicationBloc>().state.publicationUrl))
+      IconButton(
+        key: const ValueKey('lcp_license_info_button'),
+        icon: const Icon(Icons.lock),
+        onPressed: () => showLcpLicenseSheet(context, context.read<PublicationBloc>().state.publicationUrl!),
+        tooltip: 'LCP license info',
+      ),
     if (!isAudioBook && !isDivina)
       IconButton(
         key: const ValueKey('visual_settings_button'),

@@ -39,6 +39,9 @@ class PublicationUtils {
       '.webpub',
       '.epub',
       '.audiobook',
+      '.lcpa',
+      '.lcpdf',
+      '.lcpl',
       '.cbz',
       '.divina',
       '.pdf',
@@ -70,10 +73,29 @@ class PublicationUtils {
       } else {
         _log.fine('cached ${file.path} size=${await file.length()}');
       }
-      pubs.add(file.path);
+      // LCP fixtures prompt for a passphrase when opened, so they stay off the auto-loaded shelf.
+      // The bookshelf opens them from its LCP buttons through [lcpFixturePath].
+      if (!path.basename(file.path).startsWith(_lcpFixturePrefix)) {
+        pubs.add(file.path);
+      }
     }
     return pubs;
   }
+
+  static const _lcpFixturePrefix = 'lcp_';
+
+  /// Path of an LCP fixture copied by [moveAssetPublicationsToReadiumStorage], or null if it is missing.
+  static Future<String?> lcpFixturePath(final String fileName) async {
+    final file = File(path.join(await ReadiumStorage.publicationsDirPath, fileName));
+    return await file.exists() ? file.path : null;
+  }
+
+  static final _lcpPaths = <String>{};
+
+  /// Remembers that [path] was opened as an LCP publication, so the player offers its license info.
+  static void markLcp(final String path) => _lcpPaths.add(path);
+
+  static bool isLcp(final String? path) => path != null && _lcpPaths.contains(path);
 
   static Future<void> removePublicationFromReadiumStorage(
     String pubPath,

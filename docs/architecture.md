@@ -2,11 +2,12 @@
 
 ## Package structure
 
-This is a federated Flutter plugin split into two pub packages:
+This is a federated Flutter plugin split into two pub packages, plus an optional add-on:
 
 ```
 flutter_readium/                      : app-facing package
 flutter_readium_platform_interface/   : shared models & platform contract
+flutter_readium_lcp/                  : optional Readium LCP add-on (iOS, Android); see guides/lcp.md
 ```
 
 ![Architecture overview](diagrams/architecture.png)

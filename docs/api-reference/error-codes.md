@@ -61,6 +61,8 @@ through as a raw `PlatformException` instead of wrapping it in `ReadiumException
 so `e.codeEnum` is not the right tool for it; check `e.code == 'InvalidArgument'`
 directly if you need to distinguish caller bugs from domain errors.
 
+The `flutter_readium_lcp` add-on sends its own wire codes (`lcpPassphraseRequired`, `lcpLicenseInvalid`, `lcpLicenseStatus`, `lcpNetwork`, `lcpError`). They are not part of `ReadiumErrorCode`, so `e.codeEnum` is `unknown` for them; parse them with `LcpException.fromReadiumException(e)` instead. See the [LCP guide](../guides/lcp.md#errors).
+
 ### `details.reason`
 
 Several codes above are intentionally coarse; a `reason` field in `details` (wire

@@ -91,6 +91,13 @@ function test_android() {
   ./gradlew :flutter_readium:testDebugUnitTest
 }
 
+function test_lcp() {
+  echo "Running flutter_readium_lcp Dart tests..."
+  echo
+  # cd, not --directory (see test_ios).
+  ( cd "$REPO_ROOT/flutter_readium_lcp" && flutter pub get > /dev/null && flutter test )
+}
+
 function test_web() {
   WEB_DIR="$REPO_ROOT/flutter_readium/web/src"
   cd "$WEB_DIR" || exit 1
@@ -108,16 +115,21 @@ case "$PLATFORM" in
   web)
     test_web
     ;;
+  lcp)
+    test_lcp
+    ;;
   all)
     test_android
     echo
     test_ios
     echo
     test_web
+    echo
+    test_lcp
     ;;
   *)
     echo "Unknown platform: $PLATFORM" >&2
-    echo "Usage: $0 [ios|android|all] [simulator_name]" >&2
+    echo "Usage: $0 [ios|android|web|lcp|all] [simulator_name]" >&2
     exit 1
     ;;
 esac

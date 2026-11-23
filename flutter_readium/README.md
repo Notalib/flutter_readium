@@ -129,7 +129,7 @@ level on all platforms (on Web, ts-toolkit has no DiViNa navigator, so images ar
 plugin-side navigator). Panel-level zoom (the segments' `xywh` regions) is not yet implemented on
 any platform.
 
-LCP-protected publications are not currently supported. The underlying toolkits include an LCP adapter; it may be enabled in a future release.
+LCP-protected publications open on iOS and Android with the optional `flutter_readium_lcp` add-on, which needs EDRLab's private client library supplied by your app. There is no web support. See [https://github.com/Notalib/flutter_readium/blob/main/docs/guides/lcp.md](https://github.com/Notalib/flutter_readium/blob/main/docs/guides/lcp.md).
 
 ## Platform support
 

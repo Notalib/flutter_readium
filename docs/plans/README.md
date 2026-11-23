@@ -70,8 +70,6 @@ This directory holds implementation plans, parity audits, and retained reference
 
 - **Positions list API** — Both upstream toolkits compute a `positionsByReadingOrder` list internally but do not expose it as a public API on their navigators. The Dart `PositionsList` model exists, but surfacing it would require either polling the publication-level service or adding a dedicated method-channel call. Consumer demand is low compared to the maintenance cost; deferred.
 
-- **LCP (Readium LCP)** — The README explicitly notes LCP is not currently supported. The upstream toolkits include an LCP adapter, and the model layer has a `Drm` class, but enabling LCP requires a license agreement with EDRLab and significant keystore / DRM lifecycle work beyond a parity fix. Intentionally out of scope.
-
 - **CBZ / DIVINA / image formats** — The swift-toolkit includes a CBZ navigator module; the Dart plugin has no support and there is no current consumer demand. Not a parity issue; a new feature category. Deferred.
 
 - **OPDS feed integration** — The Dart model layer includes rich OPDS types (`Feed`, `OPDSPublication`, etc.), but the plugin exposes no method to fetch or parse an OPDS feed URL. This is a convenience feature (consumers can fetch OPDS themselves and parse the JSON); deferred.
