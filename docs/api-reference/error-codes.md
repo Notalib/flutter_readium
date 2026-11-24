@@ -42,9 +42,9 @@ oversight. Finer-grained distinctions that a client wouldn't branch on different
 | `incorrectCredentials` | `incorrectCredentials` | iOS, Android, web | opening | fatal | Credentials rejected while opening a protected publication |
 | `audioStreamRetry` | `AudioStreamRetry` | iOS, Android, web | audioStream | **informational** | Automatic connection recovery in progress after a transient network error or recoverable resource-loading timeout; playback state pinned to loading |
 | `audioStreamAuthError` | `AudioStreamAuthError` | iOS, Android, web | audioStream | fatal | HTTP 401/403 fetching an audio resource |
-| `audioStreamHttpError` | `AudioStreamHTTPError` | iOS, Android, web | audioStream | fatal | Other non-5xx HTTP error fetching an audio resource |
+| `audioStreamHttpError` | `AudioStreamHTTPError` | iOS, Android, web | audioStream | fatal | Other non-5xx HTTP error fetching an audio resource. Web adds `details.reason` when the status proves the track is broken — see below |
 | `audioStreamNetworkError` | `AudioStreamNetworkError` | iOS, Android, web | audioStream | fatal | Unclassified network-layer failure streaming audio; also the Android recovery-exhausted fallback for every non-HTTP failure shape (ExoPlayer doesn't distinguish range/filesystem causes) |
-| `audioStreamError` | `AudioStreamError` | iOS, web | audioStream | fatal | Unclassified/default terminal audio streaming failure. iOS pairs this with `details.reason: "rangeNotSupported"` (server rejected byte-range streaming) or `"fileSystem"` (local filesystem error); web emits it bare for a `MEDIA_ERR_DECODE`. Not emitted by Android — see above |
+| `audioStreamError` | `AudioStreamError` | iOS, web | audioStream | fatal | Unclassified/default terminal audio streaming failure. iOS pairs this with `details.reason: "rangeNotSupported"` (server rejected byte-range streaming) or `"fileSystem"` (local filesystem error); web emits it for a track it cannot decode or that the server serves empty, with `details.reason`. Not emitted by Android — see above |
 | `ttsUtteranceFailed` | `TTSUtteranceFailed` | iOS, Android | tts | fatal | A single TTS utterance failed to synthesize/play (ambient error-channel event, not a method-channel result) |
 | `voiceNotFound` | `VoiceNotFound` | iOS, web | tts | fatal | `ttsSetVoice` was called with a voice identifier the platform doesn't have. Not emitted by Android — see Per-platform limitations |
 | `ttsError` | `TTSError` | iOS, Android | tts | fatal | Generic TTS synthesis/playback failure not covered by a more specific code |
@@ -69,7 +69,9 @@ adding a new wire code a client would have to branch on identically anyway:
 
 | Code | `reason` values | Platforms |
 |---|---|---|
-| `audioStreamError` | `rangeNotSupported`, `fileSystem` | iOS only (Android doesn't reach this code; web's `AudioStreamError` is decode-only and doesn't set a reason) |
+| `audioStreamError` | `rangeNotSupported`, `fileSystem` | iOS (Android doesn't reach this code) |
+| `audioStreamError` | `undecodable`, `empty` | web: the track is broken in the publication (`MEDIA_ERR_DECODE` on a 2xx answer served as audio, or an empty body confirmed by a ranged GET) |
+| `audioStreamHttpError` | `missing`, `empty` | web: 404/410, or 416 for an empty file. Other 4xx statuses set no reason |
 | `resourceReadError` | `notFound`, `cache` | iOS, Android. Web uses `notFound` and `urlResolution` (no on-disk cache step, so no `cache` reason); its `goTo`-navigation-failure and Media Overlay manifest-deserialization sites use `navigation` and `manifestDeserialization` respectively. Short tokens, but still producer-specific — don't assume every platform sets the same set for a given code |
 
 `reason` is optional and producer-specific; treat it as a hint for logging/telemetry,
@@ -106,8 +108,9 @@ Any unrecognized or non-HTTP transport error on all three platforms (e.g. an Exo
 | `attempt` | int | Current retry attempt number (`audioStreamRetry`) |
 | `maxAttempts` | int | Retry budget (`audioStreamRetry`) |
 | `httpStatus` | int | HTTP status that triggered the error, when known |
+| `reason` | string | Finer cause within the code — see `details.reason` above |
 
-All fields are optional; a producer omits the field entirely when nothing applies. Prefer the typed getters (`error.href`, `error.attempt`, `error.maxAttempts`, `error.httpStatus`) over reading `details` directly. A `null` `details` means no structured payload was sent.
+All fields are optional; a producer omits the field entirely when nothing applies. Prefer the typed getters (`error.href`, `error.attempt`, `error.maxAttempts`, `error.httpStatus`, `error.reason`) over reading `details` directly. A `null` `details` means no structured payload was sent.
 
 `ReadiumError.fromJson` tolerates a stale native side still sending `data` as a freeform string (pre-R2 wire format) by wrapping it as `{"message": <string>}` — it never throws on a legacy payload.
 

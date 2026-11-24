@@ -129,7 +129,7 @@ describe.each([
   ])("%s + probe 401 emits AudioStreamAuthError, then failure", async (_kind, mediaError) => {
     await open({ mediaOverlay });
     await fail(mediaError);
-    expect(probe).toHaveBeenCalledWith(HREF);
+    expect(probe).toHaveBeenCalledWith(HREF, { decodeError: false });
     expect(emitError).toHaveBeenCalledTimes(1);
     expect(emitError.mock.calls[0][1]).toBe("AudioStreamAuthError");
     expect(emitError.mock.calls[0][2]).toEqual({ href: HREF, httpStatus: 401 });

@@ -427,6 +427,12 @@ export function seekAudioAndResume(
 // Re-enabled whenever a fresh AudioNavigator is created (see FlutterAudioNavigator.create).
 let _emissionsEnabled = true;
 
+/**
+ * Navigators a recovery rebuild has replaced. Each rebuild runs its own `create()`, whose
+ * listeners keep a binding to their own navigator after a later rebuild replaces it.
+ */
+const retiredNavigators = new WeakSet<AudioNavigator>();
+
 /** Enable/disable audio navigator emissions (text/state/visual sync). */
 export function setAudioEmissionsEnabled(enabled: boolean): void {
   log.debug(`Audio emissions ${enabled ? "enabled" : "disabled"}`);
@@ -520,13 +526,11 @@ function resolveAudioResourceUrl(
  * Classifies an audio error, running the HTTP diagnostic probe (see
  * `AudioStreamHttpProbe.ts`) first.
  *
- * The probe only runs when it could change the outcome: skipped entirely for
- * `MEDIA_ERR_ABORTED` (already `ignore`, and firing a CORS fetch during
- * teardown/seek would be pure overhead) and `MEDIA_ERR_DECODE` (already a
- * conclusive terminal failure — a bad HTTP status can't explain a decode
- * error, and a *good* status would be misleading: the file is reachable but
- * still unplayable). For every other code the probe result — when conclusive
- * — supersedes the MediaError-only classification; an inconclusive probe
+ * The probe is skipped for `MEDIA_ERR_ABORTED` (already `ignore`, and firing a
+ * CORS fetch during teardown/seek would be pure overhead). For `MEDIA_ERR_DECODE`
+ * it tells a broken track (served as audio) from an error page the browser tried
+ * to decode. For every code the probe result — when conclusive — supersedes the
+ * MediaError-only classification; an inconclusive probe
  * (timeout/thrown-while-online/opaque) falls back to it unchanged.
  */
 async function classifyWithProbe(
@@ -538,10 +542,10 @@ async function classifyWithProbe(
   const code = (mediaError as MediaErrorLike | null | undefined)?.code;
 
   let action: AudioStreamErrorAction = fallback;
-  if (code !== MEDIA_ERR_ABORTED && code !== MEDIA_ERR_DECODE) {
+  if (code !== MEDIA_ERR_ABORTED) {
     const url = resolveAudioResourceUrl(publication, href);
     if (url) {
-      const probed = await probeAudioStreamHttpStatus(url);
+      const probed = await probeAudioStreamHttpStatus(url, { decodeError: code === MEDIA_ERR_DECODE });
       if (probed) action = probed;
     }
   }
@@ -664,11 +668,13 @@ export class FlutterAudioNavigator {
         initialPosition: Locator,
         preferencesJsonString: string,
         setNav: (nav: AudioNavigator) => void
-      ) => Promise<void>)
+      ) => Promise<boolean>)
     | undefined;
   private static _playbackIntentHandler: ((requested: boolean) => void) | undefined;
   /** Incremented on close/stop so stale async callbacks can self-suppress. */
   private static _sessionGeneration = 0;
+  /** Cancels each `create()` whose navigator is not installed yet. See `resetRecovery`. */
+  private static _pendingCreations = new Set<() => void>();
 
   /**
    * Clears the terminal-failure latch and rebuilds playback at the last known
@@ -709,6 +715,9 @@ export class FlutterAudioNavigator {
    *  so a stale latch/controller can't leak into the next audiobook session. */
   static resetRecovery(): void {
     this._sessionGeneration += 1;
+    // No one else owns a navigator that is not installed yet. Destroy it now, before the next
+    // session builds its own: `destroy()` clears the page-wide `navigator.mediaSession`.
+    for (const cancel of [...this._pendingCreations]) cancel();
     this._recovery?.dispose();
     this._recovery = undefined;
     this._recreateSession = undefined;
@@ -717,6 +726,10 @@ export class FlutterAudioNavigator {
 
   // See Readium's guide on ts-toolkit AudioNavigator configuration:
   // https://github.com/readium/ts-toolkit/blob/develop/navigator/docs/audio/ConfiguringAudioNavigator.md
+  /**
+   * Resolves true once a navigator is installed through `setNav`, and false when the session
+   * was closed first, so the caller must not continue setting up playback.
+   */
   static async create(
     publication: ReadiumPublication,
     initialPosition: Locator | undefined,
@@ -738,7 +751,7 @@ export class FlutterAudioNavigator {
      *  controller instead of constructing a new one — a fresh controller would
      *  silently replace `_recovery` and reset its attempt budget/latch. */
     recoveryController?: AudioStreamRecoveryController
-  ): Promise<void> {
+  ): Promise<boolean> {
     const tracks = publication.readingOrder.items.length;
     log.info(
       `Initializing AudioNavigator with ${tracks} track(s)`,
@@ -789,6 +802,28 @@ export class FlutterAudioNavigator {
     // before assignment, so cleanup guards every direct use.
     let nav: AudioNavigator | undefined;
     let createCancelled = false;
+    // Settles `ready` below. A recovery rebuild during the first load installs its own
+    // navigator, which never fires this session's `trackLoaded`.
+    let settleReady: (installed: boolean) => void = () => {};
+    // Destroys the navigator built here at most once. A second `destroy()` after the next
+    // session started would clear that session's media controls.
+    let uninstalledNavDestroyed = false;
+    const destroyUninstalledNav = () => {
+      if (uninstalledNavDestroyed) return;
+      uninstalledNavDestroyed = true;
+      try {
+        nav?.stop();
+        nav?.destroy();
+      } catch (destroyError) {
+        log.warn("AudioNavigator cleanup before install failed", destroyError);
+      }
+    };
+    const cancelCreation = () => {
+      createCancelled = true;
+      resetResourceLoadingWatchdog();
+      destroyUninstalledNav();
+      settleReady(false);
+    };
     let lastPositionLogKey = "";
 
     const recoveryPolicy = getCurrentAudioRecoveryPolicy();
@@ -811,7 +846,7 @@ export class FlutterAudioNavigator {
     }
 
     function armResourceLoadingWatchdog(): void {
-      if (!nav || !recovery || recovery.isSuppressed() || !playbackRequested) {
+      if (!nav || !recovery || recovery.isSuppressed() || !playbackRequested || isDisposed()) {
         resetResourceLoadingWatchdog();
         return;
       }
@@ -826,7 +861,7 @@ export class FlutterAudioNavigator {
     }
 
     function updateResourceLoadingWatchdog(): void {
-      if (!nav || !recovery || recovery.isSuppressed() || !playbackRequested) {
+      if (!nav || !recovery || recovery.isSuppressed() || !playbackRequested || isDisposed()) {
         resetResourceLoadingWatchdog();
         return;
       }
@@ -898,7 +933,11 @@ export class FlutterAudioNavigator {
               href,
               publication,
               () => nav?.currentLocator,
-              () => { nav?.stop(); nav?.destroy(); },
+              () => {
+                if (nav) retiredNavigators.add(nav);
+                nav?.stop();
+                nav?.destroy();
+              },
               preferencesJsonString,
               setNav,
               locatorMapper,
@@ -906,7 +945,7 @@ export class FlutterAudioNavigator {
               pollIntervalOverrideMs,
               bridge,
               recovery!,
-              (n) => { nav = n; },
+              (n) => { nav = n; settleReady(true); },
               recoveryPolicy.connectionTimeoutSeconds * 1000,
               isDisposed
             ),
@@ -939,7 +978,8 @@ export class FlutterAudioNavigator {
       locator: Locator | undefined,
       alsoText: boolean
     ) => {
-      if (!nav) return;
+      // Emissions are re-enabled per session, so a closed session must check its own generation.
+      if (!nav || isDisposed()) return;
       _emitState(
         state,
         nav,
@@ -956,15 +996,18 @@ export class FlutterAudioNavigator {
     // Promise that resolves once the first track is loaded and the navigator is
     // ready for playback. Callers awaiting create() will block until this point,
     // preventing race conditions where Dart calls play() before the navigator is set.
-    const ready = new Promise<void>((resolve) => {
+    const ready = new Promise<boolean>((resolve) => {
+      settleReady = (installed) => {
+        FlutterAudioNavigator._pendingCreations.delete(cancelCreation);
+        resolve(installed);
+      };
       let resolved = false;
 
       const listeners: AudioNavigatorListeners = {
         trackLoaded: (_media) => {
           if (createCancelled || isDisposed()) {
-            nav?.stop();
-            nav?.destroy();
-            resolve();
+            destroyUninstalledNav();
+            settleReady(false);
             return;
           }
           if (!nav) return;
@@ -972,7 +1015,7 @@ export class FlutterAudioNavigator {
             resolved = true;
             log.info("AudioNavigator ready (first track loaded)");
             setNav(nav);
-            resolve();
+            settleReady(true);
           }
         },
         positionChanged: (locator) => {
@@ -1032,7 +1075,8 @@ export class FlutterAudioNavigator {
           emit(isStalled ? "loading" : nav.isPlaying ? "playing" : "paused", undefined, false);
         },
         error: (mediaError, locator) => {
-          if (!nav) return;
+          // A destroyed navigator's element can still report its aborted load.
+          if (!nav || isDisposed()) return;
           log.error("AudioNavigator error:", mediaError, "locator:", locator?.href);
           resetResourceLoadingWatchdog();
           if (!recovery) {
@@ -1041,11 +1085,23 @@ export class FlutterAudioNavigator {
             return;
           }
           const activeRecovery = recovery;
+          const failedNav = nav;
+          const failedResource = nav.currentLocator.href;
           const href = (locator ?? nav.currentLocator).href;
           const message = `AudioNavigator error (code=${(mediaError as { code?: number })?.code ?? "unknown"})`;
-          void classifyWithProbe(mediaError, href, publication).then((action) =>
-            activeRecovery.handle(message, action, href)
-          );
+          void classifyWithProbe(mediaError, href, publication).then((action) => {
+            // The probe can take seconds. A verdict on a track the user has since left, or on a
+            // replaced navigator, must not stop what plays now.
+            if (
+              isDisposed() ||
+              retiredNavigators.has(failedNav) ||
+              failedNav.currentLocator.href !== failedResource
+            ) {
+              log.info("Discarding probe result for a resource that is no longer playing", href);
+              return;
+            }
+            activeRecovery.handle(message, action, href);
+          });
         },
         metadataLoaded: (_metadata) => {},
         seeking: (_isSeeking) => {},
@@ -1058,6 +1114,7 @@ export class FlutterAudioNavigator {
 
       nav = new AudioNavigator(publication, listeners, initialPosition, configuration);
     });
+    FlutterAudioNavigator._pendingCreations.add(cancelCreation);
 
     try {
       return await withTimeout(
@@ -1067,18 +1124,16 @@ export class FlutterAudioNavigator {
       );
     } catch (error) {
       const timedOut = error instanceof TimeoutError;
-      createCancelled = true;
-      resetResourceLoadingWatchdog();
-      if (!isDisposed()) {
-        try {
-          nav?.stop();
-          nav?.destroy();
-        } catch (destroyError) {
-          log.warn("AudioNavigator cleanup after create timeout failed", destroyError);
-        }
-        if (timedOut && emitCreateTimeoutError && !locatorMapper) {
-          log.warn("AudioNavigator initial create timed out", initialPosition?.href ?? "(initial track)");
-        }
+      // Not installed, because `ready` settles as soon as any navigator is.
+      cancelCreation();
+      if (isDisposed()) {
+        // The caller already closed this session. Rejecting now would surface a stale error
+        // in, or make openPublication's error path close, whatever publication is open now.
+        log.info("AudioNavigator create ended after its session closed", timedOut ? "(timed out)" : "");
+        return false;
+      }
+      if (timedOut && emitCreateTimeoutError && !locatorMapper) {
+        log.warn("AudioNavigator initial create timed out", initialPosition?.href ?? "(initial track)");
       }
       // Give the timeout a typed code so Dart stops matching on the message
       // (was previously string-matched via `_convertToNativeCode`).

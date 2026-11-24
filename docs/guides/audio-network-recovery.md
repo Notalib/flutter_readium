@@ -65,6 +65,19 @@ button).
 Read `attempt` / `maxAttempts` / `httpStatus` / `href` through the typed getters on
 `ReadiumError` rather than reaching into `details` directly.
 
+## Broken tracks
+
+A track that is broken in the publication itself will not load on any retry. When web can prove that, it fails at once without retrying, and `details.reason` names the defect:
+
+| Code | `details.reason` | Evidence |
+|---|---|---|
+| `AudioStreamHTTPError` | `missing` | The server answers 404 or 410 |
+| `AudioStreamHTTPError` | `empty` | The server answers 416 |
+| `AudioStreamError` | `empty` | A HEAD and a ranged GET both report an empty body |
+| `AudioStreamError` | `undecodable` | The browser reports `MEDIA_ERR_DECODE`, and the server answers 2xx with an audio `Content-Type` |
+
+Like iOS and Android, web does not move on to the next track. A failure that might be transient (5xx, a timeout, or a probe that cannot reach the server) never gets a `reason`; it goes through the retry loop. Report a fatal error that has a `reason` as a defect in the publication (for example to Sentry), with `href` and `httpStatus`, not as a connection problem.
+
 ## Configuring recovery
 
 Tune the retry budget, backoff, and stall sensitivity with `AudioRecoveryPolicy`:

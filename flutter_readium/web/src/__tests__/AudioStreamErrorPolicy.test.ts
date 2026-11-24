@@ -27,7 +27,7 @@ describe("classifyAudioStreamError", () => {
     expect(classifyAudioStreamError(mediaError(2))).toEqual(AudioStreamErrorAction.retry());
   });
 
-  it("MEDIA_ERR_DECODE (3) is a terminal AudioStreamError", () => {
+  it("MEDIA_ERR_DECODE (3) is a terminal AudioStreamError; only the probe adds a reason", () => {
     expect(classifyAudioStreamError(mediaError(3))).toEqual(
       AudioStreamErrorAction.fail("AudioStreamError")
     );
@@ -262,6 +262,30 @@ describe("AudioStreamRecoveryController", () => {
     controller.handle("err", AudioStreamErrorAction.retry(), "chap1.mp3");
     await flushMicrotasks();
     expect(hooks.calls.filter((c) => c.startsWith("emitError(AudioStreamRetry"))).toHaveLength(1);
+  });
+
+  it("fail: a content defect reaches Flutter with its reason", () => {
+    const hooks = fakeHooks([]);
+    const controller = new AudioStreamRecoveryController(hooks);
+    controller.handle("err", AudioStreamErrorAction.fail("AudioStreamHTTPError", 416, "empty"), "chap1.mp3");
+    expect(hooks.calls).toEqual([
+      "stopPlayback()",
+      `emitError(AudioStreamHTTPError, ${JSON.stringify({ href: "chap1.mp3", httpStatus: 416, reason: "empty" })})`,
+      "setPinnedState(failure)",
+    ]);
+    expect(controller.isTerminallyFailed()).toBe(true);
+  });
+
+  it("dispose: a recovery loop stops at its next step and emits nothing more", async () => {
+    const hooks = fakeHooks([false, false, false]);
+    const controller = new AudioStreamRecoveryController(hooks);
+    controller.handle("err", AudioStreamErrorAction.retry(), "chap1.mp3");
+    controller.dispose();
+    await flushMicrotasks();
+    expect(hooks.calls.filter((c) => c.startsWith("emitError"))).toHaveLength(1); // the first retry only
+    expect(hooks.calls).not.toContain("rebuildAndVerify(chap1.mp3)");
+    controller.handle("err", AudioStreamErrorAction.fail("AudioStreamError"), "chap1.mp3");
+    expect(hooks.calls).not.toContain("stopPlayback()");
   });
 
   it("isSuppressed() is true only while a recovery attempt is in flight", async () => {

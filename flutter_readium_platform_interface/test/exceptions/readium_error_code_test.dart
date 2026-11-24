@@ -124,6 +124,19 @@ void main() {
       expect(error.codeEnum, ReadiumErrorCode.audioStreamRetry);
     });
 
+    test('a content-defect failure exposes href, httpStatus and reason', () {
+      final error = ReadiumError.fromJson({
+        'message': 'Audio track is empty',
+        'code': 'AudioStreamHTTPError',
+        'data': {'href': 'track1.mp3', 'httpStatus': 416, 'reason': 'empty'},
+      });
+      expect(error.codeEnum, ReadiumErrorCode.audioStreamHttpError);
+      expect(error.isFatal, isTrue);
+      expect(error.href, 'track1.mp3');
+      expect(error.httpStatus, 416);
+      expect(error.reason, 'empty');
+    });
+
     test('unrecognised raw code still keeps the raw string, codeEnum falls back to unknown', () {
       final error = ReadiumError.fromJson({
         'message': 'boom',

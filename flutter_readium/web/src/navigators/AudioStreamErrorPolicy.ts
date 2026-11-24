@@ -13,19 +13,30 @@
 
 import { ReadiumErrorEventData } from "../bridge/ReadiumBridge";
 
+/**
+ * Why a track is unplayable when the failure is a defect in the publication, not a connection
+ * problem: the server answered and the track itself is broken. Sent as `data.reason`.
+ */
+export type AudioTrackDefectReason = "missing" | "empty" | "undecodable";
+
 /** What the audio navigator should do about a playback failure. */
 export type AudioStreamErrorAction =
   | { kind: "ignore" }
   | { kind: "retry" }
-  | { kind: "fail"; code: string; httpStatus?: number };
+  | { kind: "fail"; code: string; httpStatus?: number; reason?: AudioTrackDefectReason };
 
 export const AudioStreamErrorAction = {
   ignore: (): AudioStreamErrorAction => ({ kind: "ignore" }),
   retry: (): AudioStreamErrorAction => ({ kind: "retry" }),
-  fail: (code: string, httpStatus?: number): AudioStreamErrorAction => ({
+  fail: (
+    code: string,
+    httpStatus?: number,
+    reason?: AudioTrackDefectReason
+  ): AudioStreamErrorAction => ({
     kind: "fail",
     code,
     ...(httpStatus !== undefined ? { httpStatus } : {}),
+    ...(reason !== undefined ? { reason } : {}),
   }),
 };
 
@@ -60,7 +71,7 @@ export const MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
  * Mapping (browser-only classes available — no HTTP status):
  *   MEDIA_ERR_ABORTED            -> ignore   (e.g. cancelled during teardown/seek)
  *   MEDIA_ERR_NETWORK            -> retry
- *   MEDIA_ERR_DECODE             -> fail(AudioStreamError)
+ *   MEDIA_ERR_DECODE             -> fail(AudioStreamError); the probe adds reason "undecodable"
  *   MEDIA_ERR_SRC_NOT_SUPPORTED  -> fail(AudioStreamNetworkError)
  *   anything else / no code      -> retry (unclassifiable; goes terminal as
  *                                   AudioStreamNetworkError once attempts
@@ -245,7 +256,7 @@ export class AudioStreamRecoveryController {
       case "ignore":
         return;
       case "fail":
-        this.enterTerminalFailure(message, action.code, resumeHref, action.httpStatus);
+        this.enterTerminalFailure(message, action.code, resumeHref, action.httpStatus, action.reason);
         return;
       case "retry":
         if (this.recovering) return; // recovery already in progress
@@ -296,7 +307,8 @@ export class AudioStreamRecoveryController {
     message: string,
     code: string,
     href?: string,
-    httpStatus?: number
+    httpStatus?: number,
+    reason?: AudioTrackDefectReason
   ): void {
     if (this.disposed) return;
     if (this.terminallyFailed) return;
@@ -306,7 +318,9 @@ export class AudioStreamRecoveryController {
     this.hooks.emitError(
       message,
       code,
-      href !== undefined || httpStatus !== undefined ? { href, httpStatus } : undefined
+      href !== undefined || httpStatus !== undefined || reason !== undefined
+        ? { href, httpStatus, reason }
+        : undefined
     );
     this.hooks.setPinnedState("failure");
   }
