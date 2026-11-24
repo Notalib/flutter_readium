@@ -36,6 +36,8 @@ import {
   serializeVoices,
   ttsPreferencesFromJson,
 } from "../preferences/FlutterTTSPreferences";
+import { pickDefaultVoice, voicesLoaded } from "./defaultVoice";
+import { withQueryableCssSelector } from "./firstVisibleLocator";
 import { flattenToc, enrichWithTocHref } from "./locatorEnrich";
 import { ReadiumWebError, ReadiumWebErrorCode } from "../errors/ReadiumWebError";
 
@@ -183,6 +185,10 @@ export class FlutterTTSNavigator {
   private _generation = 0;
   private _watchdog: ReturnType<typeof setTimeout> | null = null;
   private _recoveryTimer: ReturnType<typeof setTimeout> | null = null;
+  /** pause() was called and neither resume(), play() nor stop() came since. */
+  private _paused = false;
+  /** play() was paused before its first utterance; resume() speaks it. */
+  private _startDeferred = false;
 
   /** voice selected via setVoice() — overrides prefs.voice */
   private _selectedVoice: SpeechSynthesisVoice | null = null;
@@ -215,6 +221,12 @@ export class FlutterTTSNavigator {
   /** Localized "Page {label}" formatter for `pageBreakBehavior: "prefixLabel"`. */
   private readonly _pageLabel: ((label: string) => string) | null;
 
+  /**
+   * Where `play()` without a locator starts before anything has been spoken.
+   * Called at that `play()`, so it can return the reader's position then.
+   */
+  private readonly _initialLocator: (() => Locator | undefined) | undefined;
+
   constructor(
     nav: AnyNavigator,
     publication: ReadiumPublication,
@@ -222,8 +234,10 @@ export class FlutterTTSNavigator {
     syncEnabled: boolean = true,
     utteranceStyle: object | null = null,
     rangeStyle: object | null = null,
-    onApplyDecorations: ((group: string, decorationsJson: string) => void) | null = null
+    onApplyDecorations: ((group: string, decorationsJson: string) => void) | null = null,
+    initialLocator?: () => Locator | undefined
   ) {
+    this._initialLocator = initialLocator;
     this._nav = nav;
     this._publication = publication;
     this._prefs = prefs;
@@ -281,35 +295,50 @@ export class FlutterTTSNavigator {
   // Public API — mirrors the Dart TTS API contract
   // ---------------------------------------------------------------------------
 
+  /**
+   * Starts reading at `fromLocator`. Without one it resumes at the current
+   * utterance, or the initial locator if nothing has been spoken yet, like
+   * iOS. It never falls back to the start of the publication.
+   */
   async play(fromLocator?: Locator): Promise<void> {
     if (this._destroyed) return;
     this._invalidateCurrentUtterance();
     this._lastDeferredSyncLocator = null;
-    log.info("play", fromLocator ? "(from locator)" : "", {
+    this._paused = false;
+    this._startDeferred = false;
+    const startLocator = fromLocator ?? this._currentElement?.locator ?? this._initialLocator?.();
+    log.info("play", fromLocator ? "(from locator)" : startLocator ? "(resume)" : "", {
       speaking: speechSynthesis.speaking,
       pending: speechSynthesis.pending,
       paused: speechSynthesis.paused,
       voices: speechSynthesis.getVoices().length,
     });
     this._clearDecorations();
+    // Stop earlier speech before priming, never after: Chrome reports the
+    // prime as pending, and cancelling it on a cold engine stalls the next
+    // speak() until the watchdog recovers it.
+    const wasActive = speechSynthesis.speaking || speechSynthesis.pending;
+    if (wasActive) {
+      speechSynthesis.cancel();
+    }
+    // A paused engine stays paused through cancel(), so new utterances would
+    // queue silently. Chrome reports `paused: false` even then, so resume
+    // unconditionally; it does nothing on an engine that is not paused. It is
+    // repeated once the engine has settled, below: in Chrome, either call alone
+    // still leaves the next utterance silent.
+    speechSynthesis.resume();
     // Prime the engine synchronously inside the user-gesture frame.
     // Chromium silently swallows the first async speak() if the gesture has
     // already expired by the time we call it (after awaiting hasNext()).
     // A zero-length utterance consumes the gesture and wakes the engine.
     log.debug("Priming speechSynthesis engine");
     speechSynthesis.speak(new SpeechSynthesisUtterance(""));
-    // Only cancel if there's something queued — cancel() on an idle engine
-    // can leave Chromium in a stalled state.
-    const wasActive = speechSynthesis.speaking || speechSynthesis.pending;
-    if (wasActive) {
-      speechSynthesis.cancel();
-    }
     this._iterator = new PublicationContentIterator(
       this._publication,
-      fromLocator,
+      startLocator,
       [
         (resource, locator) =>
-          new HTMLResourceContentIterator(resource, locator),
+          new HTMLResourceContentIterator(resource, withQueryableCssSelector(locator)),
       ]
     );
     // Give Chromium's TTS state machine a tick to settle after cancel().
@@ -317,10 +346,21 @@ export class FlutterTTSNavigator {
     // dispatch utterance.onstart — the classic wedge that strikes when play()
     // is invoked twice in quick succession (e.g. ttsEnable followed by an
     // immediate play(locator) from the Dart side).
+    const generation = this._generation;
     if (wasActive) {
       await new Promise<void>((resolve) => setTimeout(resolve, 50));
-      if (this._destroyed) return;
     }
+    // The default voice is picked from this list, and Chrome fills it only
+    // after `voiceschanged`. A chosen voice needs no list, which spares
+    // browsers without voices the wait's timeout.
+    if (!(this._selectedVoice ?? this._prefs.voice)) await voicesLoaded();
+    // A later play() or stop() owns the engine now.
+    if (this._destroyed || generation !== this._generation) return;
+    if (this._paused) {
+      this._startDeferred = true;
+      return;
+    }
+    speechSynthesis.resume();
     log.debug("Initialized - Speaking first element");
     await this._speakNext();
   }
@@ -328,6 +368,7 @@ export class FlutterTTSNavigator {
   pause(): void {
     if (this._destroyed) return;
     log.debug("pause");
+    this._paused = true;
     speechSynthesis.pause();
     emitState("paused", this._currentElement?.locator ?? null);
   }
@@ -335,14 +376,21 @@ export class FlutterTTSNavigator {
   resume(): void {
     if (this._destroyed) return;
     log.debug("resume");
+    this._paused = false;
     speechSynthesis.resume();
     emitState("playing", this._currentElement?.locator ?? null);
+    if (this._startDeferred) {
+      this._startDeferred = false;
+      void this._speakNext();
+    }
   }
 
   stop(): void {
     if (this._destroyed) return;
     log.info("stop");
     this._invalidateCurrentUtterance();
+    this._paused = false;
+    this._startDeferred = false;
     this._lastDeferredSyncLocator = null;
     speechSynthesis.cancel();
     this._iterator = null;
@@ -513,11 +561,18 @@ export class FlutterTTSNavigator {
       : (this._selectedVoice ?? this._prefs.voice);
     if (voice) {
       utterance.voice = voice;
-    } else if (this._prefs.lang) {
-      utterance.lang = this._prefs.lang;
+    } else {
+      // Without a language the browser reads the text with its default voice,
+      // whatever language that voice speaks.
+      const utteranceLang = this._prefs.lang ?? lang;
+      if (utteranceLang) {
+        utterance.lang = utteranceLang;
+        const fallback = pickDefaultVoice(speechSynthesis.getVoices(), utteranceLang);
+        if (fallback) utterance.voice = fallback;
+      }
     }
     log.debug("_speakElement: utterance config", {
-      voice: voice?.name ?? "(default)",
+      voice: utterance.voice?.name ?? "(default)",
       lang: utterance.lang || "(none)",
       rate: utterance.rate,
       pitch: utterance.pitch,

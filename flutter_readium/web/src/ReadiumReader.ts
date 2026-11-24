@@ -31,6 +31,7 @@ import {
 } from "./navigators/FlutterAudioNavigator";
 import { AudioRecoveryPolicy, setCurrentAudioRecoveryPolicy } from "./navigators/AudioStreamErrorPolicy";
 import { FlutterTTSNavigator } from "./navigators/FlutterTTSNavigator";
+import { withFirstVisibleElement } from "./navigators/firstVisibleLocator";
 import { initializeMediaOverlayNavigator, initializeGuidedNavigationNavigator } from "./navigators/FlutterMediaOverlayNavigator";
 // Preferences
 import { setEpubPreferencesFromString, pluginPrefsFromJson } from "./preferences/FlutterEpubPreferences";
@@ -965,7 +966,7 @@ class _ReadiumReader {
       const locator = locatorJson
         ? Locator.deserialize(JSON.parse(locatorJson)) ?? undefined
         : undefined;
-      this._ttsEngine.play(locator);
+      this._ttsEngine.play(locator && this._withFirstVisibleElementIfShown(locator));
       return;
     }
     if (!this._audioNav) return;
@@ -1188,8 +1189,11 @@ class _ReadiumReader {
   // ---------------------------------------------------------------------------
 
   /**
-   * Initialises (or re-initialises) the TTS engine and starts playback.
-   * Requires an EPUB or WebPub visual navigator to already be active.
+   * Initialises (or re-initialises) the TTS engine without starting it, like
+   * iOS and Android: callers start reading with `play()`. A `play()` without a
+   * locator starts at `fromLocatorJson`, or at the first element visible in
+   * the reader when `play()` runs. Requires an EPUB or WebPub visual navigator to already be
+   * active.
    */
   public async ttsEnable(prefsJson: string, fromLocatorJson?: string): Promise<void> {
     log.info("ttsEnable");
@@ -1200,6 +1204,10 @@ class _ReadiumReader {
     // Destroy any previous TTS session.
     this._ttsEngine?.destroy();
     const prefs = ttsPreferencesFromJson(JSON.parse(prefsJson));
+    const fromLocator = fromLocatorJson
+      ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
+      : undefined;
+    const nav = this._nav;
     this._ttsEngine = new FlutterTTSNavigator(
       this._nav,
       this._publication,
@@ -1207,12 +1215,26 @@ class _ReadiumReader {
       this._narrationSyncEnabled,
       this._decorations.utteranceStyle,
       this._decorations.rangeStyle,
-      (group, decorationsJson) => this._applyInternalDecorations(group, decorationsJson)
+      (group, decorationsJson) => this._applyInternalDecorations(group, decorationsJson),
+      () => {
+        if (fromLocator) return fromLocator;
+        // Undefined until the navigator has loaded its first resource.
+        const readerLocator: Locator | undefined = nav.currentLocator;
+        return readerLocator ? withFirstVisibleElement(readerLocator, navIframeWindows(nav)) : undefined;
+      }
     );
-    const fromLocator = fromLocatorJson
-      ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
-      : undefined;
-    await this._ttsEngine.play(fromLocator);
+  }
+
+  /**
+   * Adds the first visible element to `locator` when it is the position the
+   * reader shows. Apps pass the reader's own locator to `play()` to mean "from
+   * here", and its progression alone makes TTS start at the top of the chapter.
+   */
+  private _withFirstVisibleElementIfShown(locator: Locator): Locator {
+    const shown: Locator | undefined = this._nav?.currentLocator;
+    if (!this._nav || !shown || shown.href !== locator.href) return locator;
+    if (shown.locations.progression !== locator.locations.progression) return locator;
+    return withFirstVisibleElement(locator, navIframeWindows(this._nav));
   }
 
   /** Returns a JSON string containing available browser TTS voices. */
