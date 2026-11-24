@@ -450,7 +450,13 @@ export class FlutterTTSNavigator {
     speechSynthesis.cancel();
     this._iterator = null;
     this._currentElement = null;
-    this._clearDecorations();
+    // Teardown must never throw: the caller is usually closing or reopening the
+    // publication, and the frames these highlights live in may already be gone.
+    try {
+      this._clearDecorations();
+    } catch (error) {
+      log.debug("destroy: clearing decorations failed:", error);
+    }
   }
 
   // ---------------------------------------------------------------------------
