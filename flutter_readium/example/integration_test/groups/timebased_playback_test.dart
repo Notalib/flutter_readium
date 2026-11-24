@@ -925,8 +925,7 @@ void main() {
         });
 
         testWidgets(
-          'Android narration restores saved positions across audio files sharing XHTML',
-          skip: defaultTargetPlatform != TargetPlatform.android,
+          'Narration restores saved positions across audio files sharing XHTML',
           (tester) async {
             final path = harness.fixturePath(FixtureKeys.multiAudioResume);
             final states = <ReadiumTimebasedState>[];
