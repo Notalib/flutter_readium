@@ -680,6 +680,65 @@ describe("comic narration mode", () => {
     });
   });
 
+  it("recognises a comic chapter from its DOM before the helper has loaded", () => {
+    withDomGlobals(() => {
+      const reader = new ReadiumReader();
+      const applyDecorations = jest.fn();
+      (reader as any)._applyInternalDecorations = applyDecorations;
+      const querySelector = jest.fn(() => ({}));
+      const frame: any = {
+        location: { href: "https://example.test/chap.xhtml" },
+        document: { querySelector },
+        requestAnimationFrame: jest.fn(),
+      };
+      const nav = { _cframes: [{ window: frame }], go: jest.fn() };
+      (reader as any)._nav = nav;
+      const cue = new Locator({
+        href: "chap.xhtml",
+        type: "application/xhtml+xml",
+        locations: new LocatorLocations({ fragments: ["panel-1"] }),
+      });
+
+      (reader as any)._syncVisualToMediaOverlayLocator(cue, "MediaOverlay", 1000);
+
+      expect(querySelector).toHaveBeenCalledWith("body > figure:has(img:first-child + div.area)");
+      expect((reader as any)._isComicBook).toBe(true);
+      expect(nav.go).not.toHaveBeenCalled();
+      expect(applyDecorations.mock.calls).toEqual([["media_overlay_utterance", "[]"]]);
+      // Waits for the helper instead of highlighting.
+      expect(frame.requestAnimationFrame).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("drops the text highlight from a cue that arrived before the comic chapter loaded", () => {
+    withDomGlobals(() => {
+      const reader = new ReadiumReader();
+      const applyDecorations = jest.fn();
+      (reader as any)._applyInternalDecorations = applyDecorations;
+      (reader as any)._narrationSyncEnabled = true;
+      const frame: any = { location: { href: "https://example.test/chap.xhtml" } };
+      let finishGo: ((ok: boolean) => void) | undefined;
+      (reader as any)._nav = {
+        _cframes: [{ window: frame }],
+        go: jest.fn((_l: Locator, _a: boolean, cb: (ok: boolean) => void) => { finishGo = cb; }),
+      };
+      const cue = (id: string) => new Locator({
+        href: "chap.xhtml",
+        type: "application/xhtml+xml",
+        locations: new LocatorLocations({ fragments: [id] }),
+      });
+
+      // The helper is not in the frame yet, so the first cue takes the text path.
+      (reader as any)._syncVisualToMediaOverlayLocator(cue("panel-1"), "MediaOverlay", 1000);
+      Object.assign(frame, comicWindow().wnd, { isNotaComicBook: () => true });
+      (reader as any)._syncVisualToMediaOverlayLocator(cue("panel-2"), "MediaOverlay", 1000);
+      finishGo?.(true);
+
+      expect(applyDecorations.mock.calls).toEqual([["media_overlay_utterance", "[]"]]);
+      expect(frame.gotoComicFrame).toHaveBeenCalledWith("panel-2", 1000);
+    });
+  });
+
   it("exits narration mode in every comic frame when narration stops", () => {
     const savedWindow = (globalThis as any).window;
     (globalThis as any).window = { updateTimebasedPlayerState: jest.fn() };

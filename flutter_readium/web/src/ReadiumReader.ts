@@ -66,7 +66,25 @@ type ComicWindow = Window & {
     exitNarrationMode?: () => void;
   };
   gotoComicFrame?: (id: string, duration: number) => void;
+  isNotaComicBook?: () => boolean;
 };
+
+/** Same test as the helper's `isNotaComicBook()` (`figureQuerySelector` in its `types.ts`). */
+const COMIC_FIGURE_SELECTOR = "body > figure:has(img:first-child + div.area)";
+
+/**
+ * Whether a chapter frame holds a Nota comic page. The helper bundle loads after the frame
+ * does, and the first cue often arrives before it, so this falls back to the frame's DOM.
+ */
+function isComicFrame(wnd: Window): boolean {
+  try {
+    const cw = wnd as ComicWindow;
+    if (cw.isNotaComicBook) return cw.isNotaComicBook();
+    return wnd.document?.querySelector(COMIC_FIGURE_SELECTOR) != null;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * The subset of the upstream `VisualNavigator` surface that ReadiumReader drives.
@@ -1387,12 +1405,12 @@ class _ReadiumReader {
     if (!this._isComicBook) {
       const iframes = navIframeWindows(nav);
       for (const wnd of iframes) {
-        const isComic = (
-          wnd as Window & { isNotaComicBook?: () => boolean }
-        ).isNotaComicBook;
-        if (typeof isComic === "function" && isComic()) {
+        if (isComicFrame(wnd)) {
           log.info(`${sourceLabel}: comic-book publication detected; skipping nav.go() for all cues`);
           this._isComicBook = true;
+          // A cue that arrived before the comic chapter loaded took the text path and
+          // highlighted the whole figure, above the comic overlay. Comics use no highlight.
+          this._applyInternalDecorations("media_overlay_utterance", "[]");
           break;
         }
       }
@@ -1457,7 +1475,8 @@ class _ReadiumReader {
 
     // --- Normal (non-comic) path ---
     const applyUtteranceDecoration = () => {
-      if (!this._decorations.utteranceStyle || !this._nav) return;
+      // nav.go() may finish after a later cue detected a comic.
+      if (!this._decorations.utteranceStyle || !this._nav || this._isComicBook) return;
       try {
         const decoration = [
           {
