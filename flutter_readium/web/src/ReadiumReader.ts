@@ -1293,17 +1293,30 @@ class _ReadiumReader {
   // Audio / Media Overlay API
   // ---------------------------------------------------------------------------
 
+  /** Whether the open publication is a comic, checking the loaded frames until one is found. */
+  private _detectComicBook(nav: EpubNavigator | WebPubNavigator, sourceLabel: string): boolean {
+    if (this._isComicBook) return true;
+    if (!navIframeWindows(nav).some(isComicFrame)) return false;
+    log.info(`${sourceLabel}: comic-book publication detected; skipping nav.go() for all cues`);
+    this._isComicBook = true;
+    // An earlier cue may have taken the text path and highlighted the whole figure,
+    // above the comic overlay. Comics use no highlight.
+    this._applyInternalDecorations("media_overlay_utterance", "[]");
+    return true;
+  }
+
   /**
    * Calls `window.gotoComicFrame(fragmentId, durationMs)` on the given iframe
    * window, retrying via requestAnimationFrame until `window.comicBookPage` is
    * available (it is initialised asynchronously inside a setTimeout + rAF in the
-   * helper bundle).
+   * helper bundle). The helper is fetched when the frame loads, which can take seconds on a
+   * first, slow load, hence about 3 s of frames.
    */
   private _callGotoComicFrame(
     wnd: Window,
     fragmentId: string,
     durationMs: number,
-    retriesLeft = 20
+    retriesLeft = 180
   ): void {
     const cw = wnd as ComicWindow;
     if (cw.comicBookPage) {
@@ -1402,21 +1415,7 @@ class _ReadiumReader {
     );
 
     // --- Comic-book path ---
-    if (!this._isComicBook) {
-      const iframes = navIframeWindows(nav);
-      for (const wnd of iframes) {
-        if (isComicFrame(wnd)) {
-          log.info(`${sourceLabel}: comic-book publication detected; skipping nav.go() for all cues`);
-          this._isComicBook = true;
-          // A cue that arrived before the comic chapter loaded took the text path and
-          // highlighted the whole figure, above the comic overlay. Comics use no highlight.
-          this._applyInternalDecorations("media_overlay_utterance", "[]");
-          break;
-        }
-      }
-    }
-
-    if (this._isComicBook) {
+    if (this._detectComicBook(nav, sourceLabel)) {
       const iframes = navIframeWindows(nav);
 
       const targetWnd = iframes.find((w) => {
@@ -1475,8 +1474,9 @@ class _ReadiumReader {
 
     // --- Normal (non-comic) path ---
     const applyUtteranceDecoration = () => {
-      // nav.go() may finish after a later cue detected a comic.
-      if (!this._decorations.utteranceStyle || !this._nav || this._isComicBook) return;
+      // nav.go() may have just loaded the first comic chapter, or a later cue found one.
+      if (!this._decorations.utteranceStyle || !this._nav) return;
+      if (this._detectComicBook(this._nav, sourceLabel)) return;
       try {
         const decoration = [
           {

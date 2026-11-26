@@ -59,19 +59,8 @@ export function injectMOBreakCSSIntoWindow(wnd: Window): void {
 }
 
 /**
- * Keeps `document.scrollingElement` from returning null, by falling back to
- * <body> (or the root element) only when the browser returns null.
- *
- * Readium's snappers and decorator read `document.scrollingElement.scrollWidth`
- * without a null check. A frame renders in quirks mode when the publication
- * declares a chapter as `text/html` and the chapter has no DOCTYPE. In quirks
- * mode the getter returns null when <body> is "potentially scrollable". Safari
- * counts the `overflow: clip` that Readium CSS sets on html and body as
- * scrollable (Chrome does not), so every such reflowable frame gets null there.
- *
- * The script must run before Readium's modules attach on the frame's `load`
- * event, and in every frame, preloaded ones included. A prepended injectable
- * does both; injecting after `frameLoaded` did neither.
+ * Readium reads `document.scrollingElement` without a null check, and Safari returns null in a
+ * quirks-mode frame. Prepended so it runs in every frame before Readium's modules attach.
  */
 const SCROLLING_ELEMENT_GUARD = `(function () {
   try {

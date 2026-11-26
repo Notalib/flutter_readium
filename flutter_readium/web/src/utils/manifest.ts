@@ -15,15 +15,8 @@ export async function fetchManifest(publicationURL: string) {
 }
 
 /**
- * Gives HTML-parsed documents without a DOCTYPE an HTML5 one, so their frames
- * render in standards mode.
- *
- * Some publications declare XHTML chapters as `text/html`, and the chapters
- * have no DOCTYPE. Readium parses and re-serialises each chapter with the
- * declared type, so the frame renders in quirks mode. There Safari returns a
- * null `document.scrollingElement` (Readium CSS sets `overflow: clip` on html
- * and body), and Readium's pagination, which scrolls that element, cannot turn
- * pages or move between comic panels.
+ * Adds an HTML5 DOCTYPE to HTML-parsed chapters that lack one. Without it the frame renders in
+ * quirks mode, where Safari's null `scrollingElement` stops Readium's pagination.
  */
 export function withHtmlDoctype(fetcher: Fetcher): Fetcher {
   return {

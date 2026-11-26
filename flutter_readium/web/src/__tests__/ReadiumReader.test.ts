@@ -739,6 +739,38 @@ describe("comic narration mode", () => {
     });
   });
 
+  it("keeps the text highlight off a comic chapter that the first cue had to load", () => {
+    withDomGlobals(() => {
+      const reader = new ReadiumReader();
+      const applyDecorations = jest.fn();
+      (reader as any)._applyInternalDecorations = applyDecorations;
+      (reader as any)._narrationSyncEnabled = true;
+      const loaded: any = { location: { href: "https://example.test/text.xhtml" } };
+      const frames = [{ window: loaded }];
+      (reader as any)._nav = {
+        _cframes: frames,
+        go: jest.fn((_l: Locator, _a: boolean, cb: (ok: boolean) => void) => {
+          // nav.go() loads the cue's chapter, a comic page, before calling back.
+          frames.push({ window: { ...comicWindow().wnd, isNotaComicBook: () => true } });
+          cb(true);
+        }),
+      };
+
+      (reader as any)._syncVisualToMediaOverlayLocator(
+        new Locator({
+          href: "comic.xhtml",
+          type: "application/xhtml+xml",
+          locations: new LocatorLocations({ fragments: ["panel-1"] }),
+        }),
+        "MediaOverlay",
+        1000,
+      );
+
+      expect((reader as any)._isComicBook).toBe(true);
+      expect(applyDecorations.mock.calls).toEqual([["media_overlay_utterance", "[]"]]);
+    });
+  });
+
   it("exits narration mode in every comic frame when narration stops", () => {
     const savedWindow = (globalThis as any).window;
     (globalThis as any).window = { updateTimebasedPlayerState: jest.fn() };
