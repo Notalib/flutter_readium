@@ -1,3 +1,5 @@
+import type { IInjectableRule } from "@readium/navigator";
+
 /**
  * Dataset flag set on an iframe's documentElement once our helper scripts have
  * been injected, so repeated `frameLoaded` calls for the same frame are no-ops.
@@ -57,6 +59,45 @@ export function injectMOBreakCSSIntoWindow(wnd: Window): void {
 }
 
 /**
+ * Keeps `document.scrollingElement` from returning null, by falling back to
+ * <body> (or the root element) only when the browser returns null.
+ *
+ * Readium's snappers and decorator read `document.scrollingElement.scrollWidth`
+ * without a null check. A frame renders in quirks mode when the publication
+ * declares a chapter as `text/html` and the chapter has no DOCTYPE. In quirks
+ * mode the getter returns null when <body> is "potentially scrollable". Safari
+ * counts the `overflow: clip` that Readium CSS sets on html and body as
+ * scrollable (Chrome does not), so every such reflowable frame gets null there.
+ *
+ * The script must run before Readium's modules attach on the frame's `load`
+ * event, and in every frame, preloaded ones included. A prepended injectable
+ * does both; injecting after `frameLoaded` did neither.
+ */
+const SCROLLING_ELEMENT_GUARD = `(function () {
+  try {
+    var nativeGet = Object.getOwnPropertyDescriptor(Document.prototype, "scrollingElement").get;
+    Object.defineProperty(document, "scrollingElement", {
+      configurable: true,
+      get: function () {
+        return nativeGet.call(document) || document.body || document.documentElement;
+      },
+    });
+  } catch (_) {}
+})();`;
+
+export function scrollingElementGuardRule(): IInjectableRule {
+  return {
+    resources: [/.*/],
+    prepend: [{
+      id: "flutter-readium-scrolling-element-guard",
+      as: "script",
+      target: "head",
+      blob: new Blob([SCROLLING_ELEMENT_GUARD], { type: "text/javascript" }),
+    }],
+  };
+}
+
+/**
  * Injects the Flutter Readium helper bundle (JS + CSS) and a bootstrap script
  * into a freshly-loaded EPUB iframe, mirroring what native iOS / Android do via
  * `WKUserScript` / `TransformingResource`.
@@ -85,35 +126,13 @@ export async function injectFlutterReadiumHelperScripts(
   const assets = await _fetchHelperAssets();
   if (!assets) return;
 
-  // 1. Bootstrap: OS flags + TOC ids + null-guard for document.scrollingElement.
-  //
-  // The Readium ColumnSnapper calls `document.scrollingElement.scrollWidth`
-  // unconditionally from a ResizeObserver and MutationObserver. In quirks-mode
-  // documents (common in FXL/comic EPUBs), Chrome returns null from
-  // `document.scrollingElement` whenever <body> is "potentially scrollable" (i.e.
-  // has overflow:auto/scroll). Readium CSS injects those overflow values AFTER our
-  // injection, so a conditional guard checked at injection time doesn't help —
-  // the getter turns null later and the ResizeObserver fires into a crash.
-  //
-  // Fix: unconditionally shadow the prototype getter on this document instance
-  // so it always returns <body> or <documentElement> instead of null. This is safe
-  // for both quirks-mode (returns body, the intended scroll root) and standards-mode
-  // (documentElement is the correct scroll root either way).
+  // 1. Bootstrap: OS flags + TOC ids. The scrollingElement guard is not here:
+  // see `scrollingElementGuardRule`.
   const bootstrap = doc.createElement("script");
   bootstrap.textContent = [
     "const isAndroid = false;",
     "const isIos = false;",
     `window.readiumTocIDs = ${JSON.stringify(tocIds)};`,
-    // Unconditional patch: shadow the scrollingElement getter on this document
-    // instance so it never returns null (see comment above).
-    "(function() {",
-    "  try {",
-    "    Object.defineProperty(document, 'scrollingElement', {",
-    "      get: function() { return document.body || document.documentElement; },",
-    "      configurable: true",
-    "    });",
-    "  } catch (_) {}",
-    "})();",
   ].join("\n");
   doc.head.appendChild(bootstrap);
 
