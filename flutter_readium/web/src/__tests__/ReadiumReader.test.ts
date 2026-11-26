@@ -654,3 +654,51 @@ describe("visual-only goTo keeps the in-chapter position", () => {
     expect(sent.locations.progression).toBe(0.3);
   });
 });
+
+describe("comic narration mode", () => {
+  function comicWindow() {
+    const calls: string[] = [];
+    const wnd = {
+      comicBookPage: {
+        onNarrationCue: jest.fn(() => calls.push("onNarrationCue")),
+        exitNarrationMode: jest.fn(() => calls.push("exitNarrationMode")),
+      },
+      gotoComicFrame: jest.fn((id: string) => calls.push(`gotoComicFrame:${id}`)),
+    };
+    return { wnd, calls };
+  }
+
+  it("marks narration active before moving to a panel, so the helper zooms instead of showing the full page", () => {
+    withDomGlobals(() => {
+      const reader = new ReadiumReader();
+      const { wnd, calls } = comicWindow();
+
+      (reader as any)._callGotoComicFrame(wnd, "panel-2", 1500);
+
+      expect(calls).toEqual(["onNarrationCue", "gotoComicFrame:panel-2"]);
+      expect(wnd.gotoComicFrame).toHaveBeenCalledWith("panel-2", 1500);
+    });
+  });
+
+  it("exits narration mode in every comic frame when narration stops", () => {
+    const savedWindow = (globalThis as any).window;
+    (globalThis as any).window = { updateTimebasedPlayerState: jest.fn() };
+    try {
+      const reader = new ReadiumReader();
+      const frames = [comicWindow(), comicWindow()];
+      (reader as any)._audioNav = { stop: jest.fn(), destroy: jest.fn(), currentLocator: undefined };
+      (reader as any)._hasSyncNarration = true;
+      (reader as any)._nav = { _cframes: frames.map(({ wnd }) => ({ window: wnd })) };
+      (reader as any)._applyInternalDecorations = jest.fn();
+      (reader as any)._removeMOBreakCSSOnIframes = jest.fn();
+
+      reader.stop();
+
+      for (const { wnd } of frames) {
+        expect(wnd.comicBookPage.exitNarrationMode).toHaveBeenCalledTimes(1);
+      }
+    } finally {
+      (globalThis as any).window = savedWindow;
+    }
+  });
+});

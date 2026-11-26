@@ -59,6 +59,15 @@ import { ReadiumWebError, ReadiumWebErrorCode, ResourceReadErrorReason } from ".
 
 const log = createLogger("Reader");
 
+/** Globals the comic helper bundle (`NotaComicBook`) defines in a comic chapter frame. */
+type ComicWindow = Window & {
+  comicBookPage?: {
+    onNarrationCue?: () => void;
+    exitNarrationMode?: () => void;
+  };
+  gotoComicFrame?: (id: string, duration: number) => void;
+};
+
 /**
  * The subset of the upstream `VisualNavigator` surface that ReadiumReader drives.
  * Structurally satisfied by the EPUB, WebPub and DiViNa navigators alike, so the
@@ -1106,6 +1115,10 @@ class _ReadiumReader {
       if (this._nav) {
         this._applyInternalDecorations("media_overlay_utterance", "[]");
         this._removeMOBreakCSSOnIframes();
+        // Return comic pages from the narrated panel to the full page, as native does on stop.
+        for (const wnd of navIframeWindows(this._nav)) {
+          (wnd as ComicWindow).comicBookPage?.exitNarrationMode?.();
+        }
       }
     }
   }
@@ -1274,15 +1287,14 @@ class _ReadiumReader {
     durationMs: number,
     retriesLeft = 20
   ): void {
-    type ComicWindow = Window & {
-      comicBookPage?: unknown;
-      gotoComicFrame?: (id: string, duration: number) => void;
-    };
     const cw = wnd as ComicWindow;
     if (cw.comicBookPage) {
       log.debug(
         `[comic] gotoComicFrame("${fragmentId}", ${durationMs}ms)`
       );
+      // The helper shows the full page, not the panel, until narration is active.
+      // Native signals each cue the same way.
+      cw.comicBookPage.onNarrationCue?.();
       cw.gotoComicFrame?.(fragmentId, durationMs);
       return;
     }
