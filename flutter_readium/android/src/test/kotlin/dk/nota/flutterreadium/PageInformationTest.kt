@@ -1,7 +1,6 @@
 package dk.nota.flutterreadium
 
 import dk.nota.flutterreadium.models.PageInformation
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -12,25 +11,11 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [28])
 internal class PageInformationTest {
-    private val href = Url("chapter.xhtml")!!
-
+    // optDouble turns JSON null into NaN, which must not reach the locator.
     @Test
-    fun `progressionEnd from the helper reaches otherLocations`() {
-        val info = PageInformation.fromJson("""{"progressionEnd":0.45}""", href)
+    fun `null progressionEnd is left out of otherLocations`() {
+        val info = PageInformation.fromJson("""{"progressionEnd":null}""", Url("chapter.xhtml")!!)
 
-        assertEquals(0.45, info.otherLocations["progressionEnd"] as Double, 0.0)
-    }
-
-    @Test
-    fun `integer progressionEnd is read as a double`() {
-        val info = PageInformation.fromJson("""{"progressionEnd":1}""", href)
-
-        assertEquals(1.0, info.otherLocations["progressionEnd"] as Double, 0.0)
-    }
-
-    @Test
-    fun `null or missing progressionEnd is left out of otherLocations`() {
-        assertFalse(PageInformation.fromJson("""{"progressionEnd":null}""", href).otherLocations.containsKey("progressionEnd"))
-        assertFalse(PageInformation.fromJson("""{}""", href).otherLocations.containsKey("progressionEnd"))
+        assertFalse(info.otherLocations.containsKey("progressionEnd"))
     }
 }

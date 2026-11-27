@@ -41,8 +41,6 @@ export function enrichWithTotalProgression(
 /**
  * Adds `progressionEnd` to `locator.locations.otherLocations`: the progression
  * within the resource at the viewport's trailing edge (bottom in scroll mode).
- * `progression` is the leading edge only, so it stays 0 for a resource that
- * fits on one screen and cannot tell whether the resource end is visible.
  */
 export function enrichWithProgressionEnd(
   locator: Locator,
