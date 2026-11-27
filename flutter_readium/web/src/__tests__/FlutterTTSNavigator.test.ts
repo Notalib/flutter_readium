@@ -7,7 +7,7 @@
  * drive a fake speechSynthesis to pin down what happens once it does stall.
  */
 
-import { Locator, TextElement } from "@readium/shared";
+import { Body, Locator, LocatorText, TextElement, TextSegment } from "@readium/shared";
 import { FlutterTTSNavigator } from "../navigators/FlutterTTSNavigator";
 import { WebTTSPreferences } from "../preferences/FlutterTTSPreferences";
 
@@ -104,7 +104,13 @@ function makeElement(text: string, href = "chap1.html"): TextElement {
 }
 
 function makeNavigator(
-  options: { initialLocator?: Locator; lang?: string } = {}
+  options: {
+    initialLocator?: Locator;
+    lang?: string;
+    utteranceStyle?: object;
+    rangeStyle?: object;
+    onApplyDecorations?: (group: string, json: string) => void;
+  } = {}
 ): FlutterTTSNavigator {
   const publication = {
     manifest: {
@@ -120,9 +126,9 @@ function makeNavigator(
     publication as any,
     prefs,
     true,
-    null,
-    null,
-    null,
+    options.utteranceStyle ?? null,
+    options.rangeStyle ?? null,
+    options.onApplyDecorations ?? null,
     () => options.initialLocator
   );
   // The constructor hard-resets the engine; don't count that as recovery.
@@ -422,5 +428,94 @@ describe("utterance language", () => {
     speakElement(nav, makeElement("Hei"));
 
     expect(realUtterances()[0].lang).toBe("nb");
+  });
+});
+
+describe("word boundaries", () => {
+  const rangeStyle = { style: "highlight", tint: "#00000000" };
+
+  function textElement(text: string): TextElement {
+    const locator = new Locator({
+      href: "chap1.html",
+      type: "text/html",
+      text: new LocatorText({ highlight: text }),
+    });
+    return new TextElement(locator, Body, [new TextSegment(locator, text)]);
+  }
+
+  /** Speaks `text`, fires `events` and returns the `tts_range` decorations applied. */
+  function rangesFor(
+    text: string,
+    utteranceStyle?: object,
+    events = [{ name: "word", charIndex: text.indexOf(" ") + 1, charLength: 0 }]
+  ): any[] {
+    const ranges: any[] = [];
+    const nav = makeNavigator({
+      utteranceStyle,
+      rangeStyle,
+      onApplyDecorations: (group, json) => {
+        if (group === "tts_range") ranges.push(...JSON.parse(json));
+      },
+    });
+    speakElement(nav, textElement(text));
+    const utterance = realUtterances()[0];
+    utterance.onstart!();
+    for (const ev of events) utterance.onboundary!(ev);
+    return ranges;
+  }
+
+  it("decorates the spoken word, not its segment", () => {
+    const [range] = rangesFor("Hello brave world", { style: "highlight" });
+
+    expect(range.locator.text.highlight).toBe("brave");
+    expect(range.style).toEqual(rangeStyle);
+  });
+
+  it("decorates a one-word utterance when only words are decorated", () => {
+    expect(rangesFor(" Prologue")).toHaveLength(1);
+  });
+
+  it("does not decorate a sentence that spans the whole utterance", () => {
+    expect(rangesFor("Hello brave world", undefined, [{ name: "sentence", charIndex: 0, charLength: 0 }])).toEqual([]);
+  });
+
+  it("decorates the word right after a sentence boundary", () => {
+    const ranges = rangesFor("Hello brave world", undefined, [
+      { name: "sentence", charIndex: 0, charLength: 0 },
+      { name: "word", charIndex: 0, charLength: 5 },
+    ]);
+
+    expect(ranges.map((r) => r.locator.text.highlight)).toEqual(["Hello"]);
+  });
+
+  it("decorates every word, however fast they arrive", () => {
+    const ranges = rangesFor("in a box", undefined, [
+      { name: "word", charIndex: 0, charLength: 2 },
+      { name: "word", charIndex: 3, charLength: 1 },
+      { name: "word", charIndex: 5, charLength: 3 },
+    ]);
+
+    expect(ranges.map((r) => r.locator.text.highlight)).toEqual(["in", "a", "box"]);
+  });
+
+  it("keeps the word highlight when a sentence boundary follows a word", () => {
+    const text = "Hello brave";
+    const locator = new Locator({ href: "chap1.html", type: "text/html", text: new LocatorText({ highlight: text }) });
+    const segment = (t: string) =>
+      new TextSegment(new Locator({ href: "chap1.html", type: "text/html", text: new LocatorText({ highlight: t.trim() }) }), t);
+    const ranges: any[] = [];
+    const nav = makeNavigator({
+      rangeStyle,
+      onApplyDecorations: (group, json) => {
+        if (group === "tts_range") ranges.push(...JSON.parse(json));
+      },
+    });
+    speakElement(nav, new TextElement(locator, Body, [segment("Hello "), segment("brave")]));
+    const utterance = realUtterances()[0];
+    utterance.onstart!();
+    utterance.onboundary!({ name: "word", charIndex: 0, charLength: 5 });
+    utterance.onboundary!({ name: "sentence", charIndex: 6, charLength: 0 });
+
+    expect(ranges.map((r) => r.locator.text.highlight)).toEqual(["Hello"]);
   });
 });
