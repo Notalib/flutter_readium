@@ -605,7 +605,9 @@ class _ReadiumReader {
         return;
       }
       log.error("Failed to open publication:", error);
-      this.closePublication(error);
+      // Tear the view's session down but keep the publication current, so the next reader
+      // view mount can open it again. Only closePublication forgets it.
+      this._close(error, false);
       throw error;
     }
   }

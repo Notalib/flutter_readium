@@ -321,7 +321,7 @@ class EpubNavigator :
         notifyIsReady()
 
         launch {
-            currentDecorations.forEach { (group, decorations) ->
+            forEachCurrentGroup(currentDecorations) { group, decorations ->
                 epubNavigator?.applyDecorations(
                     decorations = decorations,
                     group = group,
@@ -645,5 +645,21 @@ class EpubNavigator :
                 disablePageTurnsWhileScrolling = disablePageTurnsWhileScrolling,
             )
         }
+    }
+}
+
+/**
+ * Runs [block] for each group in [groups], reading the group's value just before its call.
+ * [block] may suspend while another caller adds or removes groups, so iterating the map directly
+ * throws ConcurrentModificationException, and iterating a snapshot of entries re-applies a group
+ * that was cleared in the meantime.
+ */
+internal suspend fun <T> forEachCurrentGroup(
+    groups: Map<String, T>,
+    block: suspend (group: String, value: T) -> Unit,
+) {
+    for (group in groups.keys.toList()) {
+        val value = groups[group] ?: continue
+        block(group, value)
     }
 }
