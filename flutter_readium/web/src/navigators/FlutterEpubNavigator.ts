@@ -9,8 +9,6 @@ import {
   EpubNavigatorListeners,
   EpubNavigatorConfiguration,
   WebPubNavigator,
-  FrameManager,
-  FXLFrameManager,
 } from "@readium/navigator";
 import { Locator, LocatorLocations, Link, TimelineItem } from "@readium/shared";
 import Peripherals from "../utils/Peripherals";
@@ -21,6 +19,7 @@ import {
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import {
   injectDecorationOverrides,
+  navIframeWindows,
 } from "../decorations/decorationFrameUtils";
 import { injectFlutterReadiumHelperScripts } from "../utils/iframeInjection";
 import { createLogger } from "../utils/ReadiumPluginLogger";
@@ -146,24 +145,20 @@ export class FlutterEpubNavigator {
     const listeners: EpubNavigatorListeners = {
       scroll: function (_amount: number): void { },
       frameLoaded: function (_wnd: Window): void {
-        nav._cframes.forEach(
-          (frameManager: FrameManager | FXLFrameManager | undefined) => {
-            if (frameManager) {
-              log.debug("Injecting helpers into FrameManager for:", frameManager.window.location.href);
-              p.observe(frameManager.window);
-              injectDecorationOverrides(frameManager.window);
-              const tocFragmentIds = flatTocItems
-                .map((l) => {
-                  const hash = l.href.indexOf("#");
-                  return hash !== -1 ? l.href.slice(hash + 1) : "";
-                })
-                .filter((id) => id.length > 0);
-              injectFlutterReadiumHelperScripts(frameManager.window, tocFragmentIds);
-              injectFontFacesIntoWindow(frameManager.window, fontFamilyDeclarations);
-              onFrameLoaded?.(frameManager.window);
-            }
-          }
-        );
+        for (const frameWindow of navIframeWindows(nav)) {
+          log.debug("Injecting helpers into frame:", frameWindow.location.href);
+          p.observe(frameWindow);
+          injectDecorationOverrides(frameWindow);
+          const tocFragmentIds = flatTocItems
+            .map((l) => {
+              const hash = l.href.indexOf("#");
+              return hash !== -1 ? l.href.slice(hash + 1) : "";
+            })
+            .filter((id) => id.length > 0);
+          injectFlutterReadiumHelperScripts(frameWindow, tocFragmentIds);
+          injectFontFacesIntoWindow(frameWindow, fontFamilyDeclarations);
+          onFrameLoaded?.(frameWindow);
+        }
         p.observe(window);
       },
       positionChanged: (_locator: Locator): void => {

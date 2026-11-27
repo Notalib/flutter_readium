@@ -127,6 +127,11 @@ class _ReadiumReader {
   private _publicationURL: string | undefined;
   /** Bumped by every open and close, so a fetch that finishes late cannot install its book. */
   private _openGeneration = 0;
+  /**
+   * Bumped by every teardown of the visual navigator. A navigator whose create finishes
+   * after a later open or close rendered into a container that has since been cleared.
+   */
+  private _viewGeneration = 0;
   private _nav: EpubNavigator | WebPubNavigator | undefined;
   /**
    * Render-only navigator for the DiViNa / CBZ profile (image comics). Kept
@@ -466,6 +471,8 @@ class _ReadiumReader {
     const fontFamilyDeclarations: FontFamilyDeclaration[] =
       parseFontFamilyDeclarations(fontFamilyDeclarationsJson);
 
+    // Until this open has closed the previous view, a failure belongs to it.
+    let isCurrentView = () => true;
     try {
       // Like the native reader views, render the publication openPublication made current.
       const publication = this._publication;
@@ -484,6 +491,18 @@ class _ReadiumReader {
       // advanced to another book.
       const keepAudio = !!this._audioNav && this._audioNavPublication === publication;
       this._close(undefined, keepAudio);
+      const viewGeneration = this._viewGeneration;
+      // Installs a visual navigator only if no later open or close replaced this view.
+      const installView = (nav: { destroy(): Promise<void> | void }, install: () => void) => {
+        if (viewGeneration !== this._viewGeneration) {
+          log.info("Discarding a visual navigator from a superseded open");
+          Promise.resolve(nav.destroy()).catch((err) => log.error("Error destroying navigator:", err));
+          return;
+        }
+        install();
+        this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
+      };
+      isCurrentView = () => viewGeneration === this._viewGeneration;
 
       // Emitted after the close so Dart still sees closed-then-loading, never the reverse.
       this._bridge.emitReaderStatus(ReadiumReaderStatus.loading);
@@ -535,11 +554,8 @@ class _ReadiumReader {
             publication,
             initialPosition,
             preferencesJsonString,
-            (nav) => {
-              this._nav = nav;
-              this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
-            },
-            (positions) => { this._positions = positions; },
+            (nav) => installView(nav, () => { this._nav = nav; }),
+            (positions) => { if (isCurrentView()) this._positions = positions; },
             (json) => { this._bridge.emitImageTapped(json); },
             (wnd) => {
               injectFontFacesIntoWindow(wnd, fontFamilyDeclarations);
@@ -562,11 +578,8 @@ class _ReadiumReader {
             publicationURL,
             initialPosition,
             preferencesJsonString,
-            (nav) => {
-              this._comicNav = nav;
-              this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
-            },
-            (positions) => { this._positions = positions; }
+            (nav) => installView(nav, () => { this._comicNav = nav; }),
+            (positions) => { if (isCurrentView()) this._positions = positions; }
           );
         } else {
           log.info("Publication conforms to WebPub profile");
@@ -575,10 +588,7 @@ class _ReadiumReader {
             publication,
             initialPosition,
             preferencesJsonString,
-            (nav) => {
-              this._nav = nav;
-              this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
-            },
+            (nav) => installView(nav, () => { this._nav = nav; }),
             fontFamilyDeclarations,
             this._selectionHooks
           );
@@ -587,8 +597,13 @@ class _ReadiumReader {
 
 
       // Audio may already be narrating, so snap the visual sync to the current cue.
-      this._replayDeferredVisualSync();
+      if (isCurrentView()) this._replayDeferredVisualSync();
     } catch (error) {
+      if (!isCurrentView()) {
+        // A newer open or a close owns the reader now; closing here would close that book.
+        log.info("Ignoring a failure from a superseded open:", error);
+        return;
+      }
       log.error("Failed to open publication:", error);
       // Tear the view's session down but keep the publication current, so the next reader
       // view mount can open it again. Only closePublication forgets it.
@@ -856,6 +871,7 @@ class _ReadiumReader {
     // media-overlay sync callback (which guards on `this._nav`) becomes a no-op
     // even while the async destroy() below is still settling.
     const nav: VisualNavigatorLike | undefined = this._nav ?? this._comicNav;
+    this._viewGeneration++;
     this._nav = undefined;
     this._comicNav = undefined;
 

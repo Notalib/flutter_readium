@@ -5,7 +5,6 @@ import {
 } from "@readium/navigator-html-injectables";
 import { KeyboardPeripheralEventData, VisualNavigatorViewport } from "@readium/navigator";
 import {
-  WebPubFrameManager,
   WebPubNavigator,
   WebPubNavigatorConfiguration,
   WebPubNavigatorListeners,
@@ -17,7 +16,7 @@ import {
   initializeWebPubPreferencesFromString,
 } from "../preferences/FlutterWebPubPreferences";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
-import { injectDecorationOverrides } from "../decorations/decorationFrameUtils";
+import { injectDecorationOverrides, navIframeWindows } from "../decorations/decorationFrameUtils";
 import { createLogger } from "../utils/ReadiumPluginLogger";
 import { FontFamilyDeclaration, injectFontFacesIntoWindow } from "../fonts/FontFamilyDeclarations";
 import { enrichWithTotalProgression } from "./locatorEnrich";
@@ -91,13 +90,11 @@ export class FlutterWebPubNavigator {
     const listeners: WebPubNavigatorListeners = {
       scroll: function (_amount: number): void { },
       frameLoaded: function (_wnd: Window): void {
-        nav._cframes.forEach((frameManager: WebPubFrameManager | undefined) => {
-          if (frameManager) {
-            p.observe(frameManager.window);
-            injectDecorationOverrides(frameManager.window);
-            injectFontFacesIntoWindow(frameManager.window, fontFamilyDeclarations);
-          }
-        });
+        for (const frameWindow of navIframeWindows(nav)) {
+          p.observe(frameWindow);
+          injectDecorationOverrides(frameWindow);
+          injectFontFacesIntoWindow(frameWindow, fontFamilyDeclarations);
+        }
         p.observe(window);
       },
       positionChanged: (_locator: Locator): void => {
