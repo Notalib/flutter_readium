@@ -39,6 +39,7 @@ import {
 import { pickDefaultVoice, voicesLoaded } from "./defaultVoice";
 import { withQueryableCssSelector } from "./firstVisibleLocator";
 import { flattenToc, enrichWithTocHref } from "./locatorEnrich";
+import { segmentLocatorForCharIndex, wordLocatorForCharIndex } from "./ttsBoundary";
 import { ReadiumWebError, ReadiumWebErrorCode } from "../errors/ReadiumWebError";
 
 const log = createLogger("TTS");
@@ -174,7 +175,7 @@ export class FlutterTTSNavigator {
 
   private _iterator: PublicationContentIterator | null = null;
   private _currentElement: TextElement | null = null;
-  private _lastBoundaryEmitTime = 0;
+  private _lastBoundaryEmitTime = new Map<string, number>();
   private _destroyed = false;
 
   /**
@@ -693,24 +694,27 @@ export class FlutterTTSNavigator {
       if (!isCurrent()) return;
       if (ev.name !== "word" && ev.name !== "sentence") return;
 
+      // Throttled per boundary kind, so a sentence boundary cannot swallow
+      // the word boundary that engines fire right after it.
       const now = Date.now();
-      if (now - this._lastBoundaryEmitTime < BOUNDARY_THROTTLE_MS) return;
-      this._lastBoundaryEmitTime = now;
+      if (now - (this._lastBoundaryEmitTime.get(ev.name) ?? 0) < BOUNDARY_THROTTLE_MS) return;
+      this._lastBoundaryEmitTime.set(ev.name, now);
 
-      const segmentLocator = this._locatorForCharIndex(
-        element,
-        ev.charIndex,
-        ev.charLength ?? 0
-      );
-      if (segmentLocator) {
-        emitState("playing", enrichWithTocHref(segmentLocator, this._flatToc));
+      const boundaryLocator =
+        ev.name === "word"
+          ? wordLocatorForCharIndex(element, ev.charIndex, ev.charLength ?? 0)
+          : segmentLocatorForCharIndex(element, ev.charIndex);
+      if (boundaryLocator) {
+        emitState("playing", enrichWithTocHref(boundaryLocator, this._flatToc));
         // NOTE: Do NOT call updateTextLocator here — sub-segment locators are
         // not stable enough for bookmark/position-save purposes.
-        // Skip the range decoration when the segment spans exactly the same
-        // text as the utterance — otherwise the range highlight stacks on top
-        // of the utterance highlight, double-decorating the whole paragraph.
-        if (!this._locatorHighlightsSameText(segmentLocator, element.locator)) {
-          this._applyDecoration("tts_range", segmentLocator, this._rangeStyle);
+        // Skip the range decoration when the boundary spans exactly the same
+        // text as the utterance, so it does not stack on the utterance
+        // highlight. A one-word utterance still needs its word decorated when
+        // no utterance style is set.
+        const sameAsUtterance = this._locatorHighlightsSameText(boundaryLocator, element.locator);
+        if (!sameAsUtterance || (ev.name === "word" && !this._utteranceStyle)) {
+          this._applyDecoration("tts_range", boundaryLocator, this._rangeStyle);
         }
       }
     };
@@ -723,33 +727,6 @@ export class FlutterTTSNavigator {
       paused: speechSynthesis.paused,
     });
     armWatchdog();
-  }
-
-  /**
-   * Walks the element's TextSegments to find the one that contains the
-   * character at `charIndex` (accumulated over the full text).
-   */
-  private _locatorForCharIndex(
-    element: TextElement,
-    charIndex: number,
-    charLength: number
-  ): Locator | null {
-    if (!element.segments.length) return element.locator;
-
-    let accumulated = 0;
-    for (const seg of element.segments) {
-      const start = accumulated;
-      const end = accumulated + seg.text.length;
-      if (charIndex >= start && charIndex < end) {
-        return seg.locator;
-      }
-      // Include a space that speechSynthesis inserts between segments.
-      accumulated = end + 1;
-    }
-
-    // charIndex is past the last segment — return the last segment locator.
-    const last = element.segments[element.segments.length - 1];
-    return last?.locator ?? element.locator;
   }
 
   /**
