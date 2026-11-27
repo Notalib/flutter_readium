@@ -197,22 +197,18 @@ void main() {
       expect(top.locations?.progressionEnd, lessThan(0.98), reason: 'Scroll top: ${describe(top)}');
       expect(top.locations?.progressionEnd, greaterThan(0), reason: 'Scroll top: ${describe(top)}');
 
-      // On web, ts-toolkit's ScrollSnapper scales go_progression by offsetHeight, not scrollHeight,
-      // so a jump to 1 stops short of the end and cannot reach the bottom.
-      if (!kIsWeb) {
-        // At the bottom, progression is the top edge of the viewport, so it stays below 1.
-        final bottom = await goToProgression(1);
-        expect(
-          bottom.locations?.progression,
-          greaterThan(top.locations?.progression ?? 0),
-          reason: 'Scroll bottom: ${describe(bottom)}',
-        );
-        expect(
-          bottom.locations?.progressionEnd,
-          greaterThanOrEqualTo(0.98),
-          reason: 'Scroll bottom: ${describe(bottom)}',
-        );
-      }
+      // At the bottom, progression is the top edge of the viewport, so it stays below 1.
+      final bottom = await goToProgression(1);
+      expect(
+        bottom.locations?.progression,
+        greaterThan(top.locations?.progression ?? 0),
+        reason: 'Scroll bottom: ${describe(bottom)}',
+      );
+      expect(
+        bottom.locations?.progressionEnd,
+        greaterThanOrEqualTo(0.98),
+        reason: 'Scroll bottom: ${describe(bottom)}',
+      );
 
       await tester.pumpWidget(const SizedBox());
     });
