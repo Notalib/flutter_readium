@@ -35,14 +35,25 @@ function getIframeState(wnd: Window): IframeDecorationState {
 /**
  * Return the list of content-frame `Window`s for a navigator. Used for fanning
  * out CSS injection to every loaded EPUB iframe.
+ *
+ * Frames whose iframe is gone are skipped. The toolkit's `window` getter throws
+ * for them, which happens when the app removes the reader view before the
+ * navigator is torn down.
  */
 export function navIframeWindows(
   nav: EpubNavigator | WebPubNavigator
 ): Window[] {
   const cframes: any[] = (nav as any)._cframes ?? [];
-  return cframes
-    .map((f) => f?.window as Window | undefined)
-    .filter((w): w is Window => !!w);
+  const windows: Window[] = [];
+  for (const frame of cframes) {
+    try {
+      const wnd = frame?.window as Window | undefined;
+      if (wnd) windows.push(wnd);
+    } catch {
+      // The frame's iframe no longer exists.
+    }
+  }
+  return windows;
 }
 
 /**
