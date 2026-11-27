@@ -35,6 +35,7 @@ abstract final class FixtureKeys {
   static const overlayWebpub = '38533_overlay_preview.webpub';
   static const tocSectionChild = '38533_overlay_preview-toc-section-child.webpub';
   static const adrSyncOwnership = 'adr-sync-narration-ownership.webpub';
+  static const multiAudioResume = 'multi-audio-resume.webpub';
 
   /// Synthetic local newspaper whose ToC entries target `<section>`/`<aside>` elements that the
   /// Sync Narration does not list. See ADR 0001.
@@ -78,6 +79,7 @@ abstract final class FixtureKeys {
     overlayWebpub,
     tocSectionChild,
     adrSyncOwnership,
+    multiAudioResume,
     syntheticNewspaper,
     audiobook,
     divina,

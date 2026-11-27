@@ -230,6 +230,17 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     return tree.anchor(locator, textId: textId, cueIds: cueIds)
   }
 
+  /// A text resource can be split over several overlays, one per audio file, and a boundary cue
+  /// can use the preceding audio file. Prefer the text anchor only if it identifies one audio
+  /// file; otherwise return nil so the normal lookup is used.
+  private func anchoredMediaOverlayItem(_ locator: Locator) -> FlutterMediaOverlayItem? {
+    guard [MediaType.html, MediaType.xhtml].contains(locator.mediaType),
+          let textId = locator.textId else { return nil }
+    let href = locator.href.string
+    let candidates = mediaOverlays.flatMap(\.items).filter { $0.textId == textId && $0.textFile == href }
+    return Set(candidates.map(\.audioFile)).count == 1 ? candidates.first : nil
+  }
+
   private func xhtmlIdTree(href: String) async -> XhtmlIdTree? {
     if let cached = xhtmlIdTrees[href] {
       return cached
@@ -250,7 +261,8 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     let currentTextFile = audioLocator.flatMap { mediaOverlayItemFromAudioLocator($0)?.textFile }
     let crossResource = currentTextFile == nil
       || currentTextFile != textLocator.href.string
-    guard let matchingMediaOverlayItem = self.mediaOverlays.firstMap({ $0.itemFromLocator(textLocator, allowResourceFallback: crossResource) }),
+    guard let matchingMediaOverlayItem = anchoredMediaOverlayItem(textLocator)
+            ?? self.mediaOverlays.firstMap({ $0.itemFromLocator(textLocator, allowResourceFallback: crossResource) }),
           var audioLocator = matchingMediaOverlayItem.asAudioLocator else {
       Log.navigator.warn("mapTextLocatorToMediaOverlayAudioLocator - no media overlay matched text locator " +
                          "href=\(textLocator.href.string) mediaType=\(textLocator.mediaType.string) fragments=\(textLocator.locations.fragments)")

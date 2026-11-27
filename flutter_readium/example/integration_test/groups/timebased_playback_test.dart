@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_readium/flutter_readium.dart';
@@ -921,6 +923,94 @@ void main() {
 
           await harness.readium.pause();
         });
+
+        testWidgets(
+          'Narration restores saved positions across audio files sharing XHTML',
+          (tester) async {
+            final path = harness.fixturePath(FixtureKeys.multiAudioResume);
+            final states = <ReadiumTimebasedState>[];
+            final sub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
+            addTearDown(sub.cancel);
+
+            Future<({Locator locator, Duration offset})> pauseAtTextPosition() async {
+              await waitWithPump(
+                tester,
+                () =>
+                    states.isNotEmpty &&
+                    states.last.state == TimebasedState.playing &&
+                    states.last.currentLocator?.href.endsWith('chapter.xhtml') == true &&
+                    states.last.currentLocator?.locations?.cssSelector != null &&
+                    states.last.currentOffset != null,
+                timeout: const Duration(seconds: 30),
+                reason: 'Narration did not report a playing text position',
+                diagnostics: () => 'states=${states.map((state) => state.toJson()).toList()}',
+              );
+              await harness.readium.pause();
+              final state = states.lastWhere(
+                (state) =>
+                    state.currentLocator?.href.endsWith('chapter.xhtml') == true &&
+                    state.currentLocator?.locations?.cssSelector != null &&
+                    state.currentOffset != null,
+              );
+              return (locator: state.currentLocator!, offset: state.currentOffset!);
+            }
+
+            await harness.readium.openPublication(path);
+            await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+            await harness.readium.play(null);
+            await pauseAtTextPosition();
+
+            for (final track in ['second', 'third']) {
+              states.clear();
+              // Set up the bookmark with an audio URI so this seek does not use text restoration.
+              expect(
+                await harness.readium.goToLocator(
+                  Locator(
+                    href: '$track.mp3',
+                    type: 'audio/mpeg',
+                    locations: const Locations(fragments: ['t=4']),
+                  ),
+                ),
+                isTrue,
+              );
+              await harness.readium.play(null);
+              final original = await pauseAtTextPosition();
+              expect(
+                original.locator.locations?.cssSelector,
+                '#$track',
+                reason: 'Bookmark setup selected the wrong track',
+              );
+              expect(original.locator.locations?.timeFragment, isNotNull);
+              expect(original.locator.locations?.progression, isNotNull);
+              var bookmark = jsonEncode(original.locator.toJson());
+              var savedOffset = original.offset;
+
+              for (var cycle = 1; cycle <= 3; cycle++) {
+                await harness.readium.closePublication();
+                states.clear();
+                final saved = Locator.fromJson(jsonDecode(bookmark) as Map<String, dynamic>)!;
+                await harness.readium.openPublication(path);
+                await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0), fromLocator: saved);
+                await harness.readium.play(null);
+                final restored = await pauseAtTextPosition();
+
+                expect(
+                  restored.locator.locations?.cssSelector,
+                  '#$track',
+                  reason: 'Reopen $cycle restored the wrong audio track for the shared XHTML resource',
+                );
+                expect(
+                  (restored.offset - savedOffset).inMilliseconds.abs(),
+                  lessThanOrEqualTo(1500),
+                  reason:
+                      'Reopen $cycle changed the saved playback offset for $track: $savedOffset -> ${restored.offset}',
+                );
+                bookmark = jsonEncode(restored.locator.toJson());
+                savedOffset = restored.offset;
+              }
+            }
+          },
+        );
 
         // Exercises the media-overlay goToLocator path end to end: a paused cross-chapter jump
         // routes through seek(toLocator:) -> goBounded (the timeout-bounded wrapper that also
