@@ -95,10 +95,10 @@ export async function injectFlutterReadiumHelperScripts(
   // injection, so a conditional guard checked at injection time doesn't help —
   // the getter turns null later and the ResizeObserver fires into a crash.
   //
-  // Fix: unconditionally shadow the prototype getter on this document instance
-  // so it always returns <body> or <documentElement> instead of null. This is safe
-  // for both quirks-mode (returns body, the intended scroll root) and standards-mode
-  // (documentElement is the correct scroll root either way).
+  // Fix: shadow the getter on this document instance and fall back to <body> only
+  // when the native getter returns null. Always returning <body> breaks standards-mode
+  // documents, where <html> scrolls: the ScrollSnapper then reads body.scrollTop (0)
+  // and scroll mode never reports progress.
   const bootstrap = doc.createElement("script");
   bootstrap.textContent = [
     "const isAndroid = false;",
@@ -108,8 +108,9 @@ export async function injectFlutterReadiumHelperScripts(
     // instance so it never returns null (see comment above).
     "(function() {",
     "  try {",
+    "    var nativeGet = Object.getOwnPropertyDescriptor(Document.prototype, 'scrollingElement').get;",
     "    Object.defineProperty(document, 'scrollingElement', {",
-    "      get: function() { return document.body || document.documentElement; },",
+    "      get: function() { return nativeGet.call(document) || document.body || document.documentElement; },",
     "      configurable: true",
     "    });",
     "  } catch (_) {}",
