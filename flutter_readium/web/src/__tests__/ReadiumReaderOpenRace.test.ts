@@ -106,4 +106,24 @@ describe("overlapping openPublication calls", () => {
     expect((reader as any)._positions).toEqual([]);
     expect(creates[0].nav.destroy).toHaveBeenCalledTimes(1);
   });
+
+  it("does not close the newer book when a superseded open fails", async () => {
+    const reader = new ReadiumReader();
+    const publication = epubPublication();
+    (reader as any)._publication = publication;
+    let failFirst: ((e: Error) => void) | undefined;
+    const current = fakeNav();
+    (FlutterEpubNavigator.create as jest.Mock)
+      .mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { failFirst = reject; }))
+      .mockImplementationOnce(async (_c, _p, _i, _prefs, setNav) => setNav(current));
+
+    const first = open(reader);
+    await open(reader);
+    failFirst!(new Error("container is gone"));
+    await expect(first).resolves.toBeUndefined();
+
+    expect((reader as any)._nav).toBe(current);
+    expect((reader as any)._publication).toBe(publication);
+    expect(current.destroy).not.toHaveBeenCalled();
+  });
 });

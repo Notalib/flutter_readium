@@ -471,6 +471,8 @@ class _ReadiumReader {
     const fontFamilyDeclarations: FontFamilyDeclaration[] =
       parseFontFamilyDeclarations(fontFamilyDeclarationsJson);
 
+    // Until this open has closed the previous view, a failure belongs to it.
+    let isCurrentView = () => true;
     try {
       // Like the native reader views, render the publication openPublication made current.
       const publication = this._publication;
@@ -500,7 +502,7 @@ class _ReadiumReader {
         install();
         this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
       };
-      const isCurrentView = () => viewGeneration === this._viewGeneration;
+      isCurrentView = () => viewGeneration === this._viewGeneration;
 
       // Emitted after the close so Dart still sees closed-then-loading, never the reverse.
       this._bridge.emitReaderStatus(ReadiumReaderStatus.loading);
@@ -597,6 +599,11 @@ class _ReadiumReader {
       // Audio may already be narrating, so snap the visual sync to the current cue.
       if (isCurrentView()) this._replayDeferredVisualSync();
     } catch (error) {
+      if (!isCurrentView()) {
+        // A newer open or a close owns the reader now; closing here would close that book.
+        log.info("Ignoring a failure from a superseded open:", error);
+        return;
+      }
       log.error("Failed to open publication:", error);
       this.closePublication(error);
       throw error;
