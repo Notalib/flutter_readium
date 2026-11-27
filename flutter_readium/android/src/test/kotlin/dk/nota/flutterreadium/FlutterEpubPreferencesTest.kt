@@ -3,6 +3,7 @@ package dk.nota.flutterreadium
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import org.readium.r2.shared.publication.Layout
 
 @OptIn(org.readium.r2.shared.ExperimentalReadiumApi::class)
 internal class FlutterEpubPreferencesTest {
@@ -25,5 +26,14 @@ internal class FlutterEpubPreferencesTest {
         val prefs = FlutterEpubPreferences(fontSize = null)
         val epub = prefs.toEpubPreferences()
         assertNull(epub.fontSize)
+    }
+
+    @Test
+    fun `makeSpaceForMarginDecoration sets its CSS flag only for reflowable layouts`() {
+        val key = "--FLUTTER_READIUM-margin-decoration-space"
+        val prefs = FlutterEpubPreferences.fromJson("""{"makeSpaceForMarginDecoration":true}""")
+        assertEquals("1", prefs.effectiveForLayout(Layout.REFLOWABLE).toCustomCssVariables()[key])
+        assertNull(prefs.effectiveForLayout(Layout.FIXED).toCustomCssVariables()[key])
+        assertNull(FlutterEpubPreferences().toCustomCssVariables()[key])
     }
 }

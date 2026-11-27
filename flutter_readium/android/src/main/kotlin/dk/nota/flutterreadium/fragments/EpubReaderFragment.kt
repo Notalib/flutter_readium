@@ -10,6 +10,7 @@ import androidx.lifecycle.lifecycleScope
 import dk.nota.flutterreadium.EpubImageTapBridge
 import dk.nota.flutterreadium.EpubSameDocumentLinkBridge
 import dk.nota.flutterreadium.FlutterEpubPreferences
+import dk.nota.flutterreadium.MarginMarkerStyle
 import dk.nota.flutterreadium.NarrationSyncInterface
 import dk.nota.flutterreadium.PluginLog
 import dk.nota.flutterreadium.R
@@ -81,7 +82,7 @@ class EpubReaderFragment :
          * Called when an external link is activated.
          */
         fun onExternalLinkActivated(url: AbsoluteUrl)
-        
+
         /**
          * Called when an internal link is about to be followed. `from` is the position before the jump.
          */
@@ -830,6 +831,7 @@ class EpubReaderFragment :
                                 experimentalPositioning = true,
                             ).also { templates ->
                                 templates[SpotlightStyle::class] = spotlightDecorationTemplate()
+                                templates[MarginMarkerStyle::class] = marginMarkerDecorationTemplate()
                             },
                     // Only register the callback if custom selectionActions are added.
                     selectionActionModeCallback =
@@ -996,6 +998,12 @@ class EpubReaderFragment :
     companion object {
         private const val NAVIGATOR_FRAGMENT_TAG = "READIUM_EPUB_READER_FRAGMENT"
 
+        private fun String.escAttr() =
+            replace("&", "&amp;")
+                .replace("\"", "&quot;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+
         /**
          * Spotlight: semi-transparent tinted box over the active range, one per text line.
          *
@@ -1037,15 +1045,77 @@ class EpubReaderFragment :
                             "rgba($r,$g,$b,0.5)"
                         }
 
-                    fun String.escAttr() =
-                        replace("&", "&amp;")
-                            .replace("\"", "&quot;")
-                            .replace("<", "&lt;")
-                            .replace(">", "&gt;")
                     val sel = (decoration.locator.locations.cssSelector ?: "").escAttr()
                     val hl = (decoration.locator.text.highlight ?: "").escAttr()
                     val bef = (decoration.locator.text.before ?: "").escAttr()
                     """<div class="flutter-readium-spotlight" data-css-selector="$sel" data-text-highlight="$hl" data-text-before="$bef" data-tint="$bgColor" style="z-index: -1; box-sizing: border-box;"/>"""
+                },
+            )
+
+        /**
+         * Margin marker floated into the page margin, or placed next to the text for the "text" anchor.
+         * Keep the markup identical to the iOS and web templates; the design is in
+         * docs/plans/margin-marker-decorations.md.
+         */
+        private fun marginMarkerDecorationTemplate(): HtmlDecorationTemplate =
+            HtmlDecorationTemplate(
+                layout = HtmlDecorationTemplate.Layout.BOUNDS,
+                width = HtmlDecorationTemplate.Width.PAGE,
+                element = { decoration ->
+                    val style = decoration.style as? MarginMarkerStyle
+                    val content =
+                        when {
+                            style == null -> {
+                                null
+                            }
+
+                            style.label != null -> {
+                                style.label.escAttr()
+                            }
+
+                            style.icon in MarginMarkerStyle.ICON_PATHS -> {
+                                """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1.3em" height="1.3em" fill="currentColor" fill-rule="evenodd" style="display: block;"><path d="${MarginMarkerStyle.ICON_PATHS[style.icon]}"/></svg>"""
+                            }
+
+                            else -> {
+                                null
+                            }
+                        }
+                    if (style == null || content == null) {
+                        "<div/>"
+                    } else {
+                        val end = style.side == "end"
+                        val color =
+                            if (android.graphics.Color.alpha(style.tint) == 0) {
+                                ""
+                            } else {
+                                val r = android.graphics.Color.red(style.tint)
+                                val g = android.graphics.Color.green(style.tint)
+                                val b = android.graphics.Color.blue(style.tint)
+                                " color: rgba($r, $g, $b, ${android.graphics.Color.alpha(style.tint) / 255.0}) !important;"
+                            }
+                        // Labels are muted like printed margin page numbers; icons keep the full colour.
+                        val opacity = if (style.label != null) " opacity: 0.8 !important;" else ""
+                        val css = " font-size: 0.75em !important; line-height: 1.4 !important;$opacity$color"
+                        if (style.anchor == "text") {
+                            // The cell is as wide as the margin, which flutterReadiumTools.js measures. The marker is pushed
+                            // against the cell's text side; in a too-narrow margin it overflows toward the text, never off the page.
+                            val cell =
+                                "display: flex !important; flex-direction: ${if (end) "row-reverse" else "row"} !important;" +
+                                    " box-sizing: border-box !important;" +
+                                    " width: var(--flutter-readium-text-inset-${if (end) "end" else "start"}, 0px) !important;" +
+                                    " padding-inline: ${if (end) "0.5em 4px" else "4px 0.5em"} !important;" +
+                                    if (end) " margin-inline-start: auto !important;" else ""
+                            val push = "margin-${if (end) "inline-end" else "inline-start"}: auto !important; flex: none !important;"
+                            """<div><div style="$cell"><span data-activable="1" style="$push$css">$content</span></div></div>"""
+                        } else {
+                            val float =
+                                "float: ${if (end) "right" else "left"} !important;" +
+                                    " float: ${if (end) "inline-end" else "inline-start"} !important;" +
+                                    " margin: 0 max(4px, 1.5%) !important;"
+                            """<div><span data-activable="1" style="$float$css">$content</span></div>"""
+                        }
+                    }
                 },
             )
     }

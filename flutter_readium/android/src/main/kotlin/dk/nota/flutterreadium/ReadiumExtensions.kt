@@ -106,6 +106,11 @@ fun decorationFromJson(jsonString: String): Decoration? =
                     // `tint` is optional; getString would throw when it is absent.
                     "tint" to if (styleJson.isNull("tint")) null else styleJson.getString("tint"),
                     "isActive" to styleJson.optBoolean("isActive", false),
+                    // decorationStyleFromMap expects a Map, as on the TTS path.
+                    "marker" to
+                        styleJson.optJSONObject("marker")?.let { m ->
+                            m.keys().asSequence().associateWith { m.get(it) }
+                        },
                 ),
             ) ?: throw Exception("Failed to deserialize decoration style")
         Decoration(id, locator, style)
@@ -147,9 +152,34 @@ fun decorationStyleFromMap(decoMap: Map<*, *>?): Decoration.Style? {
         val tint = tintColorStr?.let { readiumColorFromCSS(it).int } ?: Color.TRANSPARENT
         val style =
             when (styleStr) {
-                "underline" -> Decoration.Style.Underline(tint, isActive)
-                "spotlight" -> SpotlightStyle(tint)
-                else -> Decoration.Style.Highlight(tint, isActive) // "highlight" + unknown
+                "underline" -> {
+                    Decoration.Style.Underline(tint, isActive)
+                }
+
+                "spotlight" -> {
+                    SpotlightStyle(tint)
+                }
+
+                "marginMarker" -> {
+                    val marker = decoMap["marker"] as? Map<*, *>
+                    val label = (marker?.get("label") as? String)?.takeIf { it.isNotEmpty() }
+                    val icon = (marker?.get("icon") as? String)?.takeIf { it in MarginMarkerStyle.ICON_PATHS }
+                    if (label == null && icon == null) {
+                        // Without content the marker would render empty, so skip the decoration.
+                        PluginLog.e(
+                            "ReadiumExtensions",
+                            "::decorationStyleFromMap. marginMarker needs a marker with a label or a known icon",
+                        )
+                        return null
+                    }
+                    val side = if (marker?.get("side") == "end") "end" else "start"
+                    val anchor = if (marker?.get("anchor") == "page") "page" else "text"
+                    MarginMarkerStyle(label, icon, side, anchor, tint)
+                }
+
+                else -> {
+                    Decoration.Style.Highlight(tint, isActive)
+                } // "highlight" + unknown
             }
         return style
     } catch (ex: Exception) {
@@ -847,12 +877,12 @@ fun Locator.addPageNumber(
     ),
 )
 
-// Resolves preferences against the publication's layout. The first-element top margin
-// is a reflowable-text affordance, so it's dropped for every non-reflowable publication
-// (fixed/scrolled layouts and image publications, which report no layout) where it would
-// otherwise shift the full-page content down.
+// Resolves preferences against the publication's layout. The first-element top margin and
+// the margin-decoration space are reflowable-text affordances, so they're dropped for every
+// non-reflowable publication (fixed/scrolled layouts and image publications, which report no
+// layout) where they would otherwise shift the full-page content.
 fun FlutterEpubPreferences.effectiveForLayout(layout: Layout?): FlutterEpubPreferences =
-    if (layout?.isReflowable == true) this else copy(firstElementTopMargin = null)
+    if (layout?.isReflowable == true) this else copy(firstElementTopMargin = null, makeSpaceForMarginDecoration = null)
 
 val Layout.isFixed: Boolean
     get() = this == Layout.FIXED

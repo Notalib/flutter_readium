@@ -7,6 +7,7 @@
 
 import {
   Decoration,
+  DecorationLayout,
   DecorationStyleType,
   DecorationWidth,
   EpubNavigator,
@@ -21,6 +22,73 @@ import {
 } from "./decorationFrameUtils";
 import { dartColorToCss } from "../utils/colors";
 import { ReadiumBridge } from "../bridge/ReadiumBridge";
+import { createLogger } from "../utils/ReadiumPluginLogger";
+
+const log = createLogger("DecorationController");
+
+/** Wire shape of `MarginMarker.toJson()` on the Dart side. */
+interface MarginMarker {
+  label?: string;
+  icon?: string;
+  side?: string;
+  anchor?: string;
+}
+
+/** SVG path data (24x24 viewBox) by `MarginMarkerIcon` name. Keep in sync with Dart, iOS and Android. */
+const MARGIN_MARKER_ICON_PATHS = new Map<string, string>([
+  ["bookmark", "M6 2h12a1 1 0 0 1 1 1v19l-7-4-7 4V3a1 1 0 0 1 1-1z"],
+  ["note", "M4 3h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H9l-5 4v-4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM7 7v2h10V7zm0 4v2h7v-2z"],
+  ["star", "M12 2l2.9 6.9 7.1.6-5.4 4.7 1.6 7-6.2-3.8-6.2 3.8 1.6-7L2 9.5l7.1-.6z"],
+]);
+
+function marginMarkerIconSvg(icon: string): string | undefined {
+  const path = MARGIN_MARKER_ICON_PATHS.get(icon);
+  return path === undefined
+    ? undefined
+    : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1.3em" height="1.3em" fill="currentColor" fill-rule="evenodd" style="display: block;"><path d="${path}"/></svg>`;
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/**
+ * Builds the margin marker element, or `null` when there is nothing to show. It floats into the page
+ * margin, or sits next to the text for the "text" anchor. Keep the markup identical to the iOS and
+ * Android templates; the design is in docs/plans/margin-marker-decorations.md.
+ */
+function marginMarkerHtml(marker: MarginMarker | undefined, tint: string | undefined): string | null {
+  const content = marker?.label
+    ? escapeHtml(marker.label)
+    : marker?.icon !== undefined
+      ? marginMarkerIconSvg(marker.icon)
+      : undefined;
+  if (!content) return null;
+
+  const end = marker?.side === "end";
+  let css = " font-size: 0.75em !important; line-height: 1.4 !important;";
+  // Labels are muted like printed margin page numbers; icons keep the full colour.
+  if (marker?.label) css += " opacity: 0.8 !important;";
+  if (tint) css += ` color: ${escapeHtml(tint)} !important;`;
+  if (marker?.anchor !== "page") {
+    // The cell is as wide as the margin, which flutterReadiumTools.js measures. The marker is pushed
+    // against the cell's text side; in a too-narrow margin it overflows toward the text, never off the page.
+    const cell =
+      `display: flex !important; flex-direction: ${end ? "row-reverse" : "row"} !important;` +
+      ` box-sizing: border-box !important; width: var(--flutter-readium-text-inset-${end ? "end" : "start"}, 0px) !important;` +
+      ` padding-inline: ${end ? "0.5em 4px" : "4px 0.5em"} !important;${end ? " margin-inline-start: auto !important;" : ""}`;
+    const push = `margin-${end ? "inline-end" : "inline-start"}: auto !important; flex: none !important;`;
+    return `<div><div style="${cell}"><span data-activable="1" style="${push}${css}">${content}</span></div></div>`;
+  }
+  const float =
+    `float: ${end ? "right" : "left"} !important; float: ${end ? "inline-end" : "inline-start"} !important;` +
+    " margin: 0 max(4px, 1.5%) !important;";
+  return `<div><span data-activable="1" style="${float}${css}">${content}</span></div>`;
+}
 
 export interface ApplyDecorationsOptions {
   /**
@@ -68,7 +136,7 @@ export class DecorationController {
     const decorationsRaw: Array<{
       id: string;
       locator: object;
-      style: { style: string; tint: string };
+      style: { style: string; tint?: string; marker?: MarginMarker };
     }> = JSON.parse(decorationsJson);
 
     // Every subgroup gets a list, even an empty one, so that a subgroup the new
@@ -79,10 +147,33 @@ export class DecorationController {
     ]);
 
     for (const raw of decorationsRaw) {
+      if (raw.style.style === "marginMarker") {
+        const tint = raw.style.tint ? dartColorToCss(raw.style.tint) : undefined;
+        const html = marginMarkerHtml(raw.style.marker, tint);
+        if (html === null) {
+          log.warn(`applyDecorations: skipping marginMarker ${raw.id} without a label or known icon`);
+          continue;
+        }
+        bySubgroup.get(group)!.push({
+          id: raw.id,
+          locator: Locator.deserialize(raw.locator)!,
+          style: {
+            type: DecorationStyleType.Template,
+            layout: DecorationLayout.Bounds,
+            width: DecorationWidth.Page,
+            element: () => html,
+          },
+          // Upstream ignores a Template's element when diffing, so the payload goes into extras
+          // to make a changed label, icon, side or tint re-render under the same id.
+          extras: { marker: raw.style.marker, tint },
+        });
+        continue;
+      }
+
       const isSpotlight = raw.style.style === "spotlight";
       // Convert tints from Dart's AARRGGBB to CSS RRGGBBAA at the entry point so
       // upstream's Decorator and the spotlight CSS see CSS colors.
-      const tint = dartColorToCss(raw.style.tint);
+      const tint = raw.style.tint ? dartColorToCss(raw.style.tint) : undefined;
 
       bySubgroup.get(isSpotlight ? spotlightGroup : group)!.push({
         id: raw.id,

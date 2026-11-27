@@ -99,11 +99,14 @@ extension EPUBReaderView {
       let identifier = args[0] as! String
       let decorationsStr = args[1] as! [String]
 
-      guard let decorations = try? decorationsStr.map({ try Decoration(fromJson: $0) }) else {
-        return result(FlutterError.init(
-          code: "JSON mapping error",
-          message: "Could not map decorations from JSON: \(decorationsStr)",
-          details: nil))
+      // Skip decorations that fail to parse (e.g. a marginMarker without a marker) instead of dropping the whole group.
+      let decorations = decorationsStr.compactMap { str -> Decoration? in
+        do {
+          return try Decoration(fromJson: str)
+        } catch {
+          Log.reader.error("applyDecorations: skipping unparsable decoration: \(error)")
+          return nil
+        }
       }
 
       applyDecorations(decorations, forGroup: identifier)

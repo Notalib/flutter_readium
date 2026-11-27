@@ -33,6 +33,7 @@ Controls the visual appearance of the EPUB reader. All fields are optional unles
 | `verticalText` | `bool?` | Lay out text vertically (CJK). Auto-derived from `language` if not set. |
 | `readingProgression` | `EpubReadingProgression?` | `ltr` or `rtl`. |
 | `firstElementTopMargin` | `int?` | Top margin applied to the first element, in pixels — useful to clear a toolbar. Custom plugin setting |
+| `makeSpaceForMarginDecoration` | `bool` | Widen the side page margins with the font size so [margin markers](../guides/margin-markers.md#margin-width) never overlap the text. Never narrower than `pageMargins`. Reflowable EPUB only. Defaults to `false`. Custom plugin setting |
 
 ### Theme & color
 

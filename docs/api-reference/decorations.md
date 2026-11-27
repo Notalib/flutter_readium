@@ -25,8 +25,9 @@ ReaderDecoration(
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `style` | `DecorationStyle` | `highlight` or `underline` |
+| `style` | `DecorationStyle` | `highlight`, `underline` or `marginMarker` |
 | `tint` | `Color` | Colour of the decoration |
+| `marker` | `MarginMarker?` | Label or icon to show. Required for `marginMarker` |
 
 ## DecorationStyle
 
@@ -34,6 +35,18 @@ ReaderDecoration(
 |-------|-----------|
 | `DecorationStyle.highlight` | Background colour fill over the text range |
 | `DecorationStyle.underline` | Underline beneath the text range |
+| `DecorationStyle.marginMarker` | Label or icon in the page margin, level with the first line of the range. See [Margin Markers](../guides/margin-markers.md) |
+
+## MarginMarker
+
+| Constructor | Description |
+|-------------|-------------|
+| `MarginMarker.label(String, {side, anchor})` | Text label, such as a page number |
+| `MarginMarker.icon(MarginMarkerIcon, {side, anchor})` | Built-in icon: `MarginMarkerIcon.bookmark`, `.note` or `.star` |
+
+`side` is `MarginSide.start` (default) or `MarginSide.end`, and flips in right-to-left text. Labels are HTML-escaped. Icons are a closed set: the plugin never renders app-supplied markup.
+
+`anchor` is `MarginAnchor.text` (default), which keeps the marker a small gap from the text column however wide the margin is, or `MarginAnchor.page`, which puts it near the page or column edge. See [Margin Markers](../guides/margin-markers.md#anchoring).
 
 ## Applying decorations
 

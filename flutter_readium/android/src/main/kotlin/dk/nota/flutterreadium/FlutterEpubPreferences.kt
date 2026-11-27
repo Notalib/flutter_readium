@@ -18,6 +18,9 @@ private const val TAG = "FlutterEpubPreferences"
 private const val TOP_MARGIN_CSS_VARIABLE = "--FLUTTER_READIUM-first-element-top-margin"
 private const val BLACK_AND_WHITE_COMIC_MODE_CSS_VARIABLE = "--FLUTTER_READIUM-black-white-comic-mode"
 
+// The flag only switches on the padding rule in FlutterReadiumTools.scss.
+private const val MARGIN_DECORATION_SPACE_CSS_VARIABLE = "--FLUTTER_READIUM-margin-decoration-space"
+
 @OptIn(ExperimentalReadiumApi::class)
 @Serializable
 data class FlutterEpubPreferences(
@@ -50,6 +53,7 @@ data class FlutterEpubPreferences(
     val syncPolicy: String? = null,
     val firstElementTopMargin: Int? = null,
     val preventMOColumnBreaks: Boolean? = true,
+    val makeSpaceForMarginDecoration: Boolean? = false,
 ) : Configurable.Preferences<FlutterEpubPreferences> {
     override fun plus(other: FlutterEpubPreferences): FlutterEpubPreferences =
         FlutterEpubPreferences(
@@ -82,6 +86,7 @@ data class FlutterEpubPreferences(
             syncPolicy = other.syncPolicy ?: syncPolicy,
             firstElementTopMargin = other.firstElementTopMargin ?: firstElementTopMargin,
             preventMOColumnBreaks = other.preventMOColumnBreaks ?: preventMOColumnBreaks,
+            makeSpaceForMarginDecoration = other.makeSpaceForMarginDecoration ?: makeSpaceForMarginDecoration,
         )
 
     fun toEpubPreferences(): EpubPreferences =
@@ -117,6 +122,7 @@ data class FlutterEpubPreferences(
         val map = mutableMapOf<String, String?>()
         map[TOP_MARGIN_CSS_VARIABLE] = firstElementTopMargin?.let { "${it}px" }
         map[BLACK_AND_WHITE_COMIC_MODE_CSS_VARIABLE] = if (blackAndWhiteComicMode == true) "1" else null
+        map[MARGIN_DECORATION_SPACE_CSS_VARIABLE] = if (makeSpaceForMarginDecoration == true) "1" else null
         return map
     }
 

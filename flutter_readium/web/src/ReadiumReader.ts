@@ -1,7 +1,7 @@
 import "./style.css";
 
 import { AudioNavigator, EpubNavigator, WebPubNavigator } from "@readium/navigator";
-import { getTime, Link, Locator, Publication } from "@readium/shared";
+import { getTime, Layout, Link, Locator, Publication } from "@readium/shared";
 
 // Bridge
 import { ReadiumBridge } from "./bridge/ReadiumBridge";
@@ -52,7 +52,7 @@ import { UncuedTocTargets } from "./mediaoverlay/uncuedTocTargets";
 // Decoration overrides (for comic/visual sync)
 import { navIframeWindows } from "./decorations/decorationFrameUtils";
 // Iframe injection utilities
-import { injectMOBreakCSSIntoWindow, setHelperAssetUrls } from "./utils/iframeInjection";
+import { injectMOBreakCSSIntoWindow, setHelperAssetUrls, setMarginDecorationSpaceInWindow } from "./utils/iframeInjection";
 import { FontFamilyDeclaration, injectFontFacesIntoWindow, parseFontFamilyDeclarations } from "./fonts/FontFamilyDeclarations";
 // Errors
 import { ReadiumWebError, ReadiumWebErrorCode, ResourceReadErrorReason } from "./errors/ReadiumWebError";
@@ -176,6 +176,8 @@ class _ReadiumReader {
   private _narrationSyncEnabled = true;
   /** Mirrors `EPUBPreferences.preventMOColumnBreaks`. Defaults to `true`. */
   private _preventMOColumnBreaks = true;
+  /** Mirrors `EPUBPreferences.makeSpaceForMarginDecoration`; always off for fixed layout. */
+  private _makeSpaceForMarginDecoration = false;
   /** Last visual sync locator deferred while synchronization was disabled. */
   private _lastDeferredSyncLocator: Locator | null = null;
   /** Segment duration paired with `_lastDeferredSyncLocator` when available. */
@@ -530,6 +532,7 @@ class _ReadiumReader {
         this._selectionToolbar.attach(container);
         if (publication.conformsToEpub) {
           log.info("Publication conforms to EPUB profile");
+          this._makeSpaceForMarginDecoration = this._wantsMarginDecorationSpace(preferencesJsonString);
           await FlutterEpubNavigator.create(
             container,
             publication,
@@ -543,6 +546,7 @@ class _ReadiumReader {
             (json) => { this._bridge.emitImageTapped(json); },
             (wnd) => {
               injectFontFacesIntoWindow(wnd, fontFamilyDeclarations);
+              setMarginDecorationSpaceInWindow(wnd, this._makeSpaceForMarginDecoration);
               // Re-inject MO column-break CSS into freshly-loaded frames when MO is active.
               // Use direct DOM manipulation — window.flutterReadium is deferred by rAF
               // inside the helper script and may not exist yet at frameLoaded time.
@@ -654,6 +658,11 @@ class _ReadiumReader {
         }
       }
       this._preventMOColumnBreaks = preventMOColumnBreaks;
+      const makeSpace = this._wantsMarginDecorationSpace(newPreferencesString);
+      if (makeSpace !== this._makeSpaceForMarginDecoration) {
+        this._makeSpaceForMarginDecoration = makeSpace;
+        for (const wnd of navIframeWindows(this._nav)) setMarginDecorationSpaceInWindow(wnd, makeSpace);
+      }
     } catch (_) {
       // Ignore parse errors — setEpubPreferencesFromString will surface them.
     }
@@ -1107,6 +1116,17 @@ class _ReadiumReader {
         this._applyInternalDecorations("media_overlay_utterance", "[]");
         this._removeMOBreakCSSOnIframes();
       }
+    }
+  }
+
+  /** Body padding on a fixed-layout page would shift it, so the preference only applies to reflowable EPUBs. */
+  private _wantsMarginDecorationSpace(preferencesJson: string): boolean {
+    const publication = this._publication;
+    if (!publication || EpubNavigator.determineLayout(publication) === Layout.fixed) return false;
+    try {
+      return pluginPrefsFromJson(JSON.parse(preferencesJson)).makeSpaceForMarginDecoration;
+    } catch (_) {
+      return false;
     }
   }
 

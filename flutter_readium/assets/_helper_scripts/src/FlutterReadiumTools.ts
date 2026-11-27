@@ -421,6 +421,48 @@ function Setup() {
 
     initResponsiveTables();
     startSpotlightObserver(document);
+    startTextInsetObserver(document);
+    relayoutDecorationsOnResize();
+  });
+}
+
+/**
+ * Publishes the distance from each page edge to the text column as `--flutter-readium-text-inset-start`
+ * and `--flutter-readium-text-inset-end` on the body, so text-anchored margin markers can sit next to the
+ * text. Measuring the used box follows Readium CSS, publisher CSS and injected padding alike.
+ */
+function startTextInsetObserver(doc: Document): void {
+  const update = () => {
+    const body = doc.body;
+    if (!body) return;
+    const cs = getComputedStyle(body);
+    const px = (v: string) => parseFloat(v) || 0;
+    const left = px(cs.marginLeft) + px(cs.borderLeftWidth) + px(cs.paddingLeft);
+    const right = px(cs.marginRight) + px(cs.borderRightWidth) + px(cs.paddingRight);
+    const rtl = cs.direction === 'rtl';
+    body.style.setProperty('--flutter-readium-text-inset-start', `${rtl ? right : left}px`);
+    body.style.setProperty('--flutter-readium-text-inset-end', `${rtl ? left : right}px`);
+  };
+  update();
+  // Readium writes user settings to <html style>. The variables go on the body, so writing them does
+  // not retrigger this observer. A wider viewport can move auto margins without resizing the body.
+  new ResizeObserver(update).observe(doc.body);
+  new MutationObserver(update).observe(doc.documentElement, { attributes: true, attributeFilter: ['style'] });
+  window.addEventListener('resize', update);
+}
+
+/**
+ * Lays out every decoration group again once the viewport has resized. The toolkit decorator only relays out
+ * on a body ResizeObserver, which WebKit can fire during rotation while `window.innerWidth` still reports the
+ * old viewport, so `width: page` decorations keep the old page width. `resize` fires with the new size.
+ */
+function relayoutDecorationsOnResize(): void {
+  window.addEventListener('resize', () => {
+    const readium = window.readium;
+    if (typeof readium?.getDecorations !== 'function') return;
+    document.querySelectorAll<HTMLElement>('body > [id^="r2-decoration-"][data-group]').forEach((container) => {
+      readium.getDecorations(container.dataset.group!).requestLayout?.();
+    });
   });
 }
 

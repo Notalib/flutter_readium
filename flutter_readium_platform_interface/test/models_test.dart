@@ -280,6 +280,20 @@ void main() {
       const b = EPUBPreferences(preventMOColumnBreaks: false);
       expect(a, isNot(equals(b)));
     });
+
+    test('round-trips makeSpaceForMarginDecoration through toJson / fromJson', () {
+      const prefs = EPUBPreferences(makeSpaceForMarginDecoration: true);
+      final json = prefs.toJson();
+      expect(json['makeSpaceForMarginDecoration'], isTrue);
+      expect(EPUBPreferences.fromJson(json).makeSpaceForMarginDecoration, isTrue);
+    });
+
+    test('makeSpaceForMarginDecoration defaults to false and survives copyWith', () {
+      expect(EPUBPreferences.fromJson({}).makeSpaceForMarginDecoration, isFalse);
+      const prefs = EPUBPreferences(makeSpaceForMarginDecoration: true);
+      expect(prefs.copyWith().makeSpaceForMarginDecoration, isTrue);
+      expect(prefs.copyWith(makeSpaceForMarginDecoration: false), isNot(equals(prefs)));
+    });
   });
 
   group('PDFPreferences', () {
@@ -1085,6 +1099,75 @@ void main() {
       final updated = style.copyWith(tint: const Color(0xFF00FF00));
       expect(updated.style, DecorationStyle.highlight);
       expect(updated.tint, const Color(0xFF00FF00));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // marginMarker decoration
+  // ---------------------------------------------------------------------------
+  group('marginMarker decoration', () {
+    const locator = Locator(href: '/ch.xhtml', type: 'application/xhtml+xml');
+
+    ReaderDecoration roundTrip(ReaderDecoration decoration) => ReaderDecoration.fromJson(
+      json.decode(json.encode(decoration.toJson())) as Map<String, dynamic>,
+    );
+
+    test('label marker round-trips through toJson/fromJson', () {
+      final decoration = ReaderDecoration(
+        id: 'p12',
+        locator: locator,
+        style: const ReaderDecorationStyle(
+          style: DecorationStyle.marginMarker,
+          marker: MarginMarker.label('12', side: MarginSide.end),
+        ),
+      );
+      final restored = roundTrip(decoration);
+      expect(restored.style.style, DecorationStyle.marginMarker);
+      expect(restored.style.marker?.label, '12');
+      expect(restored.style.marker?.icon, isNull);
+      expect(restored.style.marker?.side, MarginSide.end);
+    });
+
+    test('tinted icon marker round-trips and defaults to the start side', () {
+      final decoration = ReaderDecoration(
+        id: 'bm',
+        locator: locator,
+        style: const ReaderDecorationStyle(
+          style: DecorationStyle.marginMarker,
+          tint: Color(0xFF2E7D32),
+          marker: MarginMarker.icon(MarginMarkerIcon.bookmark),
+        ),
+      );
+      expect(decoration.style.toJson()['marker'], {
+        'icon': 'bookmark',
+        'side': 'start',
+        'anchor': 'text',
+      });
+      final restored = roundTrip(decoration);
+      expect(restored.style.marker?.icon, MarginMarkerIcon.bookmark);
+      expect(restored.style.marker?.label, isNull);
+      expect(restored.style.marker?.side, MarginSide.start);
+      expect(restored.style.tint, const Color(0xFF2E7D32));
+    });
+
+    test('page anchor round-trips; a missing or unknown anchor reads as text', () {
+      const marker = MarginMarker.label('3', anchor: MarginAnchor.page);
+      expect(MarginMarker.fromJson(marker.toJson()).anchor, MarginAnchor.page);
+      expect(MarginMarker.fromJson({'label': '3'}).anchor, MarginAnchor.text);
+      expect(MarginMarker.fromJson({'label': '3', 'anchor': 'gutter'}).anchor, MarginAnchor.text);
+    });
+
+    test('copyWith keeps, replaces and clears the marker', () {
+      const style = ReaderDecorationStyle(
+        style: DecorationStyle.marginMarker,
+        marker: MarginMarker.label('1'),
+      );
+      expect(style.copyWith().marker?.label, '1');
+      expect(
+        style.copyWith(marker: const MarginMarker.label('2')).marker?.label,
+        '2',
+      );
+      expect(style.copyWith(marker: null).marker, isNull);
     });
   });
 

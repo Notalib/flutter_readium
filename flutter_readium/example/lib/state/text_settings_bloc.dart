@@ -52,6 +52,8 @@ class OpenPubSuccess extends TextSettingsEvent {}
 @immutable
 class ToggleBlackAndWhiteComicMode extends TextSettingsEvent {}
 
+class ToggleMarginDecorationSpace extends TextSettingsEvent {}
+
 @immutable
 class ToggleDisableSynchronization extends TextSettingsEvent {}
 
@@ -140,6 +142,7 @@ class TextSettingsState {
     this.pageMargins,
     this.paragraphSpacing = 1.0,
     this.blackAndWhiteComicMode = false,
+    this.makeSpaceForMarginDecoration = false,
     this.disableSynchronization = false,
     this.reduceCrowding = false,
     this.firstElementTopMargin = 40,
@@ -168,6 +171,7 @@ class TextSettingsState {
   final double? pageMargins;
   final double? paragraphSpacing;
   final bool blackAndWhiteComicMode;
+  final bool makeSpaceForMarginDecoration;
   final bool disableSynchronization;
 
   /// Dyslexia crowding-reduction preset: increases letter/word/line spacing.
@@ -201,6 +205,7 @@ class TextSettingsState {
     final double? pageMargins,
     final double? paragraphSpacing,
     final bool? blackAndWhiteComicMode,
+    final bool? makeSpaceForMarginDecoration,
     final bool? disableSynchronization,
     final bool? reduceCrowding,
     final int? firstElementTopMargin,
@@ -229,6 +234,7 @@ class TextSettingsState {
       pageMargins: pageMargins ?? this.pageMargins,
       paragraphSpacing: paragraphSpacing ?? this.paragraphSpacing,
       blackAndWhiteComicMode: blackAndWhiteComicMode ?? this.blackAndWhiteComicMode,
+      makeSpaceForMarginDecoration: makeSpaceForMarginDecoration ?? this.makeSpaceForMarginDecoration,
       disableSynchronization: disableSynchronization ?? this.disableSynchronization,
       reduceCrowding: reduceCrowding ?? this.reduceCrowding,
       firstElementTopMargin: firstElementTopMargin ?? this.firstElementTopMargin,
@@ -267,6 +273,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       paragraphSpacing: state.paragraphSpacing,
       publisherStyles: state.publisherStyles,
       blackAndWhiteComicMode: state.blackAndWhiteComicMode,
+      makeSpaceForMarginDecoration: state.makeSpaceForMarginDecoration,
       disableSynchronization: state.disableSynchronization,
       firstElementTopMargin: state.firstElementTopMargin,
       letterSpacing: state.letterSpacing,
@@ -296,6 +303,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       paragraphSpacing: state.paragraphSpacing,
       publisherStyles: state.publisherStyles,
       blackAndWhiteComicMode: state.blackAndWhiteComicMode,
+      makeSpaceForMarginDecoration: state.makeSpaceForMarginDecoration,
       disableSynchronization: state.disableSynchronization,
       firstElementTopMargin: state.firstElementTopMargin,
       letterSpacing: state.letterSpacing,
@@ -358,6 +366,13 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
     on<ToggleBlackAndWhiteComicMode>((final event, final emit) {
       emit(
         state.copyWith(blackAndWhiteComicMode: !state.blackAndWhiteComicMode),
+      );
+      submitPreferenceUpdate();
+    });
+
+    on<ToggleMarginDecorationSpace>((final event, final emit) {
+      emit(
+        state.copyWith(makeSpaceForMarginDecoration: !state.makeSpaceForMarginDecoration),
       );
       submitPreferenceUpdate();
     });
