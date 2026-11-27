@@ -1,0 +1,2 @@
+**Native hooks for content protection and restriction errors, and `openPublication` now fails on restricted publications.**
+Add-ons such as `flutter_readium_lcp` register content protections and restriction-to-error mappers on iOS and Android. `openPublication` throws when the publication is restricted (typed add-on error, otherwise `forbidden`), while `loadPublication` stays metadata-only and returns it without prompting.
