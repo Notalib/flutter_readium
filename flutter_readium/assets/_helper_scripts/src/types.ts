@@ -178,6 +178,12 @@ export interface PageInformation {
    * Only meaningful for paginated layouts; omitted in scroll mode.
    */
   totalPages?: number | null;
+
+  /**
+   * Progression within the current resource at the viewport's trailing edge (bottom in scroll mode), between 0 and 1.
+   * Reaches 1 when the end of the resource is visible.
+   */
+  progressionEnd?: number | null;
 }
 
 export const figureQuerySelector = 'body > figure:has(img:first-child + div.area)';

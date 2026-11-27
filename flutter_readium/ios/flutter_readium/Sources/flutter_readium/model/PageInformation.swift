@@ -12,13 +12,16 @@ final class PageInformation {
   /// Total number of pages within the current resource. Only present in
   /// paginated layouts.
   let totalPages: Int?
+  /// Progression within the current resource at the viewport's trailing edge (bottom in scroll mode).
+  let progressionEnd: Double?
 
-  init(tocId: String?, physicalPage: String?, cssSelector: String?, currentPage: Int?, totalPages: Int?) {
+  init(tocId: String?, physicalPage: String?, cssSelector: String?, currentPage: Int?, totalPages: Int?, progressionEnd: Double?) {
     self.tocId = tocId
     self.physicalPage = physicalPage
     self.cssSelector = cssSelector
     self.currentPage = currentPage
     self.totalPages = totalPages
+    self.progressionEnd = progressionEnd
   }
 
   var otherLocations: [String: JSONValue] {
@@ -47,6 +50,10 @@ final class PageInformation {
       res["totalPages"] = .integer(totalPages)
     }
 
+    if let progressionEnd {
+      res["progressionEnd"] = .double(progressionEnd)
+    }
+
     return res
   }
 
@@ -62,13 +69,15 @@ final class PageInformation {
     let cssSelector = json["cssSelector"] as? String
     let currentPage = json["currentPage"] as? Int
     let totalPages = json["totalPages"] as? Int
+    let progressionEnd = json["progressionEnd"] as? Double
 
     return PageInformation(
       tocId: tocId,
       physicalPage: physicalPage,
       cssSelector: cssSelector,
       currentPage: currentPage,
-      totalPages: totalPages
+      totalPages: totalPages,
+      progressionEnd: progressionEnd
     )
   }
 }

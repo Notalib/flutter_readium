@@ -6,7 +6,7 @@ import './FlutterReadiumTools.scss';
 
 class FlutterReadiumTools {
   get #isScrollModeEnabled(): boolean {
-    return window.readium?.isReflowable === true && getComputedStyle(document.documentElement).getPropertyValue('--USER__view')?.trim() === 'readium-scroll-on"';
+    return window.readium?.isReflowable === true && getComputedStyle(document.documentElement).getPropertyValue('--USER__view')?.trim() === 'readium-scroll-on';
   }
 
   /**
@@ -75,6 +75,7 @@ class FlutterReadiumTools {
     const cssSelector = this.#findCssSelector();
     const tocId = this.#findTocId(cssSelector);
     const { currentPage, totalPages } = this.#findResourcePagination();
+    const progressionEnd = this.#findProgressionEnd();
 
     return {
       physicalPage,
@@ -82,7 +83,25 @@ class FlutterReadiumTools {
       tocId,
       currentPage,
       totalPages,
+      progressionEnd,
     };
+  }
+
+  /**
+   * Progression within the resource at the viewport's trailing edge, using the same formula as the ts-toolkit snappers.
+   * Scroll mode scrolls vertically (horizontally for vertical writing), columns scroll horizontally. `abs` covers RTL.
+   */
+  #findProgressionEnd(): number | null {
+    const el = document.scrollingElement ?? document.documentElement;
+    if (el.scrollHeight <= 0 || el.scrollWidth <= 0) {
+      return null;
+    }
+
+    const verticalWriting = getComputedStyle(document.documentElement).writingMode.startsWith('vertical');
+    const end = this.#isScrollModeEnabled && !verticalWriting
+      ? (Math.ceil(el.scrollTop) + el.clientHeight) / el.scrollHeight
+      : (Math.ceil(Math.abs(el.scrollLeft)) + el.clientWidth) / el.scrollWidth;
+    return Math.max(0, Math.min(1, end));
   }
 
   /**

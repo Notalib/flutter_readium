@@ -1,4 +1,5 @@
 import { Locator, LocatorLocations, Link } from "@readium/shared";
+import { VisualNavigatorViewport } from "@readium/navigator";
 
 /**
  * Adds `totalProgression` to the emitted locator. The upstream ts-toolkit
@@ -35,6 +36,21 @@ export function enrichWithTotalProgression(
       otherLocations: locator.locations?.otherLocations,
     }),
   });
+}
+
+/**
+ * Adds `progressionEnd` to `locator.locations.otherLocations`: the progression
+ * within the resource at the viewport's trailing edge (bottom in scroll mode).
+ */
+export function enrichWithProgressionEnd(
+  locator: Locator,
+  navViewport: VisualNavigatorViewport
+): Locator {
+  const end = navViewport.progressions.get(locator.href)?.end;
+  if (end === undefined) return locator;
+  const merged = new Map(locator.locations?.otherLocations ?? []);
+  merged.set("progressionEnd", end);
+  return locator.copyWithLocations({ otherLocations: merged });
 }
 
 /**

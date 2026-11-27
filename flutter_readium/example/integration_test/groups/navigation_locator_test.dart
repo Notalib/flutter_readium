@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_readium/flutter_readium.dart';
@@ -104,6 +106,108 @@ void main() {
         locators.last,
         isNot(equals(initialLocator)),
         reason: 'goForward() should emit a textLocator distinct from the initial one.',
+      );
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('EPUB progressionEnd reaches 1 once the end of a resource is visible', (tester) async {
+      final path = harness.fixturePath(
+        FixtureKeys.reflowableEpub,
+        reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
+      );
+      final pub = await harness.readium.openPublication(path);
+
+      final locators = <Locator>[];
+      final sub = harness.readium.onTextLocatorChanged.listen(locators.add);
+      addTearDown(sub.cancel);
+
+      String describe(Locator l) =>
+          '${l.href} progression=${l.locations?.progression} progressionEnd=${l.locations?.progressionEnd}';
+
+      await tester.pumpWidget(bareReaderApp(pub));
+      await waitWithPump(
+        tester,
+        () => locators.isNotEmpty,
+        timeout: firstMountTimeout,
+        reason: 'ReadiumReaderWidget never emitted an initial textLocator',
+      );
+      await waitForListStable(tester, locators);
+
+      // Paginated: page forward until we have left a resource that spans several pages.
+      // Every resource we leave must have shown its end, and a long one starts well below 1.
+      final maxEndByHref = <String, double>{};
+      final trail = <String>[];
+      Locator? longStart;
+      for (var step = 0; step < 40; step++) {
+        final current = locators.last;
+        trail.add(describe(current));
+        final end = current.locations?.progressionEnd;
+        expect(end, isNotNull, reason: 'Missing progressionEnd: ${describe(current)}');
+        expect(end, inInclusiveRange(0.0, 1.0), reason: describe(current));
+        expect(end, greaterThanOrEqualTo(current.locations?.progression ?? 0), reason: describe(current));
+        maxEndByHref.update(current.href, (v) => math.max(v, end!), ifAbsent: () => end!);
+        if (longStart == null && end! < 0.5 && (current.locations?.progression ?? 0) < 0.01) {
+          longStart = current;
+        }
+        if (longStart != null && current.href != longStart.href) break;
+
+        await harness.readium.goForward();
+        await waitWithPump(
+          tester,
+          () => locators.last != current,
+          timeout: const Duration(seconds: 15),
+          reason: 'goForward() produced no new locator after ${describe(current)}',
+        );
+        await waitForListStable(tester, locators);
+      }
+
+      expect(longStart, isNotNull, reason: 'No multi-page resource found | ${trail.join(' | ')}');
+      final leftHrefs = maxEndByHref.keys.where((href) => href != locators.last.href);
+      for (final href in leftHrefs) {
+        expect(
+          maxEndByHref[href],
+          greaterThanOrEqualTo(0.98),
+          reason: 'Left $href without progressionEnd reaching 1 | ${trail.join(' | ')}',
+        );
+      }
+
+      // Scroll mode: the top of the long resource reports less than 1, its bottom reports 1.
+      await harness.readium.setEPUBPreferences(EPUBPreferences(scroll: true));
+      Future<Locator> goToProgression(double progression) async {
+        final before = locators.last;
+        await harness.readium.goToLocator(
+          Locator(
+            href: longStart!.href,
+            type: longStart.type,
+            locations: Locations(progression: progression),
+          ),
+        );
+        await waitWithPump(
+          tester,
+          () => locators.last != before && locators.last.href == longStart!.href,
+          timeout: const Duration(seconds: 15),
+          reason: 'Scroll-mode goToLocator($progression) did not settle | last=${describe(locators.last)}',
+        );
+        await waitForListStable(tester, locators);
+        return locators.last;
+      }
+
+      final top = await goToProgression(0);
+      expect(top.locations?.progressionEnd, lessThan(0.98), reason: 'Scroll top: ${describe(top)}');
+      expect(top.locations?.progressionEnd, greaterThan(0), reason: 'Scroll top: ${describe(top)}');
+
+      // At the bottom, progression is the top edge of the viewport, so it stays below 1.
+      final bottom = await goToProgression(1);
+      expect(
+        bottom.locations?.progression,
+        greaterThan(top.locations?.progression ?? 0),
+        reason: 'Scroll bottom: ${describe(bottom)}',
+      );
+      expect(
+        bottom.locations?.progressionEnd,
+        greaterThanOrEqualTo(0.98),
+        reason: 'Scroll bottom: ${describe(bottom)}',
       );
 
       await tester.pumpWidget(const SizedBox());

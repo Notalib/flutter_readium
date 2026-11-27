@@ -33,6 +33,7 @@ import { tryBuildImageTapPayload } from "../utils/ImageTapDetector";
 import {
   enrichWithTotalProgression,
   enrichWithTocHref,
+  enrichWithProgressionEnd,
   flattenToc,
 } from "./locatorEnrich";
 import {
@@ -169,9 +170,12 @@ export class FlutterEpubNavigator {
       positionChanged: (_locator: Locator): void => {
         selectionHooks?.onViewChanged();
         emitTextLocatorDebounced(
-          enrichWithTocHref(
-            enrichWithTotalProgression(_locator, totalPositions),
-            flatTocItems
+          enrichWithProgressionEnd(
+            enrichWithTocHref(
+              enrichWithTotalProgression(_locator, totalPositions),
+              flatTocItems
+            ),
+            nav.viewport
           )
         );
       },
