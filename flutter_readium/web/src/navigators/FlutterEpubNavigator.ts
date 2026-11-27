@@ -22,7 +22,10 @@ import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import {
   injectDecorationOverrides,
 } from "../decorations/decorationFrameUtils";
-import { injectFlutterReadiumHelperScripts } from "../utils/iframeInjection";
+import {
+  injectFlutterReadiumHelperScripts,
+  scrollingElementGuardRule,
+} from "../utils/iframeInjection";
 import { createLogger } from "../utils/ReadiumPluginLogger";
 import {
   FontFamilyDeclaration,
@@ -111,7 +114,7 @@ export class FlutterEpubNavigator {
       defaults,
       // The frame CSP only allows the publication's origin, so each injected @font-face URL must be allowed explicitly.
       injectables: {
-        rules: [],
+        rules: [scrollingElementGuardRule()],
         allowedDomains: fontFamilyDeclarations.length ? fontFaceUrls(fontFamilyDeclarations, document.baseURI) : [],
       },
     };

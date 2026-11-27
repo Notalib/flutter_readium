@@ -59,6 +59,33 @@ import { ReadiumWebError, ReadiumWebErrorCode, ResourceReadErrorReason } from ".
 
 const log = createLogger("Reader");
 
+/** Globals the comic helper bundle (`NotaComicBook`) defines in a comic chapter frame. */
+type ComicWindow = Window & {
+  comicBookPage?: {
+    onNarrationCue?: () => void;
+    exitNarrationMode?: () => void;
+  };
+  gotoComicFrame?: (id: string, duration: number) => void;
+  isNotaComicBook?: () => boolean;
+};
+
+/** Same test as the helper's `isNotaComicBook()` (`figureQuerySelector` in its `types.ts`). */
+const COMIC_FIGURE_SELECTOR = "body > figure:has(img:first-child + div.area)";
+
+/**
+ * Whether a chapter frame holds a Nota comic page. The helper bundle loads after the frame
+ * does, and the first cue often arrives before it, so this falls back to the frame's DOM.
+ */
+function isComicFrame(wnd: Window): boolean {
+  try {
+    const cw = wnd as ComicWindow;
+    if (cw.isNotaComicBook) return cw.isNotaComicBook();
+    return wnd.document?.querySelector(COMIC_FIGURE_SELECTOR) != null;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The subset of the upstream `VisualNavigator` surface that ReadiumReader drives.
  * Structurally satisfied by the EPUB, WebPub and DiViNa navigators alike, so the
@@ -1106,6 +1133,10 @@ class _ReadiumReader {
       if (this._nav) {
         this._applyInternalDecorations("media_overlay_utterance", "[]");
         this._removeMOBreakCSSOnIframes();
+        // Return comic pages from the narrated panel to the full page, as native does on stop.
+        for (const wnd of navIframeWindows(this._nav)) {
+          (wnd as ComicWindow).comicBookPage?.exitNarrationMode?.();
+        }
       }
     }
   }
@@ -1262,27 +1293,39 @@ class _ReadiumReader {
   // Audio / Media Overlay API
   // ---------------------------------------------------------------------------
 
+  /** Whether the open publication is a comic, checking the loaded frames until one is found. */
+  private _detectComicBook(nav: EpubNavigator | WebPubNavigator, sourceLabel: string): boolean {
+    if (this._isComicBook) return true;
+    if (!navIframeWindows(nav).some(isComicFrame)) return false;
+    log.info(`${sourceLabel}: comic-book publication detected; skipping nav.go() for all cues`);
+    this._isComicBook = true;
+    // An earlier cue may have taken the text path and highlighted the whole figure,
+    // above the comic overlay. Comics use no highlight.
+    this._applyInternalDecorations("media_overlay_utterance", "[]");
+    return true;
+  }
+
   /**
    * Calls `window.gotoComicFrame(fragmentId, durationMs)` on the given iframe
    * window, retrying via requestAnimationFrame until `window.comicBookPage` is
    * available (it is initialised asynchronously inside a setTimeout + rAF in the
-   * helper bundle).
+   * helper bundle). The helper is fetched when the frame loads, which can take seconds on a
+   * first, slow load, hence about 3 s of frames.
    */
   private _callGotoComicFrame(
     wnd: Window,
     fragmentId: string,
     durationMs: number,
-    retriesLeft = 20
+    retriesLeft = 180
   ): void {
-    type ComicWindow = Window & {
-      comicBookPage?: unknown;
-      gotoComicFrame?: (id: string, duration: number) => void;
-    };
     const cw = wnd as ComicWindow;
     if (cw.comicBookPage) {
       log.debug(
         `[comic] gotoComicFrame("${fragmentId}", ${durationMs}ms)`
       );
+      // The helper shows the full page, not the panel, until narration is active.
+      // Native signals each cue the same way.
+      cw.comicBookPage.onNarrationCue?.();
       cw.gotoComicFrame?.(fragmentId, durationMs);
       return;
     }
@@ -1372,21 +1415,7 @@ class _ReadiumReader {
     );
 
     // --- Comic-book path ---
-    if (!this._isComicBook) {
-      const iframes = navIframeWindows(nav);
-      for (const wnd of iframes) {
-        const isComic = (
-          wnd as Window & { isNotaComicBook?: () => boolean }
-        ).isNotaComicBook;
-        if (typeof isComic === "function" && isComic()) {
-          log.info(`${sourceLabel}: comic-book publication detected; skipping nav.go() for all cues`);
-          this._isComicBook = true;
-          break;
-        }
-      }
-    }
-
-    if (this._isComicBook) {
+    if (this._detectComicBook(nav, sourceLabel)) {
       const iframes = navIframeWindows(nav);
 
       const targetWnd = iframes.find((w) => {
@@ -1445,7 +1474,9 @@ class _ReadiumReader {
 
     // --- Normal (non-comic) path ---
     const applyUtteranceDecoration = () => {
+      // nav.go() may have just loaded the first comic chapter, or a later cue found one.
       if (!this._decorations.utteranceStyle || !this._nav) return;
+      if (this._detectComicBook(this._nav, sourceLabel)) return;
       try {
         const decoration = [
           {
