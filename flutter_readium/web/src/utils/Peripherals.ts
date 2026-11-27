@@ -7,6 +7,19 @@ export interface PCallbacks {
   goProgression: (shiftKey?: boolean) => void;
 }
 
+/**
+ * True when the key event comes from a form field or contenteditable element, where arrow keys,
+ * Space and Enter belong to the user's typing. Uses the event's target (the focused element) and
+ * walks into shadow roots, because `document.activeElement` stops at the shadow host.
+ */
+export function isEditableTarget(e: KeyboardEvent): boolean {
+  const target = (e.composedPath?.()[0] ?? e.target) as HTMLElement | null;
+  if (!target || typeof target.tagName !== 'string') return false;
+  if (target.isContentEditable) return true;
+  const tag = target.tagName.toLowerCase();
+  return tag === 'input' || tag === 'textarea' || tag === 'select';
+}
+
 export default class Peripherals {
   private readonly observers = ['keyup', 'keydown'];
   private targets: EventTarget[] = [];
@@ -45,12 +58,13 @@ export default class Peripherals {
   }
 
   onkeyup(e: KeyboardEvent) {
+    if (isEditableTarget(e)) return;
     if (e.code === 'Space') this.callbacks.goProgression(e.shiftKey);
     if (e.code === 'Enter') this.callbacks.menu(true);
   }
 
   onkeydown(e: KeyboardEvent) {
-    // TODO: look into focus check so that we don't handle keys when the user is typing in an input field or textarea.
+    if (isEditableTarget(e)) return;
     switch (e.code) {
       case 'ArrowRight':
         this.callbacks.moveTo('right');

@@ -31,6 +31,10 @@ This directory holds implementation plans, parity audits, and retained reference
 - **[todo/highlight-modes.md](todo/highlight-modes.md)** — `highlight`, `underline` and `spotlight`
 	decoration styles exist; the `ruler` style does not. *(Feature / M)*
 
+## Triage
+
+- **[todo-triage-2026-11.md](todo-triage-2026-11.md)** — classification of every TODO/FIXME marker, with proposed GitHub issues.
+
 ## Upstream plans (`upstream/`)
 
 - **[upstream/upstream-audio-error-surfacing-plan.md](upstream/upstream-audio-error-surfacing-plan.md)** —
