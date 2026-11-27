@@ -75,6 +75,7 @@ class FlutterReadiumTools {
     const cssSelector = this.#findCssSelector();
     const tocId = this.#findTocId(cssSelector);
     const { currentPage, totalPages } = this.#findResourcePagination();
+    const progressionEnd = this.#findProgressionEnd();
 
     return {
       physicalPage,
@@ -82,7 +83,24 @@ class FlutterReadiumTools {
       tocId,
       currentPage,
       totalPages,
+      progressionEnd,
     };
+  }
+
+  /**
+   * Progression within the resource at the viewport's trailing edge, using the same formula as the ts-toolkit snappers.
+   * Only one axis overflows (vertical when scrolling, horizontal in columns), and the other axis yields 1, so the minimum
+   * picks the scrolling axis without having to detect the layout. `abs` covers RTL, where `scrollLeft` is negative.
+   */
+  #findProgressionEnd(): number | null {
+    const el = document.scrollingElement ?? document.documentElement;
+    if (el.scrollHeight <= 0 || el.scrollWidth <= 0) {
+      return null;
+    }
+
+    const vertical = (Math.ceil(el.scrollTop) + el.clientHeight) / el.scrollHeight;
+    const horizontal = (Math.ceil(Math.abs(el.scrollLeft)) + el.clientWidth) / el.scrollWidth;
+    return Math.max(0, Math.min(1, vertical, horizontal));
   }
 
   /**

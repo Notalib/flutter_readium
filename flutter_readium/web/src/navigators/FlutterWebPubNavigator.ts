@@ -20,7 +20,7 @@ import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { injectDecorationOverrides } from "../decorations/decorationFrameUtils";
 import { createLogger } from "../utils/ReadiumPluginLogger";
 import { FontFamilyDeclaration, injectFontFacesIntoWindow } from "../fonts/FontFamilyDeclarations";
-import { enrichWithTotalProgression } from "./locatorEnrich";
+import { enrichWithTotalProgression, enrichWithProgressionEnd } from "./locatorEnrich";
 import {
   scrollVisibleIframes,
   handleExternalLocator,
@@ -102,7 +102,9 @@ export class FlutterWebPubNavigator {
       },
       positionChanged: (_locator: Locator): void => {
         selectionHooks?.onViewChanged();
-        emitTextLocatorDebounced(enrichWithTotalProgression(_locator, totalPositions));
+        emitTextLocatorDebounced(
+          enrichWithProgressionEnd(enrichWithTotalProgression(_locator, totalPositions), nav.viewport)
+        );
       },
       tap: function (_e: FrameClickEvent): boolean {
         log.debug("tap event");

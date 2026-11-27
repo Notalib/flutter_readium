@@ -10,6 +10,10 @@ extension LocationExtension on Locations {
 
   String? get tocHref => this['tocHref'] as String?;
 
+  /// Progression within the resource at the viewport's trailing edge (bottom in scroll mode), between 0 and 1.
+  /// Reaches 1 when the end of the resource is visible, which [Locations.progression] (the leading edge) cannot show.
+  double? get progressionEnd => (this['progressionEnd'] as num?)?.toDouble();
+
   Locations copyWithTimeFragment(final TimeFragment? fragment) {
     final newFragments = [
       ...fragments.where((final e) => TimeFragment.fromFragment(e) == null),

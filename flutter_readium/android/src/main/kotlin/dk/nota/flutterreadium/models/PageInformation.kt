@@ -36,6 +36,10 @@ class PageInformation(
      * Current ToC id.
      */
     val tocId: String?,
+    /**
+     * Progression within the current resource at the viewport's trailing edge (bottom in scroll mode).
+     */
+    val progressionEnd: Double?,
 ) {
     val otherLocations: Map<String, Any>
         get() {
@@ -51,6 +55,10 @@ class PageInformation(
 
             letIfBothNotNull(tocId, href)?.let { (tocId, href) ->
                 res["tocHref"] = "$href#$tocId"
+            }
+
+            progressionEnd?.let {
+                res["progressionEnd"] = it
             }
 
             return res
@@ -76,12 +84,14 @@ class PageInformation(
             val physicalPage = json.optNullableString("physicalPage").takeIfNotEmpty()
             val cssSelector = json.optNullableString("cssSelector").takeIfNotEmpty()
             val tocId = json.optNullableString("tocId").takeIfNotEmpty()
+            val progressionEnd = json.optDouble("progressionEnd").takeUnless { it.isNaN() }
 
             return PageInformation(
                 physicalPage,
                 cssSelector,
                 href.cleanHref().toString(),
                 tocId,
+                progressionEnd,
             )
         }
     }

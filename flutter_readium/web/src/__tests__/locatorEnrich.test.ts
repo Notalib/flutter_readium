@@ -6,7 +6,7 @@
  */
 
 import { Locator, LocatorLocations } from "@readium/shared";
-import { enrichWithTotalProgression } from "../navigators/locatorEnrich";
+import { enrichWithTotalProgression, enrichWithProgressionEnd } from "../navigators/locatorEnrich";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -144,5 +144,35 @@ describe("enrichWithTotalProgression — normal computation", () => {
     const loc = makeLocator({ position: 1, progression: 0 });
     const result = enrichWithTotalProgression(loc, 1);
     expect(result.locations.totalProgression).toBeCloseTo(0.0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// enrichWithProgressionEnd
+// ---------------------------------------------------------------------------
+
+describe("enrichWithProgressionEnd", () => {
+  const viewportFor = (href: string, start: number, end: number) => ({
+    readingOrder: [href],
+    progressions: new Map([[href, { start, end }]]),
+    positions: null,
+  });
+
+  it("adds the viewport end of the locator's resource to otherLocations", () => {
+    const loc = makeLocator({ href: "chap1.xhtml", position: 1, progression: 0 });
+    const result = enrichWithProgressionEnd(loc, viewportFor("chap1.xhtml", 0, 1));
+    expect(result.locations.otherLocations?.get("progressionEnd")).toBe(1);
+    expect(result.locations.progression).toBe(0);
+  });
+
+  it("serializes progressionEnd as a top-level locations key", () => {
+    const loc = makeLocator({ href: "chap1.xhtml", position: 1, progression: 0.2 });
+    const json = enrichWithProgressionEnd(loc, viewportFor("chap1.xhtml", 0.2, 0.45)).serialize();
+    expect((json.locations as Record<string, unknown>).progressionEnd).toBe(0.45);
+  });
+
+  it("returns the locator unchanged when the viewport has no range for its href", () => {
+    const loc = makeLocator({ href: "chap2.xhtml", position: 2 });
+    expect(enrichWithProgressionEnd(loc, viewportFor("chap1.xhtml", 0, 1))).toBe(loc);
   });
 });
