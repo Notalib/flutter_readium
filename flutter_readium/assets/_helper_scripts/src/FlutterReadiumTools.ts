@@ -6,7 +6,7 @@ import './FlutterReadiumTools.scss';
 
 class FlutterReadiumTools {
   get #isScrollModeEnabled(): boolean {
-    return window.readium?.isReflowable === true && getComputedStyle(document.documentElement).getPropertyValue('--USER__view')?.trim() === 'readium-scroll-on"';
+    return window.readium?.isReflowable === true && getComputedStyle(document.documentElement).getPropertyValue('--USER__view')?.trim() === 'readium-scroll-on';
   }
 
   /**
@@ -89,8 +89,7 @@ class FlutterReadiumTools {
 
   /**
    * Progression within the resource at the viewport's trailing edge, using the same formula as the ts-toolkit snappers.
-   * Only one axis overflows (vertical when scrolling, horizontal in columns), and the other axis yields 1, so the minimum
-   * picks the scrolling axis without having to detect the layout. `abs` covers RTL, where `scrollLeft` is negative.
+   * Scroll mode scrolls vertically (horizontally for vertical writing), columns scroll horizontally. `abs` covers RTL.
    */
   #findProgressionEnd(): number | null {
     const el = document.scrollingElement ?? document.documentElement;
@@ -98,9 +97,11 @@ class FlutterReadiumTools {
       return null;
     }
 
-    const vertical = (Math.ceil(el.scrollTop) + el.clientHeight) / el.scrollHeight;
-    const horizontal = (Math.ceil(Math.abs(el.scrollLeft)) + el.clientWidth) / el.scrollWidth;
-    return Math.max(0, Math.min(1, vertical, horizontal));
+    const verticalWriting = getComputedStyle(document.documentElement).writingMode.startsWith('vertical');
+    const end = this.#isScrollModeEnabled && !verticalWriting
+      ? (Math.ceil(el.scrollTop) + el.clientHeight) / el.scrollHeight
+      : (Math.ceil(Math.abs(el.scrollLeft)) + el.clientWidth) / el.scrollWidth;
+    return Math.max(0, Math.min(1, end));
   }
 
   /**
