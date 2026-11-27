@@ -18,6 +18,7 @@ import {
 import {
   SyncNarrationItem,
   combinedLocatorForItem,
+  findCueStepTarget,
   findItemByAudioTime,
   parseSyncNarration,
   textLocatorForItem,
@@ -729,5 +730,141 @@ describe("Sync playback cue boundaries", () => {
     const item = {...starting, audioStart: null, audioEnd: null};
     expect(lookup([item], 16)).toBeUndefined();
     expect(findItemByAudioTime([item], "track.mp3", 16)).toBe(item);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// findCueStepTarget
+// ---------------------------------------------------------------------------
+
+describe("findCueStepTarget", () => {
+  const cue = (id: string, audioHref: string, start: number | null, end: number | null) =>
+    makeItem({ textHref: "p.xhtml", textId: id, audioHref, audioStart: start, audioEnd: end });
+
+  // a.mp3: c1 [0,5) c2 [5,9) c3 [12,20)   b.mp3: c4 [2,6) c5 [6,10)
+  const c1 = cue("c1", "a.mp3", 0, 5);
+  const c2 = cue("c2", "a.mp3", 5, 9);
+  const c3 = cue("c3", "a.mp3", 12, 20);
+  const c4 = cue("c4", "b.mp3", 2, 6);
+  const c5 = cue("c5", "b.mp3", 6, 10);
+  const items = [c1, c2, c3, c4, c5];
+  const id = (item: SyncNarrationItem | undefined) => item?.textId;
+  const next = (href: string, t: number, sync = true) => id(findCueStepTarget(items, href, t, 1, sync));
+  const prev = (href: string, t: number, sync = true) => id(findCueStepTarget(items, href, t, -1, sync));
+
+  it("next steps to the following cue in the same file", () => {
+    expect(next("a.mp3", 1)).toBe("c2");
+    expect(next("a.mp3", 7)).toBe("c3");
+  });
+
+  it("next crosses into the next audio file", () => {
+    expect(next("a.mp3", 15)).toBe("c4");
+  });
+
+  it("treats a seek landing just before a cue start as that cue", () => {
+    expect(next("a.mp3", 4.95)).toBe("c3");
+    expect(next("a.mp3", 11.95)).toBe("c4");
+  });
+
+  it("next on the last cue is a no-op", () => {
+    expect(next("b.mp3", 7)).toBeUndefined();
+  });
+
+  it("previous restarts the current cue when more than 2 s in", () => {
+    expect(prev("a.mp3", 7.5)).toBe("c2");
+    expect(prev("a.mp3", 7.01)).toBe("c2");
+  });
+
+  it("previous goes to the previous cue within 2 s of the start (inclusive)", () => {
+    expect(prev("a.mp3", 7)).toBe("c1");
+    expect(prev("a.mp3", 5)).toBe("c1");
+  });
+
+  it("previous crosses back into the previous audio file", () => {
+    expect(prev("b.mp3", 2)).toBe("c3");
+  });
+
+  it("previous on the first cue restarts it", () => {
+    expect(prev("a.mp3", 0.5)).toBe("c1");
+    expect(prev("a.mp3", 3)).toBe("c1");
+  });
+
+  it("honours a custom restart threshold", () => {
+    expect(id(findCueStepTarget(items, "a.mp3", 7, -1, true, 1))).toBe("c2");
+  });
+
+  describe("gap between cues", () => {
+    it("treats the earlier cue as current: next goes to the following cue", () => {
+      expect(next("a.mp3", 10)).toBe("c3");
+    });
+
+    it("treats the earlier cue as current: previous restarts it when more than 2 s past its start", () => {
+      expect(prev("a.mp3", 10)).toBe("c2");
+    });
+
+    it("previous goes one further back when the gap is within 2 s of the earlier cue's start", () => {
+      const short = cue("s1", "g.mp3", 0, 1);
+      const after = cue("s2", "g.mp3", 4, 6);
+      expect(id(findCueStepTarget([short, after], "g.mp3", 1.5, -1, true))).toBe("s1");
+      const prior = cue("s0", "g.mp3", 0, 0.5);
+      const shortAt = cue("s1b", "g.mp3", 1, 2);
+      expect(id(findCueStepTarget([prior, shortAt, after], "g.mp3", 2.5, -1, true))).toBe("s0");
+    });
+
+    it("after the last cue of a file, next continues into the next file", () => {
+      expect(next("a.mp3", 25)).toBe("c4");
+    });
+  });
+
+  describe("before the file's first cue", () => {
+    it("next goes to the file's first cue", () => {
+      expect(next("b.mp3", 1)).toBe("c4");
+    });
+
+    it("previous goes to the cue before the file's first cue", () => {
+      expect(prev("b.mp3", 1)).toBe("c3");
+    });
+
+    it("previous at the start of the publication restarts the first cue", () => {
+      const late = [cue("x1", "a.mp3", 3, 6), cue("x2", "a.mp3", 6, 9)];
+      expect(id(findCueStepTarget(late, "a.mp3", 1, -1, true))).toBe("x1");
+    });
+  });
+
+  describe("cue end boundary", () => {
+    // Back-to-back cues sharing a boundary at t=5.
+    it("sync (half-open): exactly audioEnd belongs to the next cue", () => {
+      expect(next("a.mp3", 5, true)).toBe("c3");
+      expect(prev("a.mp3", 5, true)).toBe("c1");
+    });
+
+    // Guided lookup has inclusive ends, but a step from a shared boundary must count the
+    // starting cue as current, which is where a step to that cue lands.
+    it("guided (inclusive): a shared boundary belongs to the starting cue", () => {
+      expect(next("a.mp3", 5, false)).toBe("c3");
+      expect(prev("a.mp3", 5, false)).toBe("c1");
+    });
+
+    it("at the last cue's audioEnd both modes keep it as current", () => {
+      expect(next("b.mp3", 10, true)).toBeUndefined();
+      expect(next("b.mp3", 10, false)).toBeUndefined();
+    });
+  });
+
+  it("skips items without an audioStart", () => {
+    const uncued = cue("u", "a.mp3", null, null);
+    const withUncued = [c1, uncued, c2];
+    expect(id(findCueStepTarget(withUncued, "a.mp3", 1, 1, true))).toBe("c2");
+    expect(id(findCueStepTarget(withUncued, "a.mp3", 6, -1, true))).toBe("c1");
+  });
+
+  it("matches the audio href ignoring a leading slash and query", () => {
+    expect(id(findCueStepTarget(items, "/a.mp3?x=1", 1, 1, true))).toBe("c2");
+  });
+
+  it("returns undefined for an unknown file or no cues", () => {
+    expect(next("zzz.mp3", 1)).toBeUndefined();
+    expect(prev("zzz.mp3", 1)).toBeUndefined();
+    expect(findCueStepTarget([], "a.mp3", 1, 1, true)).toBeUndefined();
   });
 });

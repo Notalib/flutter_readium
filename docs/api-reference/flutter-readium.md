@@ -86,6 +86,8 @@ await reader.next();
 await reader.previous();
 ```
 
+`next()` / `previous()` step one unit: a narration cue in media-overlay publications (sync narration and guided navigation), a TTS utterance, or one seek interval in a plain audiobook (one audio file on web). In media-overlay publications, `previous()` restarts the current cue when more than 2 seconds into it, play state is kept, and a step re-enables narration sync. Use `audioSeekBy` for interval skips.
+
 ## Search
 
 ```dart

@@ -470,3 +470,71 @@ final class GuidedBoundaryInitializationTests: XCTestCase {
     XCTAssertEqual(corrected.first?.itemFromTocHref("s2", inHref: "ch.xhtml")?.audioStart, 10)
   }
 }
+
+final class CueStepTargetTests: XCTestCase {
+
+  // Two resources; the first cue of chap1 starts at 1 s, with a gap between p2 (ends 8) and p3 (starts 9).
+  private let overlays: [FlutterMediaOverlay] = [
+    makeOverlay([
+      makeItem(audio: "chap1.mp3#t=1,5",  text: "chap1.xhtml#p1"),
+      makeItem(audio: "chap1.mp3#t=5,8",  text: "chap1.xhtml#p2"),
+      makeItem(audio: "chap1.mp3#t=9,12", text: "chap1.xhtml#p3"),
+    ]),
+    makeOverlay([
+      makeItem(audio: "chap2.mp3#t=0,8", text: "chap2.xhtml#q1"),
+    ]),
+  ]
+
+  private func target(_ href: String, _ time: Double, forward: Bool) -> String? {
+    overlays.cueStepTarget(audioHref: href, time: time, forward: forward)?.textId
+  }
+
+  func testNextStepsToFollowingCue() {
+    XCTAssertEqual(target("chap1.mp3", 2, forward: true), "p2")
+  }
+
+  func testNextCrossesIntoNextResource() {
+    XCTAssertEqual(target("chap1.mp3", 10, forward: true), "q1")
+  }
+
+  func testSeekLandingJustBeforeCueStartCountsAsThatCue() {
+    XCTAssertEqual(target("chap1.mp3", 4.95, forward: true), "p3")
+  }
+
+  func testNextOnLastCueIsNoOp() {
+    XCTAssertNil(target("chap2.mp3", 3, forward: true))
+  }
+
+  func testNextBeforeFirstCueGoesToFirstCueOfFile() {
+    XCTAssertEqual(target("chap1.mp3", 0.5, forward: true), "p1")
+  }
+
+  func testNextInGapTreatsEarlierCueAsCurrent() {
+    XCTAssertEqual(target("chap1.mp3", 8.5, forward: true), "p3")
+  }
+
+  func testPreviousMoreThanTwoSecondsInRestartsCurrentCue() {
+    XCTAssertEqual(target("chap1.mp3", 7.5, forward: false), "p2")
+  }
+
+  func testPreviousWithinTwoSecondsStepsBack() {
+    XCTAssertEqual(target("chap1.mp3", 6, forward: false), "p1")
+  }
+
+  func testPreviousInGapAfterLongCueRestartsEarlierCue() {
+    XCTAssertEqual(target("chap1.mp3", 8.5, forward: false), "p2")
+  }
+
+  func testPreviousCrossesIntoPreviousResource() {
+    XCTAssertEqual(target("chap2.mp3", 1, forward: false), "p3")
+  }
+
+  func testPreviousOnFirstCueRestartsIt() {
+    XCTAssertEqual(target("chap1.mp3", 1.5, forward: false), "p1")
+  }
+
+  func testPreviousBeforeFirstCueRestartsFirstCue() {
+    XCTAssertEqual(target("chap1.mp3", 0.5, forward: false), "p1")
+  }
+}
+

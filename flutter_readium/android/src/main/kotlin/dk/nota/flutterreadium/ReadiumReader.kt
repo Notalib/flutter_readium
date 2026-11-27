@@ -39,6 +39,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.readium.adapter.pdfium.document.PdfiumDocumentFactory
 import org.readium.navigator.media.tts.android.AndroidTtsEngine
@@ -202,6 +204,8 @@ object ReadiumReader :
         MutableStateFlow(ReadiumTimebasedState.none())
 
     private val currentTextLocator = MutableStateFlow<Locator?>(null)
+
+    private val cueStepMutex = Mutex()
 
     private var defaultHttpHeaders = mutableMapOf<String, String>()
 
@@ -1519,14 +1523,51 @@ object ReadiumReader :
      * Skip backwards.
      */
     suspend fun previous() {
-        timebasedNavigator?.goBackward()
+        if (!stepMediaOverlayCue(forward = false)) seekBackward()
     }
 
     /**
      * Skip forwards.
      */
     suspend fun next() {
+        if (!stepMediaOverlayCue(forward = true)) seekForward()
+    }
+
+    /** Seeks back by the seek interval, also in media-overlay books. For the notification's seek button. */
+    suspend fun seekBackward() {
+        timebasedNavigator?.goBackward()
+    }
+
+    /** Seeks forward by the seek interval, also in media-overlay books. For the notification's seek button. */
+    suspend fun seekForward() {
         timebasedNavigator?.goForward()
+    }
+
+    /**
+     * With media overlays, next/previous step one cue instead of seeking by the seek interval.
+     * A step leaves manual mode, so the view follows the cue the user just chose.
+     *
+     * @return false when the active navigator is not a [SyncAudiobookNavigator], so the caller
+     * falls back to its seek. True when it handled the call, even if there was no cue to step to.
+     */
+    private suspend fun stepMediaOverlayCue(forward: Boolean): Boolean {
+        val navigator = syncAudiobookNavigator ?: return false
+        if (timebasedNavigator !== navigator) return false
+        // Method calls run concurrently, and each step must start from where the previous one landed.
+        cueStepMutex.withLock {
+            val cueLocator = navigator.skipToCue(forward) ?: return true
+            // The navigator's locator flow drops a step back to a position it already reported, which
+            // would leave a just-written goToLocator target in state. Mirror goToLocator instead.
+            currentReadiumTimebasedState.value =
+                currentReadiumTimebasedState.value.copyWith(currentLocator = cueLocator)
+            if (!narrationSyncEnabled) {
+                // Awaited under the lock, so a quick second step cannot be undone by this catch-up.
+                narrationSyncEnabled = true
+                emitNarrationSyncChanged(true)
+                resyncVisualAfterManualMode()
+            }
+        }
+        return true
     }
 
     /**
@@ -2024,22 +2065,20 @@ object ReadiumReader :
         narrationSyncEnabled = enabled
         if (enabled) {
             // Re-sync to the last known audio cue immediately.
-            launch {
-                val epub = epubNavigator
-                if (epub != null) {
-                    epub.resyncAfterManualMode()
-                    return@launch
-                }
-                val comic = comicNavigator
-                if (comic != null) {
-                    // Page-level catch-up: jump to the last audio-cue page immediately.
-                    // Panel-level framing is Phase 2 (no panel pan/zoom API on Android yet —
-                    // see docs/parity/native-divina-sync-handoff.md).
-                    comic.resyncAfterManualMode()
-                    return@launch
-                }
-            }
+            launch { resyncVisualAfterManualMode() }
         }
         emitNarrationSyncChanged(enabled)
+    }
+
+    private suspend fun resyncVisualAfterManualMode() {
+        val epub = epubNavigator
+        if (epub != null) {
+            epub.resyncAfterManualMode()
+            return
+        }
+        // Page-level catch-up: jump to the last audio-cue page immediately.
+        // Panel-level framing is Phase 2 (no panel pan/zoom API on Android yet —
+        // see docs/parity/native-divina-sync-handoff.md).
+        comicNavigator?.resyncAfterManualMode()
     }
 }

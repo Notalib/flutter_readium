@@ -130,7 +130,7 @@ function fakeAudioNav() {
     stop: jest.fn(),
     destroy: jest.fn(),
     play: jest.fn(),
-    go: jest.fn((_l: Locator, _a: boolean, cb?: (ok: boolean) => void) => cb?.(true)),
+    go: jest.fn(async (_l: Locator, _a: boolean, cb?: (ok: boolean) => void) => cb?.(true)),
   };
 }
 

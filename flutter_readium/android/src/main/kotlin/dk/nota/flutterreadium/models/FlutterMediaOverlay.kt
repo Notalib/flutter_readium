@@ -286,3 +286,38 @@ data class FlutterMediaOverlay(
         }
     }
 }
+
+/** Seconds into a cue after which "previous" restarts it instead of stepping back. */
+private const val CUE_RESTART_THRESHOLD_SECONDS = 2.0
+
+/** A seek to a cue start can land a few ms early; without this, the next step would pick the cue just stepped to again. */
+private const val CUE_SEEK_TOLERANCE_SECONDS = 0.1
+
+/**
+ * Picks the cue a next/previous step lands on, over all overlays' cues flattened in order.
+ *
+ * The current cue is the last one in [audioHref] that started at or before [time], so a gap
+ * between two cues belongs to the earlier one. Before the file's first cue there is no current
+ * cue: forward goes to that first cue, backward to the cue before it (or the first cue itself
+ * at the start of the publication). Returns null when there is nothing to step to.
+ */
+fun List<FlutterMediaOverlay?>.cueStepTarget(
+    audioHref: Url,
+    time: Double,
+    forward: Boolean,
+): FlutterMediaOverlayItem? {
+    val cues = filterNotNull().flatMap { it.items }.filter { it.audioStart != null }
+
+    fun FlutterMediaOverlayItem.isInFile() = audioHref.isEquivalent(Url.invoke(audioFile))
+
+    val current = cues.indexOfLast { it.isInFile() && it.audioStart!! <= time + CUE_SEEK_TOLERANCE_SECONDS }
+    if (forward) {
+        return if (current >= 0) cues.getOrNull(current + 1) else cues.firstOrNull { it.isInFile() }
+    }
+    if (current >= 0) {
+        val elapsed = time - cues[current].audioStart!!
+        return if (elapsed > CUE_RESTART_THRESHOLD_SECONDS) cues[current] else cues[maxOf(0, current - 1)]
+    }
+    val upcoming = cues.indexOfFirst { it.isInFile() }
+    return if (upcoming >= 0) cues[maxOf(0, upcoming - 1)] else null
+}

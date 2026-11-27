@@ -358,6 +358,59 @@ export function findItemByAudioTime(
   return undefined;
 }
 
+const CUE_SEEK_TOLERANCE_SECS = 0.1;
+
+/**
+ * Picks the cue that a one-cue step lands on, over the flat publication-wide cue list.
+ *
+ * The "current" cue is the one covering `timeSecs` (same lookup as `findItemByAudioTime`).
+ * In a gap between cues, or after the file's last cue, it is the last cue that started at
+ * or before `timeSecs`. Before the file's first cue there is no current cue.
+ *
+ * - `direction` 1: the cue after the current one (the file's first cue when there is
+ *   no current cue). Returns undefined on the last cue.
+ * - `direction` -1: the current cue when more than `restartThresholdSecs` into it,
+ *   otherwise the cue before it. The first cue restarts itself.
+ *
+ * Items without an `audioStart` are never targets.
+ */
+export function findCueStepTarget(
+  items: SyncNarrationItem[],
+  audioHref: string,
+  timeSecs: number,
+  direction: 1 | -1,
+  useSyncNarrationLookup = false,
+  restartThresholdSecs = 2
+): SyncNarrationItem | undefined {
+  const cues = items.filter((item) => item.audioStart !== null);
+  const normHref = normalizeHref(audioHref);
+  const inFile = (item: SyncNarrationItem) => normalizeHref(item.audioHref) === normHref;
+  // A seek to a cue start can land a few ms early; without this, the next step would
+  // pick the cue just stepped to again.
+  const lookupTime = timeSecs + CUE_SEEK_TOLERANCE_SECS;
+
+  const covering = findItemByAudioTime(cues, audioHref, lookupTime, useSyncNarrationLookup);
+  let current = covering ? cues.indexOf(covering) : -1;
+  if (current < 0) {
+    for (let i = cues.length - 1; i >= 0; i--) {
+      if (inFile(cues[i]) && (cues[i].audioStart as number) <= lookupTime) {
+        current = i;
+        break;
+      }
+    }
+  }
+
+  if (current < 0) {
+    const first = cues.findIndex(inFile);
+    if (first < 0) return undefined;
+    return direction === 1 ? cues[first] : cues[Math.max(first - 1, 0)];
+  }
+
+  if (direction === 1) return cues[current + 1];
+  const intoCue = timeSecs - (cues[current].audioStart as number);
+  return intoCue > restartThresholdSecs ? cues[current] : cues[Math.max(current - 1, 0)];
+}
+
 function _isSyncTimeInRange(item: SyncNarrationItem, time: number): boolean {
   const start = item.audioStart;
   const end = item.audioEnd;

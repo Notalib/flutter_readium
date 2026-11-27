@@ -220,6 +220,11 @@ export class FlutterDivinaNavigator {
   // Comic zoom/pan API (called by ReadiumReader on the concrete type)
   // ---------------------------------------------------------------------------
 
+  /** True while the user's own zoom/pan has suspended audio-driven panning. */
+  get manuallyOverridden(): boolean {
+    return this._manuallyOverridden;
+  }
+
   /**
    * Enable/disable audio-driven panel auto-pan (the `setNarrationSyncEnabled` toggle).
    * Calling with `true` also clears any manual override and immediately re-pans
