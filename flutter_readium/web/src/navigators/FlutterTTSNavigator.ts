@@ -44,8 +44,6 @@ import { ReadiumWebError, ReadiumWebErrorCode } from "../errors/ReadiumWebError"
 
 const log = createLogger("TTS");
 
-/** Minimum ms between onboundary state emissions (throttle). */
-const BOUNDARY_THROTTLE_MS = 100;
 // How long to wait for any event from an utterance (`onstart`/`onerror`) after
 // calling `speak()` before treating the engine as stalled. Measured start
 // latency is 1-500ms on healthy setups, for local and Google network voices
@@ -175,7 +173,6 @@ export class FlutterTTSNavigator {
 
   private _iterator: PublicationContentIterator | null = null;
   private _currentElement: TextElement | null = null;
-  private _lastBoundaryEmitTime = new Map<string, number>();
   private _destroyed = false;
 
   /**
@@ -589,6 +586,7 @@ export class FlutterTTSNavigator {
     const isCurrent = () => !this._destroyed && this._generation === gen;
     let started = false;
     let recovered = false;
+    let wordBoundarySeen = false;
 
     const armWatchdog = () => {
       this._clearPendingTimers();
@@ -693,13 +691,13 @@ export class FlutterTTSNavigator {
     utterance.onboundary = (ev) => {
       if (!isCurrent()) return;
       if (ev.name !== "word" && ev.name !== "sentence") return;
+      // Once the engine reports words, a sentence boundary would only replace
+      // the word highlight with a whole segment until the next word.
+      if (ev.name === "word") wordBoundarySeen = true;
+      else if (wordBoundarySeen) return;
 
-      // Throttled per boundary kind, so a sentence boundary cannot swallow
-      // the word boundary that engines fire right after it.
-      const now = Date.now();
-      if (now - (this._lastBoundaryEmitTime.get(ev.name) ?? 0) < BOUNDARY_THROTTLE_MS) return;
-      this._lastBoundaryEmitTime.set(ev.name, now);
-
+      // Not throttled: at fast rates words arrive under 100 ms apart, and a
+      // dropped word leaves the highlight on the previous one.
       const boundaryLocator =
         ev.name === "word"
           ? wordLocatorForCharIndex(element, ev.charIndex, ev.charLength ?? 0)
@@ -731,7 +729,7 @@ export class FlutterTTSNavigator {
 
   /**
    * True when both locators highlight the same text — i.e. the boundary
-   * segment spans exactly the utterance. Comparing `text.highlight` is enough:
+   * locator spans exactly the utterance. Comparing `text.highlight` is enough:
    * if the spoken text matches, the range decoration would just stack on the
    * utterance decoration over the same span.
    */

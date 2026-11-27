@@ -487,4 +487,35 @@ describe("word boundaries", () => {
 
     expect(ranges.map((r) => r.locator.text.highlight)).toEqual(["Hello"]);
   });
+
+  it("decorates every word, however fast they arrive", () => {
+    const ranges = rangesFor("in a box", undefined, [
+      { name: "word", charIndex: 0, charLength: 2 },
+      { name: "word", charIndex: 3, charLength: 1 },
+      { name: "word", charIndex: 5, charLength: 3 },
+    ]);
+
+    expect(ranges.map((r) => r.locator.text.highlight)).toEqual(["in", "a", "box"]);
+  });
+
+  it("keeps the word highlight when a sentence boundary follows a word", () => {
+    const text = "Hello brave";
+    const locator = new Locator({ href: "chap1.html", type: "text/html", text: new LocatorText({ highlight: text }) });
+    const segment = (t: string) =>
+      new TextSegment(new Locator({ href: "chap1.html", type: "text/html", text: new LocatorText({ highlight: t.trim() }) }), t);
+    const ranges: any[] = [];
+    const nav = makeNavigator({
+      rangeStyle,
+      onApplyDecorations: (group, json) => {
+        if (group === "tts_range") ranges.push(...JSON.parse(json));
+      },
+    });
+    speakElement(nav, new TextElement(locator, Body, [segment("Hello "), segment("brave")]));
+    const utterance = realUtterances()[0];
+    utterance.onstart!();
+    utterance.onboundary!({ name: "word", charIndex: 0, charLength: 5 });
+    utterance.onboundary!({ name: "sentence", charIndex: 6, charLength: 0 });
+
+    expect(ranges.map((r) => r.locator.text.highlight)).toEqual(["Hello"]);
+  });
 });
