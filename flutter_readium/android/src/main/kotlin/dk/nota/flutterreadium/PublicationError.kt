@@ -43,6 +43,11 @@ sealed class PublicationError(
         cause: Error,
     ) : PublicationError(ReadiumExceptionType.UNKNOWN, cause.message, cause.cause)
 
+    /** DRM-protected publication that no ContentProtection could unlock. */
+    class Restricted(
+        cause: Error,
+    ) : PublicationError(ReadiumExceptionType.FORBIDDEN, "Publication is restricted", cause)
+
     class Unavailable(
         message: String = "Resource unavailable",
     ) : PublicationError(ReadiumExceptionType.UNAVAILABLE, message)

@@ -193,6 +193,14 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             await self.closePublication(ifGeneration: nil)
           }
           let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
+          // A DRM-protected publication that no ContentProtection unlocked can't be read, and the
+          // EPUB/PDF navigators throw for it. Reject it here instead of crashing when the reader opens.
+          guard !pub.isRestricted else {
+            let protectionError = pub.protectionError
+            pub.close()
+            throw ReadiumError.publicationIsRestricted(
+              protectionError ?? ReadiumError.forbidden("Publication is restricted"))
+          }
           self.currentPublication = pub
           self.currentPublicationUrlStr = pubUrlStr
           await MainActor.run { self.publicationGeneration += 1 }

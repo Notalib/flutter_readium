@@ -71,9 +71,6 @@ class PdfNavigator :
     override val currentLocator
         get() = pdfNavigator?.currentLocator
 
-    private val navigatorStarted
-        get() = pdfNavigator!!.started
-
     override suspend fun initNavigator() {
         pdfNavigator =
             PdfReaderFragment().apply {
@@ -112,7 +109,7 @@ class PdfNavigator :
         }
         Log.d(TAG, "::go $locator animated:$animated")
         return withMainContext {
-            afterFragmentStarted()
+            afterFragmentStarted(navigator)
             if (!navigator.go(locator, animated)) {
                 Log.w(TAG, "::go - FAILED!")
                 return@withMainContext false
@@ -187,7 +184,7 @@ class PdfNavigator :
             return
         }
         withMainContext {
-            afterFragmentStarted()
+            afterFragmentStarted(fragment)
             fragment.updatePreferences(preferences.toPdfiumPreferences())
         }
     }
@@ -263,9 +260,9 @@ class PdfNavigator :
         state.clear()
     }
 
-    private suspend fun afterFragmentStarted() {
-        if (navigatorStarted.value) return
-        navigatorStarted.first { it }
+    // Takes the fragment the caller already holds: dispose() can null pdfNavigator meanwhile.
+    private suspend fun afterFragmentStarted(fragment: PdfReaderFragment) {
+        fragment.started.first { it }
     }
 
     companion object {

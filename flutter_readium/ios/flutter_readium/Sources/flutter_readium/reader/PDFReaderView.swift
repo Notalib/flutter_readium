@@ -271,9 +271,13 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
     Log.reader.debug("onMethodCall: \(call.method)")
     switch call.method {
     case "go":
-      let args = call.arguments as! [Any?]
-      let locator = try! Locator(legacyJSONString: args[0] as! String, warnings: readiumBugLogger)!
-      let animated = args[1] as? Bool ?? false
+      let args = call.arguments as? [Any?]
+      guard let locatorStr = args?.first as? String,
+            let locator = try? Locator(legacyJSONString: locatorStr, warnings: readiumBugLogger) else {
+        Log.reader.warn("go: failed to parse locator argument; ignoring navigation request")
+        return result(false)
+      }
+      let animated = args?.dropFirst().first as? Bool ?? false
 
       Task.detached(priority: .high) {
         let success = await self.goToLocator(locator, animated: animated)
