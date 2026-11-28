@@ -5,6 +5,76 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 <!-- towncrier release notes start -->
 
+## [0.10.1] - 2026-11-23
+
+### Fixed
+
+- **Android: decorations without a `tint` were dropped.**
+  `applyDecorations` threw while parsing a decoration style with no `tint`, so the decoration never rendered, although `tint` is optional in the Dart model.
+  The tint is now read as optional.
+- **Web: narrated EPUB locators lost the audio time.**
+  The combined media-overlay locator kept only the text fragment and dropped the audio `t=` fragment, so bookmarks in narrated EPUBs saved position 00:00:00. It now carries both, as on iOS.
+
+## [0.10.0] - 2026-11-18
+
+### Added
+
+- **Web now reports taps on decorations through `onDecorationInteraction`.**
+  Taps on decorations applied with `applyDecorations` (highlight, underline and spotlight) fire the callback with the decoration id, group and locator, as on iOS and Android.
+  TTS and media-overlay highlights are not tappable.
+- **Web now shows custom selection actions in a floating toolbar.**
+  `ReadiumReaderWidget.selectionActions` was ignored on web. A toolbar now appears next to the selected text, and tapping a button fires `onSelectionAction`.
+  `allowedDefaultActions` stays unsupported on web, because the browser's own selection menu cannot be customised.
+- **`ReadiumReaderWidget.allowScreenReaderNavigation` exposes e-book text to screen readers.**
+  The content was always hidden from VoiceOver/TalkBack, so braille displays could not show it. Pass `true` to make it reachable; the default `false` keeps today's behaviour. It is read at view creation, so change the widget `key` to apply a new value.
+
+### Changed
+
+- **Audio recovery waits longer and recovers from a loading timeout by default.**
+  `AudioRecoveryPolicy` now defaults to `stallTimeoutSeconds: 30` (was 20), `connectionTimeoutSeconds: 20` (was 10) and `recoverOnResourceLoadingTimeout: true` (was `false`), on iOS, Android and web.
+  A chapter that has not started playing after 30 seconds now rebuilds the player instead of only reporting `loading`. Pass `recoverOnResourceLoadingTimeout: false` to `setAudioRecoveryPolicy` to keep the old behaviour.
+- **Web: updated the Readium ts-toolkit to navigator 2.15.0, which changes how some decorations are drawn.**
+  Underline decorations now sit just below the text line instead of inside it. A decoration moved to another resource of a spread is also removed from the old one.
+- **iOS: Swift Package Manager is now the recommended install path.**
+  Apps on Flutter's default Swift Package Manager setup need no `Podfile` changes, and the example app now builds this way. CocoaPods still works through the podspec, but its trunk becomes read-only in December 2026. See the [installation guide](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/installation.md#cocoapods) for the CocoaPods lines.
+- **iOS: updated swift-toolkit to 3.11.1.**
+  Reflowable EPUBs now use the correct column layout on the unfolded iPhone Duo in landscape (Readium CSS 1.1.2 port). The LCP changes in this release do not apply here, because the plugin does not link ReadiumLCP.
+
+### Fixed
+
+- **Android: highlights and underlines could vanish after a chapter change or after resuming the app.**
+  Clearing decorations on a resource change could run after they were re-applied for the new page, and wiped them until the next page load. The clear is removed, because the toolkit already scopes decorations per resource. ([#256](https://github.com/Notalib/flutter_readium/issues/256))
+- **Android and iOS: `onTextLocatorChanged` could report the previous EPUB position as the latest one after a jump.**
+  Each page change emits only after a JavaScript page-info lookup, and a slow lookup for the old page could finish after the new page had been reported. A `goToLocator` right after opening a book at a saved position could then end with the saved position. Results from a superseded page change are now dropped.
+- **Android: a decoration that keeps its id but moves to another chapter (e.g. the TTS highlight) stayed visible in the old chapter.**
+  The toolkit diffs decorations by id and only updates the new chapter, so the old chapter's highlight was never removed and showed up stale when navigating back. The plugin now clears the group first when an id changes chapter.
+- **Android: closing the reader while the host activity was destroyed threw `IllegalStateException` from the navigator's `dispose()`.**
+  Flutter disposes platform views inside `FragmentManager.dispatchDestroy`, so removing the navigator fragment failed with "FragmentManager is already executing transactions" or "FragmentManager has been destroyed". Dispose now skips the removal when the fragment is already detached or its manager is destroyed, and allows state loss otherwise.
+- **Android: leaving the app while a publication was opening crashed with "Can not perform this action after onSaveInstanceState".**
+  Navigators attach their fragment once the publication has loaded, which can be after the activity has saved its state. The attach now allows state loss and is skipped when the fragment manager is destroyed. The reader widget removes a restored navigator fragment and attaches a new one, so nothing is lost.
+- **Android: panning a zoomed comic page turned the page in minified release builds.**
+  The pan-lock looked up PhotoView classes by name, and R8 renamed them, so the lock silently switched itself off.
+  The plugin now calls PhotoView directly, so the lock works with or without minification and needs no keep rules.
+- **Reopening a book while the previous reader is still closing no longer crashes or leaves the reader unresponsive.**
+  When a new `ReadiumReaderWidget` mounted before the old one was disposed, Android crashed with `Can't change container ID of fragment`, and on Android and iOS `goForward`, preferences and decorations stopped reaching the new reader. The newest reader now owns the navigator, and an older reader's dispose leaves it alone.
+- **Underline decorations on web now draw an underline instead of a filled box.**
+  Underline-style decorations, including the default TTS range style, covered the text with a solid box in the tint colour.
+  They now use Readium's native underline style.
+- **Web highlights created from a selection now land on the selected occurrence.**
+  When the selected text appeared more than once in a chapter, the highlight could attach to the first match.
+  The selection locator now carries the surrounding text, so the right occurrence is found.
+- **Web: reader helpers and custom fonts now load in builds made with `--web-content-hash`.**
+  Flutter 3.50's `flutter build web --web-content-hash` renames every asset file, so the EPUB helper scripts and `ReaderFontFamily` fonts, which were fetched by their unhashed paths, returned 404. Their URLs now come from Flutter's asset manager and work with or without the flag.
+- **iOS: a network read error during audio playback no longer reloads the whole track at once.**
+  The navigator was rebuilt on every retryable read error, which discarded the buffered audio and could leave playback silent in the background while the reload hung. The item is now left in place while it still plays or a stall check is watching it, and is rebuilt only if it fails or does not resume within `stallTimeoutSeconds`.
+- **iOS: audiobook playback no longer stops in the background when the next track loads slowly.**
+  iOS suspended the app a few seconds after a track ended if the next one had not started, which a slow network made likely. The plugin now holds a background task across the gap (about 30 seconds, set by iOS).
+  A stalled player now resumes the same item once it has buffered instead of rebuilding the player, and a read error that arrives while paused no longer starts playback.
+  Lock-screen info and controls are now set up when playback starts through `resume()` as well.
+  The player now also waits and resumes by itself after a buffer underrun, and `resume()` after a playback failure rebuilds the player instead of doing nothing.
+- **iOS: creating the reader widget while no publication was open crashed the app (`EXC_BREAKPOINT` in the platform view factory).**
+  The factory now logs, emits the `error` reader status and shows an empty view. A malformed initial locator for a PDF now opens at the start instead of crashing.
+
 ## [0.9.1] - 2026-11-09
 
 ### Fixed

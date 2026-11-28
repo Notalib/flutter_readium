@@ -121,7 +121,7 @@ class ReadiumReaderWidget(
     override fun dispose() {
         PluginLog.d(TAG, "::dispose")
         navigatorReady.cancel()
-        ReadiumReader.visualClose()
+        ReadiumReader.visualClose(this)
 
         ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Closed)
         hasSentReady = false
@@ -262,6 +262,10 @@ class ReadiumReaderWidget(
     // Mirror those into the text-locator stream once so Flutter can observe progress.
     private var lastVisualLocationKey: String? = null
 
+    // Each page change enriches its locator with a JS round-trip before emitting. A slow
+    // round-trip can finish after a later page change, so only the newest one may emit.
+    private var pageChangeGeneration = 0
+
     override fun onPageChanged(
         pageIndex: Int,
         totalPages: Int,
@@ -280,6 +284,7 @@ class ReadiumReaderWidget(
         }
 
         lastPageLoadedKey = currentKey
+        val generation = ++pageChangeGeneration
 
         launch {
             if (!hasSentReady) {
@@ -288,7 +293,7 @@ class ReadiumReaderWidget(
                 ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Ready)
             }
 
-            emitOnPageChanged(pageIndex, totalPages, locator)
+            emitOnPageChanged(pageIndex, totalPages, locator, generation)
 
             // Re-inject MO column-break CSS for each freshly-loaded spine item.
             if (ReadiumReader.shouldInjectMOColumnBreakCssOnPageChange) {
@@ -356,6 +361,7 @@ class ReadiumReaderWidget(
         pageIndex: Int,
         totalPages: Int,
         locator: Locator,
+        generation: Int,
     ) {
         try {
             // Bounded: the EPUB branch evaluates JS, which a stalled webview can leave pending
@@ -407,6 +413,11 @@ class ReadiumReaderWidget(
                     "::emitOnPageChanged - enrichment timed out after ${LOCATOR_ENRICHMENT_TIMEOUT_MS}ms; " +
                         "emitting un-enriched locator",
                 )
+            }
+
+            if (generation != pageChangeGeneration) {
+                PluginLog.d(TAG, "::emitOnPageChanged - dropped stale ${locator.href}, a newer page change arrived")
+                return
             }
 
             val emittingLocator = enriched ?: locator

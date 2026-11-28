@@ -65,6 +65,19 @@ button).
 Read `attempt` / `maxAttempts` / `httpStatus` / `href` through the typed getters on
 `ReadiumError` rather than reaching into `details` directly.
 
+## Broken tracks
+
+A track that is broken in the publication itself will not load on any retry. When web can prove that, it fails at once without retrying, and `details.reason` names the defect:
+
+| Code | `details.reason` | Evidence |
+|---|---|---|
+| `AudioStreamHTTPError` | `missing` | The server answers 404 or 410 |
+| `AudioStreamHTTPError` | `empty` | The server answers 416 |
+| `AudioStreamError` | `empty` | A HEAD and a ranged GET both report an empty body |
+| `AudioStreamError` | `undecodable` | The browser reports `MEDIA_ERR_DECODE`, and the server answers 2xx with an audio `Content-Type` |
+
+Like iOS and Android, web does not move on to the next track. A failure that might be transient (5xx, a timeout, or a probe that cannot reach the server) never gets a `reason`; it goes through the retry loop. Report a fatal error that has a `reason` as a defect in the publication (for example to Sentry), with `href` and `httpStatus`, not as a connection problem.
+
 ## Configuring recovery
 
 Tune the retry budget, backoff, and stall sensitivity with `AudioRecoveryPolicy`:
@@ -73,28 +86,29 @@ Tune the retry budget, backoff, and stall sensitivity with `AudioRecoveryPolicy`
 await FlutterReadium().setAudioRecoveryPolicy(
   const AudioRecoveryPolicy(
     maxAttempts: 5,          // more attempts on flaky networks
-    stallTimeoutSeconds: 30, // wait longer for initial resource progress
-    recoverOnResourceLoadingTimeout: true, // rebuild after a loading timeout
+    stallTimeoutSeconds: 45, // wait longer for initial resource progress
+    recoverOnResourceLoadingTimeout: false, // only report a loading timeout
   ),
 );
 ```
 
 - Set it **once**, before opening the publication you want it to apply to. Existing
   audio sessions keep the policy captured when their navigator was created.
-- Defaults are `maxAttempts: 3`, `backoffBaseSeconds: 1.0`, `stallTimeoutSeconds: 20.0`,
-  `connectionTimeoutSeconds: 10.0`, and `recoverOnResourceLoadingTimeout: false`.
-  Explicit player errors still recover automatically; a resource-loading timeout reports
-  `loading` without rebuilding unless recovery is enabled. `connectionTimeoutSeconds` is the budget for each phase of a
+- Defaults are `maxAttempts: 3`, `backoffBaseSeconds: 1.0`, `stallTimeoutSeconds: 30.0`,
+  `connectionTimeoutSeconds: 20.0`, and `recoverOnResourceLoadingTimeout: true`.
+  The timeouts are long on purpose: rebuilding the player discards what it has buffered, so
+  it is a last resort for a load that is no longer expected to finish. Explicit player errors
+  and a resource-loading timeout both start recovery. `connectionTimeoutSeconds` is the budget for each phase of a
   recovery attempt: on Android/web it bounds the (asynchronous) navigator rebuild, and
   on all three platforms it separately bounds the post-rebuild window in which playback
   must be observed to advance before the attempt is abandoned.
 - The resource-loading watchdog disarms permanently after playback advances by more than 100 ms.
   Later mid-resource stalls are left to the native player on Android and web. On iOS, where
-  `AVPlayer` does not resume from a stall by itself, the plugin starts the same recovery loop
-  when playback has not moved on after a short grace period; this does not depend on
-  `recoverOnResourceLoadingTimeout`.
-  Set `recoverOnResourceLoadingTimeout` to `true` when a suspected loading timeout should also
-  rebuild the navigator. Explicit player errors recover regardless of this setting.
+  `AVPlayer` does not resume from a stall by itself, the plugin resumes the same item once it
+  has buffered again. It starts the same recovery loop only when playback has not moved on
+  within `stallTimeoutSeconds`; this does not depend on `recoverOnResourceLoadingTimeout`.
+  Set `recoverOnResourceLoadingTimeout` to `false` when a suspected loading timeout should only
+  report `loading`. Explicit player errors recover regardless of this setting.
 - Raise `stallTimeoutSeconds` if legitimate startup or chapter-boundary loading trips the watchdog;
   lower it to report sooner. Field semantics:
   [error-codes.md#audiorecoverypolicy](../api-reference/error-codes.md#audiorecoverypolicy).

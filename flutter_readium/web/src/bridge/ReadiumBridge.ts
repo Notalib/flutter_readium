@@ -24,6 +24,8 @@ export interface ReadiumErrorEventData {
   attempt?: number;
   maxAttempts?: number;
   httpStatus?: number;
+  /** Why a track is broken in the publication (`missing`, `empty`, `undecodable`), when proven. */
+  reason?: string;
 }
 
 export class ReadiumBridge {

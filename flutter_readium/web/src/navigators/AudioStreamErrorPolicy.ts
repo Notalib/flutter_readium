@@ -13,19 +13,30 @@
 
 import { ReadiumErrorEventData } from "../bridge/ReadiumBridge";
 
+/**
+ * Why a track is unplayable when the failure is a defect in the publication, not a connection
+ * problem: the server answered and the track itself is broken. Sent as `data.reason`.
+ */
+export type AudioTrackDefectReason = "missing" | "empty" | "undecodable";
+
 /** What the audio navigator should do about a playback failure. */
 export type AudioStreamErrorAction =
   | { kind: "ignore" }
   | { kind: "retry" }
-  | { kind: "fail"; code: string; httpStatus?: number };
+  | { kind: "fail"; code: string; httpStatus?: number; reason?: AudioTrackDefectReason };
 
 export const AudioStreamErrorAction = {
   ignore: (): AudioStreamErrorAction => ({ kind: "ignore" }),
   retry: (): AudioStreamErrorAction => ({ kind: "retry" }),
-  fail: (code: string, httpStatus?: number): AudioStreamErrorAction => ({
+  fail: (
+    code: string,
+    httpStatus?: number,
+    reason?: AudioTrackDefectReason
+  ): AudioStreamErrorAction => ({
     kind: "fail",
     code,
     ...(httpStatus !== undefined ? { httpStatus } : {}),
+    ...(reason !== undefined ? { reason } : {}),
   }),
 };
 
@@ -60,7 +71,7 @@ export const MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
  * Mapping (browser-only classes available — no HTTP status):
  *   MEDIA_ERR_ABORTED            -> ignore   (e.g. cancelled during teardown/seek)
  *   MEDIA_ERR_NETWORK            -> retry
- *   MEDIA_ERR_DECODE             -> fail(AudioStreamError)
+ *   MEDIA_ERR_DECODE             -> fail(AudioStreamError); the probe adds reason "undecodable"
  *   MEDIA_ERR_SRC_NOT_SUPPORTED  -> fail(AudioStreamNetworkError)
  *   anything else / no code      -> retry (unclassifiable; goes terminal as
  *                                   AudioStreamNetworkError once attempts
@@ -90,7 +101,7 @@ export function classifyAudioStreamError(error: unknown): AudioStreamErrorAction
  *
  * Consumer-configurable via `FlutterReadium().setAudioRecoveryPolicy(...)`
  * (see `flutter_readium_platform_interface`'s `AudioRecoveryPolicy`). Explicit
- * player errors recover by default; loading-timeout recovery is opt-in.
+ * player errors and resource-loading timeouts both recover by default.
  */
 export class AudioRecoveryPolicy {
   constructor(
@@ -99,15 +110,15 @@ export class AudioRecoveryPolicy {
     /**
      * How long a resource-loading attempt may wait for initial playback progress.
      */
-    public readonly stallTimeoutSeconds: number = 20.0,
+    public readonly stallTimeoutSeconds: number = 30.0,
     /**
      * How long, in seconds, a single recovery attempt may spend rebuilding the
      * player / reconnecting before that attempt is abandoned and the loop moves
      * on. Bounds a stalled connect so a dead network can't hang recovery.
      */
-    public readonly connectionTimeoutSeconds: number = 10.0,
+    public readonly connectionTimeoutSeconds: number = 20.0,
     /** Whether a resource-loading timeout starts the recovery loop. */
-    public readonly recoverOnResourceLoadingTimeout: boolean = false
+    public readonly recoverOnResourceLoadingTimeout: boolean = true
   ) {}
 
   delayMillis(forAttempt: number): number {
@@ -125,13 +136,13 @@ export class AudioRecoveryPolicy {
     const backoffBaseSeconds =
       typeof json.backoffBaseSeconds === "number" ? json.backoffBaseSeconds : 1.0;
     const stallTimeoutSeconds =
-      typeof json.stallTimeoutSeconds === "number" ? json.stallTimeoutSeconds : 20.0;
+      typeof json.stallTimeoutSeconds === "number" ? json.stallTimeoutSeconds : 30.0;
     const connectionTimeoutSeconds =
-      typeof json.connectionTimeoutSeconds === "number" ? json.connectionTimeoutSeconds : 10.0;
+      typeof json.connectionTimeoutSeconds === "number" ? json.connectionTimeoutSeconds : 20.0;
     const recoverOnResourceLoadingTimeout =
       typeof json.recoverOnResourceLoadingTimeout === "boolean"
         ? json.recoverOnResourceLoadingTimeout
-        : false;
+        : true;
     return new AudioRecoveryPolicy(
       maxAttempts,
       backoffBaseSeconds,
@@ -245,7 +256,7 @@ export class AudioStreamRecoveryController {
       case "ignore":
         return;
       case "fail":
-        this.enterTerminalFailure(message, action.code, resumeHref, action.httpStatus);
+        this.enterTerminalFailure(message, action.code, resumeHref, action.httpStatus, action.reason);
         return;
       case "retry":
         if (this.recovering) return; // recovery already in progress
@@ -296,7 +307,8 @@ export class AudioStreamRecoveryController {
     message: string,
     code: string,
     href?: string,
-    httpStatus?: number
+    httpStatus?: number,
+    reason?: AudioTrackDefectReason
   ): void {
     if (this.disposed) return;
     if (this.terminallyFailed) return;
@@ -306,7 +318,9 @@ export class AudioStreamRecoveryController {
     this.hooks.emitError(
       message,
       code,
-      href !== undefined || httpStatus !== undefined ? { href, httpStatus } : undefined
+      href !== undefined || httpStatus !== undefined || reason !== undefined
+        ? { href, httpStatus, reason }
+        : undefined
     );
     this.hooks.setPinnedState("failure");
   }

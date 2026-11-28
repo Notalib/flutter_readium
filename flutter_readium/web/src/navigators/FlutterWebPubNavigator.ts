@@ -3,7 +3,7 @@ import {
   ContextMenuEvent,
   FrameClickEvent,
 } from "@readium/navigator-html-injectables";
-import { KeyboardPeripheralEventData } from "@readium/navigator";
+import { KeyboardPeripheralEventData, VisualNavigatorViewport } from "@readium/navigator";
 import {
   WebPubFrameManager,
   WebPubNavigator,
@@ -126,6 +126,7 @@ export class FlutterWebPubNavigator {
         const locator = buildSelectionLocator(nav.currentLocator, selection, frame?.window);
         selectionHooks?.onTextSelected(selection, locator, frame);
       },
+      viewportChanged: function (_viewport: VisualNavigatorViewport): void { },
       timelineItemChanged: function (item: TimelineItem | undefined): void {
         log.debug("timelineItemChanged", item);
       }

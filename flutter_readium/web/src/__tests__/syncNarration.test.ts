@@ -271,6 +271,28 @@ describe("combinedLocatorForItem", () => {
     expect(combined.locations.otherLocations?.get("cssSelector")).toBe("#par001");
   });
 
+  it("keeps the audio t= fragment after the text fragment", () => {
+    const item = makeItem({ textHref: "chap1.html", textId: "par001", audioHref: "chap1.mp3", audioStart: 0, audioEnd: 5 });
+    const audioLoc = new Locator({
+      href: "chap1.mp3",
+      type: "audio/mpeg",
+      locations: new LocatorLocations({ fragments: ["t=2.5"] }),
+    });
+    const combined = combinedLocatorForItem(item, audioLoc);
+    expect(combined.locations.fragments).toEqual(["par001", "t=2.5"]);
+  });
+
+  it("keeps the audio t= fragment when the item has no textId", () => {
+    const item = makeItem({ textHref: "chap1.html", textId: "", audioHref: "chap1.mp3", audioStart: 0, audioEnd: 5 });
+    const audioLoc = new Locator({
+      href: "chap1.mp3",
+      type: "audio/mpeg",
+      locations: new LocatorLocations({ fragments: ["t=2.5"] }),
+    });
+    const combined = combinedLocatorForItem(item, audioLoc);
+    expect(combined.locations.fragments).toEqual(["t=2.5"]);
+  });
+
   it("carries text field from the text locator (item.highlight)", () => {
     const item = makeItem({
       textHref: "chap1.html", textId: "p1", audioHref: "chap1.mp3", audioStart: 0, audioEnd: 5,

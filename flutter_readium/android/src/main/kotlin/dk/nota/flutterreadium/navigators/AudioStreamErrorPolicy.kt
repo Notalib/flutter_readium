@@ -67,7 +67,7 @@ private fun HttpError.classify(): AudioStreamErrorAction =
  *
  * Consumer-configurable via `FlutterReadium().setAudioRecoveryPolicy(...)`
  * (see `flutter_readium_platform_interface`'s `AudioRecoveryPolicy`). Explicit
- * player errors recover by default; loading-timeout recovery is opt-in.
+ * player errors and resource-loading timeouts both recover by default.
  */
 data class AudioRecoveryPolicy(
     val maxAttempts: Int = 3,
@@ -75,15 +75,15 @@ data class AudioRecoveryPolicy(
     /**
      * How long a resource-loading attempt may wait for initial playback progress.
      */
-    val stallTimeoutSeconds: Double = 20.0,
+    val stallTimeoutSeconds: Double = 30.0,
     /**
      * How long, in seconds, a single recovery attempt may spend rebuilding the
      * player / reconnecting before that attempt is abandoned and the loop moves
      * on. Bounds a stalled connect so a dead network can't hang recovery.
      */
-    val connectionTimeoutSeconds: Double = 10.0,
+    val connectionTimeoutSeconds: Double = 20.0,
     /** Whether a resource-loading timeout starts the recovery loop. */
-    val recoverOnResourceLoadingTimeout: Boolean = false,
+    val recoverOnResourceLoadingTimeout: Boolean = true,
 ) {
     fun delayMillis(forAttempt: Int): Long {
         val attempt = maxOf(forAttempt, 1) - 1
@@ -96,9 +96,9 @@ data class AudioRecoveryPolicy(
             if (map == null) return AudioRecoveryPolicy()
             val maxAttempts = (map["maxAttempts"] as? Number)?.toInt() ?: 3
             val backoffBaseSeconds = (map["backoffBaseSeconds"] as? Number)?.toDouble() ?: 1.0
-            val stallTimeoutSeconds = (map["stallTimeoutSeconds"] as? Number)?.toDouble() ?: 20.0
-            val connectionTimeoutSeconds = (map["connectionTimeoutSeconds"] as? Number)?.toDouble() ?: 10.0
-            val recoverOnResourceLoadingTimeout = map["recoverOnResourceLoadingTimeout"] as? Boolean ?: false
+            val stallTimeoutSeconds = (map["stallTimeoutSeconds"] as? Number)?.toDouble() ?: 30.0
+            val connectionTimeoutSeconds = (map["connectionTimeoutSeconds"] as? Number)?.toDouble() ?: 20.0
+            val recoverOnResourceLoadingTimeout = map["recoverOnResourceLoadingTimeout"] as? Boolean ?: true
             return AudioRecoveryPolicy(
                 maxAttempts,
                 backoffBaseSeconds,

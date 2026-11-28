@@ -234,7 +234,9 @@ class Locator extends AdditionalProperties with Equatable implements JSONable {
       href: hrefPath,
       type: MediaType.html.toString(),
       locations: locations?.copyWith(
-        fragments: idFragment == null ? [] : [idFragment],
+        // Typed literal: `copyWith` takes `Object?` and casts to `List<String>`, so a bare
+        // `[]` is a `List<dynamic>` and throws.
+        fragments: idFragment == null ? const <String>[] : [idFragment],
       ),
     );
   }

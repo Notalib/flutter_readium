@@ -140,12 +140,13 @@ void main() {
         bool isWatchdogRetry(ReadiumError error) => isRetry(error) && error.message.contains('Resource loading');
 
         if (defaultTargetPlatform == TargetPlatform.iOS) {
-          // AVPlayer runs without automatic stall waiting, so once the offset stops moving
-          // the plugin's stall handler starts recovery. The fixture never serves the rest of
-          // the track, so that recovery ends in the terminal network error.
+          // AVPlayer runs without automatic stall waiting, so the plugin's stall handler
+          // waits stallTimeout for the item to buffer and then starts recovery. The fixture
+          // never serves the rest of the track, so that recovery ends in the terminal
+          // network error.
           await waitUntil(
             () => errors.any((error) => isRetry(error) && error.message.contains('stalled')),
-            timeout: fixtureAudio + const Duration(seconds: 6),
+            timeout: fixtureAudio + stallTimeout + const Duration(seconds: 6),
             reason: 'The mid-resource stall did not start stall recovery',
           );
           await waitUntil(
@@ -164,13 +165,16 @@ void main() {
     );
 
     testWidgets(
-      'default resource-loading timeout reports loading without retrying',
+      'disabled resource-loading recovery reports loading without retrying',
       skip: kIsWeb,
       (_) async {
         final server = await StallingAudioServer.start();
         addTearDown(server.close);
         await harness.readium.setAudioRecoveryPolicy(
-          const AudioRecoveryPolicy(stallTimeoutSeconds: 1.0),
+          const AudioRecoveryPolicy(
+            stallTimeoutSeconds: 1.0,
+            recoverOnResourceLoadingTimeout: false,
+          ),
         );
         addTearDown(() => harness.readium.setAudioRecoveryPolicy(const AudioRecoveryPolicy()));
 
@@ -200,7 +204,7 @@ void main() {
         await expectConditionHolds(
           () => !errors.any((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
           duration: const Duration(seconds: 2),
-          reason: 'Default resource-loading policy must not retry',
+          reason: 'Disabled resource-loading recovery must not retry',
         );
         expect(server.loadingRequestCount, greaterThanOrEqualTo(1));
       },

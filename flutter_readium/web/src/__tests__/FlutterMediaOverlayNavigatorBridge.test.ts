@@ -54,7 +54,7 @@ it.each([
   ["sync narration", initializeMediaOverlayNavigator],
   ["guided navigation", initializeGuidedNavigationNavigator],
 ])("%s passes the bridge and a locator mapper to create()", async (_label, initialize) => {
-  const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue();
+  const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue(true);
   const bridge = { emitError: jest.fn() } as unknown as ReadiumBridge;
 
   await initialize(publication(), undefined, "{}", () => {}, undefined, bridge);
@@ -70,14 +70,14 @@ it.each([
   ["sync narration", initializeMediaOverlayNavigator, ["t=3"]],
   ["guided navigation", initializeGuidedNavigationNavigator, ["t=0"]],
 ] as const)("%s factory applies its own initial-locator policy", async (_label, initialize, expected) => {
-  const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue();
+  const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue(true);
   const locator = new Locator({href: "chap.xhtml", type: "text/html", locations: new LocatorLocations({fragments: ["t=npt:0:00:03", "section"]})});
   await initialize(publication(), locator, "{}", () => {});
   expect(create.mock.calls[0][1]?.locations.fragments).toEqual(expected);
 });
 
 it("combined bridge locator retains assigned owner and cue selector", async () => {
-  const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue();
+  const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue(true);
   await initializeMediaOverlayNavigator(publication(), undefined, "{}", () => {});
   const mapper = create.mock.calls[0][4]!;
   const audio = new Locator({href: "https://example.test/pub/audio/01.mp3", type: "audio/mpeg", locations: new LocatorLocations({fragments: ["t=2"], progression: .4, totalProgression: .4})});
@@ -99,7 +99,7 @@ it.each([
     cue("one.xhtml", "boundary", 14, 16, "one.xhtml#section"),
     cue("two.xhtml", "heading", 16, 18, "two.xhtml#section"));
   try {
-    const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue();
+    const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue(true);
     const onText = jest.fn();
     const initial = new Locator({href: "two.xhtml", type: "text/html", locations: new LocatorLocations({fragments: ["heading"]})});
     await initialize(publication(), initial, "{}", () => {}, onText);
@@ -118,7 +118,7 @@ it.each([
 
 
 it("anchors an uncued initial locator before creating the audio navigator", async () => {
-  const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue();
+  const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue(true);
   const anchored = new Locator({href: "chap.xhtml", type: "application/xhtml+xml",
     locations: new LocatorLocations({fragments: ["p1"]})});
   const anchor = jest.spyOn(UncuedTocTargets.prototype, "anchor").mockResolvedValue(anchored);
@@ -141,6 +141,7 @@ it("emits the first cue without waiting for its owner and enriches subsequent ev
   });
   const create = jest.spyOn(FlutterAudioNavigator, "create").mockImplementation(async (...args) => {
     args[3]({} as never);
+    return true;
   });
   try {
     await initializeMediaOverlayNavigator(publication(), undefined, "{}", (_nav, installed) => {items = installed;});
@@ -191,7 +192,7 @@ it("guided source with both interfaces prepares owners without enabling Sync Nar
     })!;
     const pub = new ReadiumPublication({manifest} as never);
     jest.spyOn(pub, "get").mockReturnValue({readAsString: async () => "<html/>"} as never);
-    const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue();
+    const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue(true);
     const setNav = jest.fn();
     const initial = new Locator({href: "chap.xhtml", type: "application/xhtml+xml", locations: new LocatorLocations({fragments: ["s2"]})});
     // When: the guided navigator is initialized.
@@ -240,7 +241,7 @@ it("titles synthetic audio links from corrected owners", async () => {
     })!;
     const pub = new ReadiumPublication({manifest} as never);
     jest.spyOn(pub, "get").mockReturnValue({readAsString: async () => "<html/>"} as never);
-    const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue();
+    const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue(true);
     // When: the Sync Narration navigator is initialized.
     await initializeMediaOverlayNavigator(pub, undefined, "{}", () => {});
     // Then: audio/02.mp3 is titled after its corrected owner `s2`, not the stale heading.
@@ -253,7 +254,7 @@ it("titles synthetic audio links from corrected owners", async () => {
 });
 
 it("maps an off-cue tick to the last cue locator so `ended` reaches Dart", async () => {
-  const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue();
+  const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue(true);
   await initializeMediaOverlayNavigator(publication(), undefined, "{}", () => {});
   const mapper = create.mock.calls[0][4]!;
   const audio = (t: string) => new Locator({
@@ -267,4 +268,19 @@ it("maps an off-cue tick to the last cue locator so `ended` reaches Dart", async
   // The state must still carry the cue-mapped text locator, not the raw mp3 href,
   // so Dart closes the player on `ended` instead of leaking an audio locator.
   expect(offCue.stateLocator?.href).toBe("chap.xhtml");
+});
+
+it.each([
+  ["sync narration", initializeMediaOverlayNavigator],
+  ["guided navigation", initializeGuidedNavigationNavigator],
+])("%s routes no initial cue when the session closed before the navigator was installed", async (_label, initialize) => {
+  jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue(true);
+  const onInstalled = jest.fn();
+  await initialize(publication(), undefined, "{}", () => {}, onInstalled);
+  expect(onInstalled).toHaveBeenCalled(); // the cue is routed when installed
+
+  jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue(false);
+  const onClosed = jest.fn();
+  await initialize(publication(), undefined, "{}", () => {}, onClosed);
+  expect(onClosed).not.toHaveBeenCalled();
 });

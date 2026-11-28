@@ -254,7 +254,7 @@ describe("MediaOverlaySession lazy window", () => {
   });
 
   it("falls back to the eager parse when the store finds no segments", async () => {
-    const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue();
+    const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue(true);
     const publication = {
       baseURL: BASE,
       readingOrder: { items: [new Link({ href: "a.xhtml", type: "text/html" })] },

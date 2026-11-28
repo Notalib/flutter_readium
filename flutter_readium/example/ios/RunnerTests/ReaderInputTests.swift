@@ -98,14 +98,15 @@ final class ReaderInputTests: XCTestCase {
     let registrar = try XCTUnwrap(FlutterReadiumPlugin.registrar)
     let previous = FlutterReadiumPlugin.instance
     let plugin = FlutterReadiumPlugin()
-    plugin.currentPublication = inputTestPublication()
+    let publication = inputTestPublication()
+    plugin.currentPublication = publication
     FlutterReadiumPlugin.instance = plugin
     defer { FlutterReadiumPlugin.instance = previous }
     let viewIdentifier = Self.nextViewIdentifier
     Self.nextViewIdentifier += 1
     let reader = EPUBReaderView(
       frame: CGRect(x: 0, y: 0, width: 400, height: 800), viewIdentifier: viewIdentifier,
-      arguments: ["pubIdentifier": "input-test"], registrar: registrar)
+      arguments: ["pubIdentifier": "input-test"], registrar: registrar, publication: publication)
     defer {
       reader.channel.setMethodCallHandler(nil)
       reader.readiumViewController.delegate = nil

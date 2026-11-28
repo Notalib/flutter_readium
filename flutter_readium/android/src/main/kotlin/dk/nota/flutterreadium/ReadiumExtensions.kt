@@ -103,7 +103,8 @@ fun decorationFromJson(jsonString: String): Decoration? =
             decorationStyleFromMap(
                 mapOf(
                     "style" to styleJson.getString("style"),
-                    "tint" to styleJson.getString("tint"),
+                    // `tint` is optional; getString would throw when it is absent.
+                    "tint" to if (styleJson.isNull("tint")) null else styleJson.getString("tint"),
                     "isActive" to styleJson.optBoolean("isActive", false),
                 ),
             ) ?: throw Exception("Failed to deserialize decoration style")

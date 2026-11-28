@@ -387,8 +387,8 @@ export class MediaOverlaySession implements StreamingTimeline {
           : "Initial text locator could not be mapped to an audio item — starting at beginning"
       );
     }
-    await this._createNavigator(built, audioInitialLocator, false);
-    this._emitInitialCue(audioInitialLocator);
+    const installed = await this._createNavigator(built, audioInitialLocator, false);
+    if (installed) this._emitInitialCue(audioInitialLocator);
   }
 
   /**
@@ -446,7 +446,7 @@ export class MediaOverlaySession implements StreamingTimeline {
     built: BuiltNavigatorParts,
     audioLocator: Locator | undefined,
     resumePlaying: boolean
-  ): Promise<void> {
+  ): Promise<boolean> {
     const mapper: AudioLocatorMapper = (nav, navLocator) => {
       this.playbackWasActive = nav.isPlaying;
       if (this.rebuild && nav !== this.nav) {
@@ -523,7 +523,7 @@ export class MediaOverlaySession implements StreamingTimeline {
       this.nav = undefined;
     }
 
-    await FlutterAudioNavigator.create(
+    const installed = await FlutterAudioNavigator.create(
       built.syntheticPub,
       audioLocator,
       this.prefsJson,
@@ -551,10 +551,11 @@ export class MediaOverlaySession implements StreamingTimeline {
     );
 
     const nav = this.nav;
-    if (nav && wasPlaying) {
+    if (installed && nav && wasPlaying) {
       FlutterAudioNavigator.setPlaybackIntent(true);
       nav.play();
     }
+    return installed;
   }
 
   /** Fire the initial cue callback exactly as the eager path used to. */

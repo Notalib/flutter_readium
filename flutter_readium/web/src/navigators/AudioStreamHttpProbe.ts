@@ -32,7 +32,17 @@ export type ProbeFetch = (
     headers?: Record<string, string>;
     signal?: AbortSignal;
   }
-) => Promise<{ status: number; ok: boolean }>;
+) => Promise<ProbeResponse>;
+
+/**
+ * The parts of a fetch `Response` the probe reads. `Content-Length` and `Content-Type` are
+ * CORS-safelisted.
+ */
+export interface ProbeResponse {
+  status: number;
+  ok: boolean;
+  headers?: { get(name: string): string | null };
+}
 
 export interface ProbeOptions {
   /** Injectable `fetch` — defaults to the global. */
@@ -41,6 +51,11 @@ export interface ProbeOptions {
   isOnline?: () => boolean;
   /** Hard timeout per HTTP attempt (HEAD, then GET fallback), in ms. */
   timeoutMs?: number;
+  /**
+   * The browser reported `MEDIA_ERR_DECODE`. A 2xx answer then ends playback instead of
+   * retrying, and carries reason `undecodable` only when the server labels the track as audio.
+   */
+  decodeError?: boolean;
 }
 
 const DEFAULT_TIMEOUT_MS = 3_000;
@@ -55,7 +70,7 @@ async function fetchWithTimeout(
   url: string,
   init: { method: string; headers?: Record<string, string> },
   timeoutMs: number
-): Promise<{ status: number; ok: boolean } | undefined> {
+): Promise<ProbeResponse | undefined> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -73,14 +88,47 @@ async function fetchWithTimeout(
   }
 }
 
-/** Maps a resolved HTTP status to a classification, or `undefined` if inconclusive (opaque/0). */
-function classifyStatus(httpStatus: number): AudioStreamErrorAction | undefined {
+function isEmptyBody(response: ProbeResponse): boolean {
+  return response.ok && response.headers?.get("Content-Length")?.trim() === "0";
+}
+
+/**
+ * A captive portal or login page answers 2xx with HTML, which the browser also fails to decode,
+ * so only an audio `Content-Type` makes an undecodable track a defect in the publication.
+ * `application/octet-stream` is any binary payload, so it does not count.
+ */
+function isServedAsAudio(response: ProbeResponse): boolean {
+  const type = response.headers?.get("Content-Type")?.split(";")[0].trim().toLowerCase() ?? "";
+  return type.startsWith("audio/");
+}
+
+/**
+ * Maps a resolved HTTP status to a classification, or `undefined` if inconclusive (opaque/0).
+ * Answers that prove the track itself is broken (gone, or served empty) carry a defect `reason`.
+ */
+function classifyStatus(
+  response: ProbeResponse,
+  decodeError: boolean
+): AudioStreamErrorAction | undefined {
+  const httpStatus = response.status;
   if (httpStatus <= 0) return undefined; // opaque response — no real status visible
   if (httpStatus === 401 || httpStatus === 403)
     return AudioStreamErrorAction.fail("AudioStreamAuthError", httpStatus);
+  if (httpStatus === 404 || httpStatus === 410)
+    return AudioStreamErrorAction.fail("AudioStreamHTTPError", httpStatus, "missing");
+  // An empty file has no byte 0, so the browser's ranged GET gets 416.
+  if (httpStatus === 416)
+    return AudioStreamErrorAction.fail("AudioStreamHTTPError", httpStatus, "empty");
+  if (isEmptyBody(response))
+    return AudioStreamErrorAction.fail("AudioStreamError", httpStatus, "empty");
   if (httpStatus >= 400 && httpStatus < 500)
     return AudioStreamErrorAction.fail("AudioStreamHTTPError", httpStatus);
   if (httpStatus >= 500) return AudioStreamErrorAction.retry();
+  if (decodeError) {
+    return isServedAsAudio(response)
+      ? AudioStreamErrorAction.fail("AudioStreamError", httpStatus, "undecodable")
+      : AudioStreamErrorAction.fail("AudioStreamError", httpStatus);
+  }
   return AudioStreamErrorAction.retry(); // 2xx/3xx: resource reachable again
 }
 
@@ -88,9 +136,11 @@ function classifyStatus(httpStatus: number): AudioStreamErrorAction | undefined 
  * Probes `url` (the resolved absolute URL of the failing audio resource) to
  * determine the real HTTP status behind a `MediaError`.
  *
- * Sequence: HEAD first; if that fails outright or returns 405 (method not
- * allowed — some static hosts/proxies reject HEAD), retries once with
- * `GET` + `Range: bytes=0-0` (fetches at most one byte).
+ * Sequence: HEAD first; if that fails outright, returns 405 (method not
+ * allowed — some static hosts/proxies reject HEAD), or reports an empty body,
+ * retries once with `GET` + `Range: bytes=0-0` (fetches at most one byte).
+ * Some servers answer HEAD with `Content-Length: 0` for a real file, so an empty
+ * HEAD alone never fails a track.
  *
  * Returns `undefined` (inconclusive) when neither attempt yields a usable
  * status — callers should fall back to the existing `MediaError`-only
@@ -103,16 +153,17 @@ export async function probeAudioStreamHttpStatus(
   const fetchFn = options.fetch ?? (globalThis as { fetch?: ProbeFetch }).fetch;
   const isOnline = options.isOnline ?? defaultIsOnline;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const decodeError = options.decodeError ?? false;
 
   if (!fetchFn) return undefined; // no fetch available — inconclusive
 
   const head = await fetchWithTimeout(fetchFn, url, { method: "HEAD" }, timeoutMs);
 
-  if (head && head.status !== 405) {
-    return classifyStatus(head.status);
+  if (head && head.status !== 405 && !isEmptyBody(head)) {
+    return classifyStatus(head, decodeError);
   }
 
-  // HEAD threw/timed out, or was rejected with 405 — retry once with a
+  // HEAD threw/timed out, was rejected with 405, or claimed an empty body — retry once with a
   // minimal ranged GET, which most servers accept even when HEAD is blocked.
   const get = await fetchWithTimeout(
     fetchFn,
@@ -122,7 +173,7 @@ export async function probeAudioStreamHttpStatus(
   );
 
   if (get) {
-    return classifyStatus(get.status);
+    return classifyStatus(get, decodeError);
   }
 
   // Both attempts threw/timed out. Distinguish "definitely offline" (retry —

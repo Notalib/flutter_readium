@@ -42,9 +42,9 @@ oversight. Finer-grained distinctions that a client wouldn't branch on different
 | `incorrectCredentials` | `incorrectCredentials` | iOS, Android, web | opening | fatal | Credentials rejected while opening a protected publication |
 | `audioStreamRetry` | `AudioStreamRetry` | iOS, Android, web | audioStream | **informational** | Automatic connection recovery in progress after a transient network error or recoverable resource-loading timeout; playback state pinned to loading |
 | `audioStreamAuthError` | `AudioStreamAuthError` | iOS, Android, web | audioStream | fatal | HTTP 401/403 fetching an audio resource |
-| `audioStreamHttpError` | `AudioStreamHTTPError` | iOS, Android, web | audioStream | fatal | Other non-5xx HTTP error fetching an audio resource |
+| `audioStreamHttpError` | `AudioStreamHTTPError` | iOS, Android, web | audioStream | fatal | Other non-5xx HTTP error fetching an audio resource. Web adds `details.reason` when the status proves the track is broken — see below |
 | `audioStreamNetworkError` | `AudioStreamNetworkError` | iOS, Android, web | audioStream | fatal | Unclassified network-layer failure streaming audio; also the Android recovery-exhausted fallback for every non-HTTP failure shape (ExoPlayer doesn't distinguish range/filesystem causes) |
-| `audioStreamError` | `AudioStreamError` | iOS, web | audioStream | fatal | Unclassified/default terminal audio streaming failure. iOS pairs this with `details.reason: "rangeNotSupported"` (server rejected byte-range streaming) or `"fileSystem"` (local filesystem error); web emits it bare for a `MEDIA_ERR_DECODE`. Not emitted by Android — see above |
+| `audioStreamError` | `AudioStreamError` | iOS, web | audioStream | fatal | Unclassified/default terminal audio streaming failure. iOS pairs this with `details.reason: "rangeNotSupported"` (server rejected byte-range streaming) or `"fileSystem"` (local filesystem error); web emits it for a track it cannot decode or that the server serves empty, with `details.reason`. Not emitted by Android — see above |
 | `ttsUtteranceFailed` | `TTSUtteranceFailed` | iOS, Android | tts | fatal | A single TTS utterance failed to synthesize/play (ambient error-channel event, not a method-channel result) |
 | `voiceNotFound` | `VoiceNotFound` | iOS, web | tts | fatal | `ttsSetVoice` was called with a voice identifier the platform doesn't have. Not emitted by Android — see Per-platform limitations |
 | `ttsError` | `TTSError` | iOS, Android | tts | fatal | Generic TTS synthesis/playback failure not covered by a more specific code |
@@ -69,7 +69,9 @@ adding a new wire code a client would have to branch on identically anyway:
 
 | Code | `reason` values | Platforms |
 |---|---|---|
-| `audioStreamError` | `rangeNotSupported`, `fileSystem` | iOS only (Android doesn't reach this code; web's `AudioStreamError` is decode-only and doesn't set a reason) |
+| `audioStreamError` | `rangeNotSupported`, `fileSystem` | iOS (Android doesn't reach this code) |
+| `audioStreamError` | `undecodable`, `empty` | web: the track is broken in the publication (`MEDIA_ERR_DECODE` on a 2xx answer served as audio, or an empty body confirmed by a ranged GET) |
+| `audioStreamHttpError` | `missing`, `empty` | web: 404/410, or 416 for an empty file. Other 4xx statuses set no reason |
 | `resourceReadError` | `notFound`, `cache` | iOS, Android. Web uses `notFound` and `urlResolution` (no on-disk cache step, so no `cache` reason); its `goTo`-navigation-failure and Media Overlay manifest-deserialization sites use `navigation` and `manifestDeserialization` respectively. Short tokens, but still producer-specific — don't assume every platform sets the same set for a given code |
 
 `reason` is optional and producer-specific; treat it as a hint for logging/telemetry,
@@ -106,8 +108,9 @@ Any unrecognized or non-HTTP transport error on all three platforms (e.g. an Exo
 | `attempt` | int | Current retry attempt number (`audioStreamRetry`) |
 | `maxAttempts` | int | Retry budget (`audioStreamRetry`) |
 | `httpStatus` | int | HTTP status that triggered the error, when known |
+| `reason` | string | Finer cause within the code — see `details.reason` above |
 
-All fields are optional; a producer omits the field entirely when nothing applies. Prefer the typed getters (`error.href`, `error.attempt`, `error.maxAttempts`, `error.httpStatus`) over reading `details` directly. A `null` `details` means no structured payload was sent.
+All fields are optional; a producer omits the field entirely when nothing applies. Prefer the typed getters (`error.href`, `error.attempt`, `error.maxAttempts`, `error.httpStatus`, `error.reason`) over reading `details` directly. A `null` `details` means no structured payload was sent.
 
 `ReadiumError.fromJson` tolerates a stale native side still sending `data` as a freeform string (pre-R2 wire format) by wrapping it as `{"message": <string>}` — it never throws on a legacy payload.
 
@@ -125,10 +128,10 @@ await FlutterReadium().setAudioRecoveryPolicy(
 |---|---|---|
 | `maxAttempts` | `3` | Automatic recovery attempts before entering a terminal failure state |
 | `backoffBaseSeconds` | `1.0` | Base delay between attempts (`backoffBaseSeconds * 2^(attempt-1)`, i.e. 1s/2s/4s with the default) |
-| `stallTimeoutSeconds` | `20.0` | How long play/resume or a new reading-order resource may wait for its first forward playback advance before reporting `loading` |
-| `connectionTimeoutSeconds` | `10.0` | Budget for each phase of a single recovery attempt: on Android/web (where rebuilding the player is asynchronous) it bounds the navigator rebuild itself, and on all three platforms it separately bounds the post-rebuild window in which playback must be observed to advance before the attempt is abandoned and the loop moves on (next attempt, or terminal) |
-| `recoverOnResourceLoadingTimeout` | `false` | Whether a resource-loading timeout also starts automatic recovery. When `false`, it only logs and emits `loading`; explicit player errors still recover automatically |
+| `stallTimeoutSeconds` | `30.0` | How long play/resume or a new reading-order resource may wait for its first forward playback advance before reporting `loading` |
+| `connectionTimeoutSeconds` | `20.0` | Budget for each phase of a single recovery attempt: on Android/web (where rebuilding the player is asynchronous) it bounds the navigator rebuild itself, and on all three platforms it separately bounds the post-rebuild window in which playback must be observed to advance before the attempt is abandoned and the loop moves on (next attempt, or terminal) |
+| `recoverOnResourceLoadingTimeout` | `true` | Whether a resource-loading timeout also starts automatic recovery. When `false`, it only logs and emits `loading`; explicit player errors still recover automatically |
 
-Set it before opening the publication. It applies to audio navigators created afterwards; existing sessions keep their captured policy. Explicit player errors recover automatically by default; resource-loading timeouts require an explicit recovery opt-in.
+Set it before opening the publication. It applies to audio navigators created afterwards; existing sessions keep their captured policy. Explicit player errors and resource-loading timeouts both recover automatically by default; set `recoverOnResourceLoadingTimeout: false` to only report a loading timeout.
 
-**Resource-loading watchdog**: play/resume and each requested reading-order resource start one deadline. The first forward advance greater than 100 ms permanently disarms that resource attempt; a later mid-resource stall cannot trigger watchdog recovery. On iOS such a stall is handled separately: an `AVPlayerItemPlaybackStalled` that playback does not recover from within a short grace period starts the recovery loop regardless of this setting. Pausing, ending, interruption/suppression, recovery, failure, and disposal cancel observation. A timeout logs once and emits `loading` once. With `recoverOnResourceLoadingTimeout: true`, it also enters the existing recovery loop and emits `AudioStreamRetry` only when recovery starts. The browser's native `stalled` event remains an immediate loading-state signal only.
+**Resource-loading watchdog**: play/resume and each requested reading-order resource start one deadline. The first forward advance greater than 100 ms permanently disarms that resource attempt; a later mid-resource stall cannot trigger watchdog recovery. On iOS such a stall is handled separately: after an `AVPlayerItemPlaybackStalled` the plugin resumes the same item once it has buffered again, and starts the recovery loop regardless of this setting only when playback has not moved within `stallTimeoutSeconds`. Pausing, ending, interruption/suppression, recovery, failure, and disposal cancel observation. A timeout logs once and emits `loading` once. With `recoverOnResourceLoadingTimeout: true`, it also enters the existing recovery loop and emits `AudioStreamRetry` only when recovery starts. The browser's native `stalled` event remains an immediate loading-state signal only.

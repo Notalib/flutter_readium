@@ -1,3 +1,4 @@
+import AVFoundation
 import XCTest
 import ReadiumNavigator
 import ReadiumShared
@@ -214,15 +215,76 @@ final class AudioRecoveryPolicyTests: XCTestCase {
   func testExponentialBackoffDelays() {
     let policy = AudioRecoveryPolicy()
     XCTAssertEqual(policy.maxAttempts, 3)
-    XCTAssertFalse(policy.recoverOnResourceLoadingTimeout)
+    XCTAssertTrue(policy.recoverOnResourceLoadingTimeout)
     XCTAssertEqual(policy.delay(forAttempt: 1), 1.0)
     XCTAssertEqual(policy.delay(forAttempt: 2), 2.0)
     XCTAssertEqual(policy.delay(forAttempt: 3), 4.0)
   }
 
-  func testLoadingTimeoutRecoveryOptInParsesAndInvalidValueDefaultsFalse() {
-    XCTAssertTrue(AudioRecoveryPolicy.fromMap(["recoverOnResourceLoadingTimeout": true]).recoverOnResourceLoadingTimeout)
-    XCTAssertFalse(AudioRecoveryPolicy.fromMap(["recoverOnResourceLoadingTimeout": "true"]).recoverOnResourceLoadingTimeout)
+  func testLoadingTimeoutRecoveryParsesAndInvalidValueDefaultsTrue() {
+    XCTAssertFalse(AudioRecoveryPolicy.fromMap(["recoverOnResourceLoadingTimeout": false]).recoverOnResourceLoadingTimeout)
+    XCTAssertTrue(AudioRecoveryPolicy.fromMap(["recoverOnResourceLoadingTimeout": "false"]).recoverOnResourceLoadingTimeout)
+  }
+}
+
+final class BackgroundPlaybackGapTests: XCTestCase {
+  func testSameResourceAdvancesAfterHalfASecond() {
+    XCTAssertFalse(playbackAdvancedPastGap(fromResourceIndex: 2, time: 10, toResourceIndex: 2, time: 10.5))
+    XCTAssertTrue(playbackAdvancedPastGap(fromResourceIndex: 2, time: 10, toResourceIndex: 2, time: 10.6))
+  }
+
+  func testNextResourceAdvancesOnceItIsAudible() {
+    XCTAssertFalse(playbackAdvancedPastGap(fromResourceIndex: 2, time: 300, toResourceIndex: 3, time: 0))
+    XCTAssertTrue(playbackAdvancedPastGap(fromResourceIndex: 2, time: 300, toResourceIndex: 3, time: 0.6))
+  }
+}
+
+final class StallCheckTests: XCTestCase {
+  func testPlaybackMovedNeedsPlayingAndProgress() {
+    XCTAssertFalse(playbackMoved(isPlaying: false, resourceChanged: true, time: 20, lastTime: 10))
+    XCTAssertFalse(playbackMoved(isPlaying: true, resourceChanged: false, time: 10.1, lastTime: 10))
+    XCTAssertTrue(playbackMoved(isPlaying: true, resourceChanged: false, time: 10.2, lastTime: 10))
+  }
+
+  func testPlaybackMovedCountsABackwardSeekAndANewResource() {
+    XCTAssertTrue(playbackMoved(isPlaying: true, resourceChanged: false, time: 60, lastTime: 120))
+    XCTAssertTrue(playbackMoved(isPlaying: true, resourceChanged: true, time: 0, lastTime: 0))
+  }
+
+  func testBufferStateMapping() {
+    XCTAssertEqual(stallBufferState(status: .failed, isLikelyToKeepUp: true, isBufferFull: true), .failed)
+    XCTAssertEqual(stallBufferState(status: .unknown, isLikelyToKeepUp: true, isBufferFull: false), .buffering)
+    XCTAssertEqual(stallBufferState(status: .readyToPlay, isLikelyToKeepUp: false, isBufferFull: false), .buffering)
+    XCTAssertEqual(stallBufferState(status: .readyToPlay, isLikelyToKeepUp: true, isBufferFull: false), .ready)
+    XCTAssertEqual(stallBufferState(status: .readyToPlay, isLikelyToKeepUp: false, isBufferFull: true), .ready)
+  }
+
+  func testReadErrorWaitsWhileTheItemIsWatchedOrStillPlaying() {
+    XCTAssertTrue(readErrorCanWaitForStallCheck(stallCheckRunning: true, isPlaying: false, bufferState: .failed))
+    XCTAssertTrue(readErrorCanWaitForStallCheck(stallCheckRunning: false, isPlaying: true, bufferState: .unknown))
+    XCTAssertFalse(readErrorCanWaitForStallCheck(stallCheckRunning: false, isPlaying: true, bufferState: .failed))
+    XCTAssertFalse(readErrorCanWaitForStallCheck(stallCheckRunning: false, isPlaying: false, bufferState: .ready))
+  }
+}
+
+final class ReadiumAVPlayerLookupTests: XCTestCase {
+  // Fails when a toolkit update renames or wraps the private player. The stall check then
+  // resumes blindly; see FlutterAudioNavigator.handlePlaybackStalled.
+  func testFindsThePrivatePlayerOfTheToolkitNavigator() {
+    let navigator = AudioNavigator(publication: Publication(manifest: Manifest(
+      metadata: Metadata(title: "Audiobook"),
+      readingOrder: [Link(href: "track1.mp3", mediaType: .mp3)])))
+    // The player is created lazily; pause() touches it without loading anything.
+    navigator.pause()
+    XCTAssertNotNil(readiumAVPlayer(in: navigator))
+  }
+
+  func testWaitOnStallTurnsOnWaitingForTheToolkitPlayer() {
+    let navigator = AudioNavigator(publication: Publication(manifest: Manifest(
+      metadata: Metadata(title: "Audiobook"),
+      readingOrder: [Link(href: "track1.mp3", mediaType: .mp3)])))
+    waitOnStall(in: navigator)
+    XCTAssertEqual(readiumAVPlayer(in: navigator)?.automaticallyWaitsToMinimizeStalling, true)
   }
 }
 

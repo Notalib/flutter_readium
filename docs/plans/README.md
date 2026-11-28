@@ -20,12 +20,16 @@ This directory holds implementation plans, parity audits, and retained reference
 - **[todo/epub-theme-presets.md](todo/epub-theme-presets.md)** — add a plugin-owned EPUB
 	presets convenience layer (`light` / `dark` / `sepia`) as a QoL feature, rather than as upstream
 	parity. *(Plugin QoL / S-M)*
-- **[todo/divina-panel-zoom-plan.md](todo/divina-panel-zoom-plan.md)** — native DiViNa panel
-	zoom/pan approach exploration. *(Cross-platform parity / M-L)*
 - **[todo/native-comic-panel-pan-handoff.md](todo/native-comic-panel-pan-handoff.md)** — follow-up
-	native comic cue framing work after the shared narration sync API landed. *(Cross-platform parity / M-L)*
+	native comic cue framing work after the shared narration sync API landed; its appendix holds the
+	native DiViNa panel zoom/pan controller design. *(Cross-platform parity / M-L)*
 - **[todo/native-reader-interaction-navigation-plan.md](todo/native-reader-interaction-navigation-plan.md)** —
 	disentangle manual reader interaction from page-navigation/manual-mode signaling. *(Cross-platform parity / M)*
+- **[todo/web-ts-refactor.md](todo/web-ts-refactor.md)** — structural refactor of the web TypeScript.
+	The `web/src/` rename landed; collapsing `ReadiumReader.ts` into a thin facade has not.
+	*(Maintainability / L)*
+- **[todo/highlight-modes.md](todo/highlight-modes.md)** — `highlight`, `underline` and `spotlight`
+	decoration styles exist; the `ruler` style does not. *(Feature / M)*
 
 ## Upstream plans (`upstream/`)
 
@@ -33,6 +37,8 @@ This directory holds implementation plans, parity audits, and retained reference
 	contribute proper `AudioNavigator` failure surfacing to `readium/swift-toolkit`. *(Upstream contribution / M)*
 
 ## Implemented reference plans
+
+- **[readme-demo-gif.md](readme-demo-gif.md)** — reproducible README demo GIF (`bin/generate_readme_demo`).
 
 - **[media-overlay-adr-regressions.md](media-overlay-adr-regressions.md)** — current regression coverage and validation evidence for ADR 0001.
 
@@ -50,7 +56,7 @@ This directory holds implementation plans, parity audits, and retained reference
 - **[comic-manual-zoom-plan.md](comic-manual-zoom-plan.md)** — native comic manual zoom/pan behavior.
 - **[ios-audio-error-recovery-plan.md](ios-audio-error-recovery-plan.md)** — audio streaming failure recovery plan that has since landed locally.
 - **[resource-loading-watchdog.md](resource-loading-watchdog.md)** — one-shot audiobook
-	resource-loading watchdog with opt-in navigator rebuild recovery.
+	resource-loading watchdog with navigator rebuild recovery (on by default since 2026-11-17).
 - **[native-divina-sync-plan.md](native-divina-sync-plan.md)** — implemented shared narration-sync/manual-mode slice; remaining comic framing work was split out.
 - **[android-webpub-head-storm.md](android-webpub-head-storm.md)** — opening a streamed WebPub no longer HEAD-probes every HTML chapter on Android **or** iOS; bare-manifest (resource-asset) EPUB-profile publications use `PerResourcePositionsService`, and Android script/style injection derives its filename from the container URL instead of a `properties()` HEAD. *(Performance)*
 

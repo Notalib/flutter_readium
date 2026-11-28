@@ -6,10 +6,12 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.core.view.ViewCompat
 import androidx.fragment.app.FragmentManager
-import androidx.fragment.app.commitNow
 import androidx.viewpager.widget.ViewPager
+import com.github.chrisbanes.photoview.PhotoView
 import dk.nota.flutterreadium.PluginLog
 import dk.nota.flutterreadium.ReadiumReaderWidget.Companion.NAVIGATOR_FRAGMENT_TAG
+import dk.nota.flutterreadium.addNavigatorFragment
+import dk.nota.flutterreadium.removeFromParentFragmentManager
 import dk.nota.flutterreadium.throttleLatest
 import dk.nota.flutterreadium.withMainContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -21,12 +23,12 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.readium.r2.navigator.image.ImageNavigatorFragment
+import org.readium.r2.navigator.pager.R2ViewPager
 import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.indexOfFirstWithHref
-import java.lang.reflect.Proxy
-import java.util.WeakHashMap
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "ComicNavigator"
@@ -80,10 +82,6 @@ class ComicNavigator :
     private var imageNavigator: ImageNavigatorFragment? = null
     private var pagerInsetsListenerInstalled = false
 
-    // PhotoViews already wired with the zoom-gated pan lock. WeakHashMap so ViewPager-recycled
-    // page views don't pin and we don't reinstall the listener on every inset re-apply.
-    private val panLockConfigured = WeakHashMap<View, Boolean>()
-
     override val currentLocator: StateFlow<Locator?>?
         get() = imageNavigator?.currentLocator
 
@@ -116,9 +114,7 @@ class ComicNavigator :
             // Add by ViewGroup reference, not container id: the plugin's platform-view
             // container has no id resolvable by this FragmentManager, so the id-based add()
             // form fails with "No view found for id". Matches PdfNavigator.attachNavigator.
-            fragmentManager.commitNow {
-                add(viewGroup, navigator, NAVIGATOR_FRAGMENT_TAG)
-            }
+            fragmentManager.addNavigatorFragment(viewGroup, navigator, NAVIGATOR_FRAGMENT_TAG)
             // ImageNavigatorFragment's root (a KeyInterceptorView) is added with default
             // wrap_content layout params, which collapses its match_parent descendants
             // (R2ViewPager / PhotoView) to 0x0 and renders nothing. Force the root to fill
@@ -192,10 +188,11 @@ class ComicNavigator :
         }
     }
 
+    @OptIn(InternalReadiumApi::class)
     private fun clearComicInsets(view: View?) {
         if (view == null) return
 
-        if (view.javaClass.simpleName == "PhotoView") {
+        if (view is PhotoView) {
             configurePhotoViewPanLock(view)
             if (view.paddingTop != 0 ||
                 view.paddingBottom != 0 ||
@@ -207,10 +204,7 @@ class ComicNavigator :
         }
 
         if (view is ViewGroup) {
-            val hasPagerChild =
-                (0 until view.childCount).any { index ->
-                    view.getChildAt(index).javaClass.simpleName == "R2ViewPager"
-                }
+            val hasPagerChild = (0 until view.childCount).any { index -> view.getChildAt(index) is R2ViewPager }
             if (hasPagerChild) {
                 ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets -> insets }
             }
@@ -232,67 +226,15 @@ class ComicNavigator :
      * the pan stays captured. The listener fires inside PhotoView's own drag handling before the
      * edge hand-off is evaluated, so the flag is current for each drag.
      *
-     * PhotoView is a non-transitive (bundled-JAR) dependency of kotlin-toolkit, so there is no
-     * compile-time type for it here — driven reflectively, like [clearComicInsets] above.
-     * Best-effort: any reflection failure (e.g. upstream swaps the image view) is logged and
-     * leaves the default paging behaviour intact.
+     * Safe to call on every inset re-apply: each call replaces the previous listener.
      *
      * TODO(upstream): replace with a real flag once kotlin-toolkit exposes paging/zoom gesture
      *   coordination for ImageNavigatorFragment.
      */
-    private fun configurePhotoViewPanLock(photoView: View) {
-        if (panLockConfigured.containsKey(photoView)) return
-        try {
-            val cls = photoView.javaClass
-            val getScale = cls.getMethod("getScale")
-            val setAllowParentInterceptOnEdge =
-                cls.getMethod("setAllowParentInterceptOnEdge", Boolean::class.javaPrimitiveType)
-            val listenerCls =
-                photoView.javaClass.classLoader
-                    ?.loadClass("com.github.chrisbanes.photoview.OnMatrixChangedListener")
-                    ?: return
-            val setOnMatrixChangeListener = cls.getMethod("setOnMatrixChangeListener", listenerCls)
-
-            val applyGate = {
-                val scale = (getScale.invoke(photoView) as? Float) ?: 1f
-                setAllowParentInterceptOnEdge.invoke(photoView, scale <= PAN_LOCK_FIT_SCALE)
-            }
-
-            val listener =
-                Proxy.newProxyInstance(listenerCls.classLoader, arrayOf(listenerCls)) { proxy, method, args ->
-                    when (method.name) {
-                        "onMatrixChanged" -> {
-                            applyGate()
-                            null
-                        }
-
-                        "equals" -> {
-                            proxy === args?.getOrNull(0)
-                        }
-
-                        "hashCode" -> {
-                            System.identityHashCode(proxy)
-                        }
-
-                        "toString" -> {
-                            "PhotoViewPanLockListener"
-                        }
-
-                        else -> {
-                            null
-                        }
-                    }
-                }
-            setOnMatrixChangeListener.invoke(photoView, listener)
-            applyGate() // Seed initial state (fit → paging enabled).
-            panLockConfigured[photoView] = true
-            PluginLog.d(TAG, "::configurePhotoViewPanLock - installed zoom-gated pan lock")
-        } catch (e: Exception) {
-            PluginLog.w(
-                TAG,
-                "::configurePhotoViewPanLock - failed (${e.message}); leaving default paging behaviour",
-            )
-        }
+    private fun configurePhotoViewPanLock(photoView: PhotoView) {
+        val applyGate = { photoView.setAllowParentInterceptOnEdge(photoView.scale <= PAN_LOCK_FIT_SCALE) }
+        photoView.setOnMatrixChangeListener { applyGate() }
+        applyGate() // Seed initial state (fit → paging enabled).
     }
 
     private fun logViewTree(
@@ -500,7 +442,7 @@ class ComicNavigator :
         super.dispose()
         launch {
             imageNavigator?.let { fragment ->
-                fragment.parentFragmentManager.commitNow { remove(fragment) }
+                fragment.removeFromParentFragmentManager()
             }
             coroutineContext.cancelChildren()
             imageNavigator = null

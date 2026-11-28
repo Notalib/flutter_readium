@@ -128,6 +128,28 @@ void main() {
       expect(updated.href, '/ch.xhtml');
       expect(updated.title, 'Updated');
     });
+
+    test('toTextLocator() without a css id selector clears fragments', () {
+      final locator = Locator(
+        href: '/audio.mp3',
+        type: 'audio/mpeg',
+        locations: Locations(fragments: ['t=12']),
+      );
+
+      final textLocator = locator.toTextLocator();
+
+      expect(textLocator.locations?.fragments, isEmpty);
+    });
+
+    test('toTextLocator() keeps a css id selector as the only fragment', () {
+      final locator = Locator(
+        href: '/ch.xhtml',
+        type: 'application/xhtml+xml',
+        locations: Locations(fragments: ['t=12'], cssSelector: '#p1'),
+      );
+
+      expect(locator.toTextLocator().locations?.fragments, ['p1']);
+    });
   });
 
   group('Publication URI templates', () {
@@ -857,13 +879,13 @@ void main() {
   // AudioRecoveryPolicy
   // ---------------------------------------------------------------------------
   group('AudioRecoveryPolicy', () {
-    test('defaults recover explicit errors without rebuilding on loading timeout', () {
+    test('defaults recover explicit errors and loading timeouts', () {
       const policy = AudioRecoveryPolicy();
       expect(policy.maxAttempts, 3);
       expect(policy.backoffBaseSeconds, 1.0);
-      expect(policy.stallTimeoutSeconds, 20.0);
-      expect(policy.connectionTimeoutSeconds, 10.0);
-      expect(policy.recoverOnResourceLoadingTimeout, isFalse);
+      expect(policy.stallTimeoutSeconds, 30.0);
+      expect(policy.connectionTimeoutSeconds, 20.0);
+      expect(policy.recoverOnResourceLoadingTimeout, isTrue);
     });
 
     test('toJson emits a flat map (not nested/JSON-encoded)', () {
@@ -900,13 +922,13 @@ void main() {
       expect(policy, const AudioRecoveryPolicy());
     });
 
-    test('fromJson defaults missing or invalid loading-timeout recovery to false', () {
-      expect(AudioRecoveryPolicy.fromJson({}).recoverOnResourceLoadingTimeout, isFalse);
+    test('fromJson defaults missing or invalid loading-timeout recovery to true', () {
+      expect(AudioRecoveryPolicy.fromJson({}).recoverOnResourceLoadingTimeout, isTrue);
       expect(
         AudioRecoveryPolicy.fromJson({
-          'recoverOnResourceLoadingTimeout': 'true',
+          'recoverOnResourceLoadingTimeout': 'false',
         }).recoverOnResourceLoadingTimeout,
-        isFalse,
+        isTrue,
       );
     });
 
@@ -916,7 +938,7 @@ void main() {
       expect(updated.maxAttempts, 3);
       expect(updated.backoffBaseSeconds, 1.0);
       expect(updated.stallTimeoutSeconds, 10.0);
-      expect(updated.recoverOnResourceLoadingTimeout, isFalse);
+      expect(updated.recoverOnResourceLoadingTimeout, isTrue);
     });
 
     test('copyWith() with no args preserves all fields', () {
