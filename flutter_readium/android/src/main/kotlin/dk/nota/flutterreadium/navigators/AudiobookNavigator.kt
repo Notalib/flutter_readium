@@ -334,6 +334,17 @@ open class AudiobookNavigator(
     }
 
     /**
+     * Hook consulted instead of surfacing a terminal Ended state. Returns true when the subclass
+     * took over the edge (e.g. a streaming window extension rebuilt the player), so the ended
+     * emission must not reach clients. Base implementation: no takeover.
+     */
+    protected open suspend fun takeOverAtEdge(): Boolean = false
+
+    /** True once [dispose] ran; subclasses must not extend the timeline afterwards. */
+    protected val isNavigatorDisposed: Boolean
+        get() = disposed
+
+    /**
      * Tears down and rebuilds the underlying [AudioNavigator] at [locator]. Required for
      * recovery: upstream never replaces a failed player item for the same resource index
      * (`AudioEngine`/`AudioNavigator` expose no re-prepare API, only `close()`), so the only
@@ -341,7 +352,7 @@ open class AudiobookNavigator(
      *
      * Returns the new navigator, or null if the factory / rebuild step failed.
      */
-    private suspend fun rebuildNavigator(locator: Locator?): AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>? {
+    protected suspend fun rebuildNavigator(locator: Locator?): AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>? {
         if (disposed) return null
         val navigatorFactory =
             buildNavigatorFactory() ?: run {
@@ -786,10 +797,35 @@ open class AudiobookNavigator(
                 // after a terminal failure - only the pinned Loading state (already
                 // emitted by startRecovery) should reach clients.
                 if (isRecovering || isTerminallyFailed) return
+                if (pb.state is AudioNavigator.State.Ended) {
+                    // Streaming media overlays: the playlist only covers the loaded window, so
+                    // "last track" may mean "not fetched yet". Let the window extension take over
+                    // first; emit Ended only when it honestly cannot.
+                    if (!takesOverAtEdge) {
+                        super.onPlaybackStateChanged(pb)
+                        return
+                    }
+                    launch {
+                        if (takeOverAtEdge()) return@launch
+                        // Only the installed player may surface the end: after a window extension
+                        // the torn-down navigator's trailing churn must not emit a false end.
+                        if (audioNavigator?.playback?.value?.state is AudioNavigator.State.Ended) {
+                            emitPlaybackState(pb)
+                        }
+                    }
+                    return
+                }
                 super.onPlaybackStateChanged(pb)
             }
         }
     }
+
+    /** True when a subclass may take over the end of the last known track (streaming media overlays). */
+    protected open val takesOverAtEdge: Boolean
+        get() = false
+
+    /** Emits [pb] through the regular timebased state mapping (usable from a coroutine). */
+    private fun emitPlaybackState(pb: AudioNavigator.Playback) = super.onPlaybackStateChanged(pb)
 
     /**
      * Bounded exponential-backoff recovery loop for a retryable audio streaming failure.
